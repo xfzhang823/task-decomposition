@@ -41,6 +41,24 @@ Effect is derived from `W1` and `W0`: `GAIN`, `NEUTRAL`, or `DEGRADATION`. Canon
 
 Wave 1 deliberately does not implement LLM/provider generation, staged Path B decomposition, persistence, APIs, Bot0 adapters, workflow computation, or compatibility projections.
 
+## Wave 2 staged decomposition
+
+Wave 2 adds a provider-independent staged pipeline:
+
+```text
+operational decomposition
+  -> RETAIN / REMOVE classification
+  -> added human-work classification
+  -> explicit effort/support handoff
+  -> Wave 1 canonical accounting
+```
+
+Stage contracts preserve a host-neutral task reference and stable subtask IDs. Operational subtasks may declare dependencies; validators reject duplicate IDs, missing or extra classifications, unknown references, invalid dependency order, and non-contiguous stage indexes. Added work is separate from baseline RETAIN/REMOVE work and uses only the explicit Wave 1 support bases.
+
+Provider output is untrusted. The standalone validators reject readiness/scoring/meta language and require operational decomposition text to describe concrete activities. `run_staged_pipeline` accepts already-typed stage outputs and an explicit `AbsoluteEffortInput` or `NormalizedAccountingInput`; it does not call a provider or infer missing effort. It then delegates all W0/W1, gross-removal, net-substitution, augmentation, and effect calculations to Wave 1.
+
+Wave 2 does not include prompts, LLM/provider clients, API keys, persistence, review authority, Bot0 adapters, workflow computation, or historical Path B ratio conversion. Those remain later-wave or host responsibilities.
+
 ## Architecture
 
 ```text

@@ -14,6 +14,9 @@ def test_core_imports_are_framework_and_host_neutral():
         "workflow_compute",
         "scenario",
         "transformation_service",
+        "openai",
+        "anthropic",
+        "litellm",
     )
     assert not any(
         any(fragment.lower() in name.lower() for fragment in forbidden_fragments)

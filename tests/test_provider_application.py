@@ -17,6 +17,7 @@ from task_decomposition import (
     EffortUnit,
     RatioBasis,
     SupportWorkInput,
+    SupportWorkInputs,
     TimeBasis,
     decompose,
 )
@@ -24,11 +25,13 @@ from task_decomposition.errors import ProviderOutputError
 
 from test_staged_pipeline import (
     TASK,
+    absolute_amount,
     make_absolute_accounting,
     make_added,
     make_classification,
     make_normalized_accounting,
     make_operational,
+    normalized_amount,
 )
 
 
@@ -71,12 +74,21 @@ class FakeProvider:
 
 
 def request(*, accounting=True):
+    accounting_input = make_absolute_accounting().model_copy(
+        update={
+            "support_work": SupportWorkInputs(
+                governance=absolute_amount(4),
+                operational_support=absolute_amount(8),
+                lifecycle_support=absolute_amount(2),
+            )
+        }
+    )
     return DecompositionRequest(
         task=TASK,
         transformation_intent="Reduce avoidable manual account-update work.",
         context={"domain": "customer_support"},
         request_id="request-1",
-        accounting_input=make_absolute_accounting() if accounting else None,
+        accounting_input=accounting_input if accounting else None,
     )
 
 
@@ -102,10 +114,19 @@ def test_provider_driven_normalized_case_uses_same_staged_semantics():
         classification=make_classification(with_effort=False),
         added=make_added(normalized=True),
     )
+    normalized_accounting = make_normalized_accounting().model_copy(
+        update={
+            "support_work": SupportWorkInputs(
+                governance=normalized_amount("0.04"),
+                operational_support=normalized_amount("0.08"),
+                lifecycle_support=normalized_amount("0.02"),
+            )
+        }
+    )
     result = decompose(
         request(
             accounting=False,
-        ).model_copy(update={"accounting_input": make_normalized_accounting()}),
+        ).model_copy(update={"accounting_input": normalized_accounting}),
         provider,
     )
     assert result.accounting.w1 == Decimal("0.74")
@@ -137,6 +158,11 @@ def test_provider_driven_degradation_remains_unclamped():
             ),
             "gross_removed_work": make_absolute_accounting().gross_removed_work.model_copy(
                 update={"value": 0}
+            ),
+            "support_work": SupportWorkInputs(
+                governance=amount(10),
+                operational_support=amount(10),
+                lifecycle_support=amount(5),
             ),
         }
     )
@@ -208,7 +234,7 @@ def test_provider_failure_is_wrapped_without_vendor_exception_leak():
     assert provider.calls == ["operational"]
 
 
-def test_missing_added_effort_is_explicit_and_not_fabricated():
+def test_explicit_accounting_support_is_not_replaced_by_provider_amounts():
     added = make_added().model_copy(
         update={
             "added_work_rows": tuple(
@@ -218,8 +244,8 @@ def test_missing_added_effort_is_explicit_and_not_fabricated():
         }
     )
     provider = FakeProvider(added=added)
-    with pytest.raises(MissingAccountingInputError):
-        decompose(request(), provider)
+    result = decompose(request(), provider)
+    assert result.accounting.w1 == Decimal("74")
     assert provider.calls == ["operational", "classification", "added"]
 
 

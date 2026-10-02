@@ -82,6 +82,7 @@ def decompose(
         classification,
         added,
         request.accounting_input,
+        support_work_override=request.accounting_input.support_work,
     )
     provider_provenance = (
         operational_response.provenance,

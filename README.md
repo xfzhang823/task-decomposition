@@ -80,6 +80,48 @@ validated staged result + canonical accounting
 
 Provider SDKs, prompts, credentials, retries, tracing, persistence, and Bot0 adapters belong to the host/provider implementation. The standalone core requires no API key or `.env` file. `EffortAllocator` and `BenchmarkProvider` are optional interfaces only; no concrete allocator or benchmark integration is bundled.
 
+## Optional concrete providers
+
+Wave 3B and Wave 3C provide three interchangeable adapters without making any
+vendor SDK a core dependency:
+
+```bash
+uv pip install -e '.[openai]'
+uv pip install -e '.[gemini]'
+uv pip install -e '.[deepseek]'
+# or install the currently supported provider set:
+uv pip install -e '.[providers]'
+```
+
+Configure the corresponding key in the host environment or inject it through
+the provider config: `OPENAI_API_KEY`, `GEMINI_API_KEY`, or
+`DEEPSEEK_API_KEY`. Defaults are centralized per adapter: `gpt-4o-mini`,
+`gemini-2.5-flash`, and `deepseek-chat`. Models and non-secret transport
+settings can be overridden in code.
+
+Minimal usage is available in [`examples/openai_decompose.py`](examples/openai_decompose.py):
+
+```python
+from task_decomposition import DecompositionRequest, decompose
+from task_decomposition.providers.openai import OpenAIDecompositionProvider
+
+result = decompose(request_with_explicit_accounting_input, OpenAIDecompositionProvider())
+```
+
+Replace the provider import and constructor with
+`GeminiDecompositionProvider(GeminiProviderConfig(...))` or
+`DeepSeekDecompositionProvider(DeepSeekProviderConfig(...))` to select another
+provider. All three adapters use the same prompts and stage contracts. Their
+outputs are untrusted and pass through the same validators before Wave 1
+deterministic accounting runs. The request must supply explicit accounting /
+effort input; no provider is allowed to invent authoritative effort or final
+metrics. Bot0 is not required to run the standalone providers.
+
+The core remains usable with fake or custom providers without installing any
+LLM SDK. A future provider only needs to implement the existing
+`DecompositionProvider` protocol; provider-specific transport and schema
+handling belong in its adapter.
+
 ## Architecture
 
 ```text

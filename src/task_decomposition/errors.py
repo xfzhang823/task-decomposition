@@ -83,3 +83,11 @@ class ProviderContractValidationError(ProviderOutputError):
 
 class ProviderSemanticValidationError(ProviderOutputError):
     """Provider payload failed standalone semantic assertions."""
+
+
+class ProviderConfigurationError(ProviderError):
+    """A concrete provider is not configured for execution."""
+
+
+class ProviderAuthenticationError(ProviderError):
+    """A concrete provider rejected authentication."""

@@ -34,6 +34,8 @@ def run_staged_pipeline(
     classification: RetainRemoveClassification | dict,
     added_work: AddedWorkClassification | dict,
     accounting_input: AbsoluteEffortInput | NormalizedAccountingInput,
+    *,
+    support_work_override: SupportWorkInputs | None = None,
 ) -> StagedDecompositionResult:
     """Validate typed stage outputs and delegate all formulas to Wave 1.
 
@@ -45,7 +47,11 @@ def run_staged_pipeline(
         operational, classification, added_work
     )
     _validate_effort_handoff(classification_output, accounting_input)
-    support_inputs = _support_inputs(added_output, accounting_input)
+    support_inputs = (
+        support_work_override
+        if support_work_override is not None
+        else _support_inputs(added_output, accounting_input)
+    )
     try:
         if isinstance(accounting_input, AbsoluteEffortInput):
             accounting = account_absolute(

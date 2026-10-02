@@ -63,3 +63,23 @@ class MissingAccountingInputError(StageValidationError):
 
 class SupportBasisConflictError(StageValidationError):
     """Rows in one support category cannot be combined without a common basis."""
+
+
+class ProviderError(TaskDecompositionError):
+    """Base class for provider-boundary failures exposed by the application."""
+
+
+class ProviderExecutionError(ProviderError):
+    """A provider failed while generating a requested stage."""
+
+
+class ProviderOutputError(ProviderError):
+    """A provider returned an invalid or incorrectly labeled response envelope."""
+
+
+class ProviderContractValidationError(ProviderOutputError):
+    """Provider payload failed structural stage validation."""
+
+
+class ProviderSemanticValidationError(ProviderOutputError):
+    """Provider payload failed standalone semantic assertions."""

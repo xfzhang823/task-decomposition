@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from task_decomposition.contracts.accounting import CanonicalTransformationImpact
 from task_decomposition.contracts.decomposition import TransformationClassification
 from task_decomposition.contracts.effort import EffortQuantity, SupportWorkInput
-from task_decomposition.contracts.provenance import ProvenanceRef
+from task_decomposition.contracts.provenance import ProviderProvenance, ProvenanceRef
 
 
 class TaskReference(BaseModel):
@@ -136,6 +136,7 @@ class StagedDecompositionResult(BaseModel):
     added_work_classification: AddedWorkClassification
     accounting: CanonicalTransformationImpact
     provenance_refs: tuple[ProvenanceRef, ...] = ()
+    provider_provenance: tuple[ProviderProvenance, ...] = ()
 
 
 __all__ = [

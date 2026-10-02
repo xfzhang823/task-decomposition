@@ -59,6 +59,27 @@ Provider output is untrusted. The standalone validators reject readiness/scoring
 
 Wave 2 does not include prompts, LLM/provider clients, API keys, persistence, review authority, Bot0 adapters, workflow computation, or historical Path B ratio conversion. Those remain later-wave or host responsibilities.
 
+## Wave 3 host integration
+
+Hosts implement the provider port outside this package:
+
+```text
+host provider infrastructure
+        │ implements
+        ▼
+DecompositionProvider
+        │
+        ▼
+task_decomposition.decompose(request, provider)
+        │
+        ▼
+validated staged result + canonical accounting
+```
+
+`DecompositionRequest` carries only a host-neutral task reference, transformation intent, string context, optional correlation/provenance references, and an explicit Wave 1 accounting input. The provider returns untrusted stage payloads wrapped with generic provider/stage provenance. The application validates each stage before requesting the next one and never accepts provider-supplied W0, W1, substitution, augmentation, or effect values.
+
+Provider SDKs, prompts, credentials, retries, tracing, persistence, and Bot0 adapters belong to the host/provider implementation. The standalone core requires no API key or `.env` file. `EffortAllocator` and `BenchmarkProvider` are optional interfaces only; no concrete allocator or benchmark integration is bundled.
+
 ## Architecture
 
 ```text

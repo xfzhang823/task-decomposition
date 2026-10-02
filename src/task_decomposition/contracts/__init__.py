@@ -20,6 +20,14 @@ from task_decomposition.contracts.effort import (
     TimeBasis,
 )
 from task_decomposition.contracts.provenance import ProvenanceRef
+from task_decomposition.contracts.provenance import ProviderProvenance, ProviderStage
+from task_decomposition.contracts.provider import (
+    AddedWorkClassificationRequest,
+    DecompositionRequest,
+    OperationalDecompositionRequest,
+    ProviderStageResponse,
+    RetainRemoveClassificationRequest,
+)
 from task_decomposition.contracts.stages import (
     AddedWorkCategory,
     AddedWorkClassification,
@@ -34,6 +42,7 @@ from task_decomposition.contracts.stages import (
 
 __all__ = [
     "AbsoluteEffortInput",
+    "AddedWorkClassificationRequest",
     "AddedWorkCategory",
     "AddedWorkClassification",
     "AddedWorkItem",
@@ -44,13 +53,19 @@ __all__ = [
     "EffortQuantity",
     "EffortUnit",
     "NormalizedAccountingInput",
+    "DecompositionRequest",
     "OperationalDecomposition",
+    "OperationalDecompositionRequest",
     "OperationalSubtask",
     "ProvenanceRef",
+    "ProviderProvenance",
+    "ProviderStage",
+    "ProviderStageResponse",
     "RatioBasis",
     "SupportWorkInput",
     "SupportWorkInputs",
     "RetainRemoveClassification",
+    "RetainRemoveClassificationRequest",
     "StagedDecompositionResult",
     "TaskReference",
     "TimeBasis",

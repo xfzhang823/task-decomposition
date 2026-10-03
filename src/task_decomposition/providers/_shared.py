@@ -7,6 +7,8 @@ from task_decomposition.contracts.provider import (
     AddedWorkClassificationRequest,
     ProviderStageResponse,
     RetainRemoveClassificationRequest,
+    TaskDecompositionRequest,
+    TransformationDecompositionRequest,
 )
 from task_decomposition.contracts.provenance import ProviderProvenance, ProviderStage
 from task_decomposition.errors import (
@@ -20,11 +22,20 @@ def stage_payload(stage_request: Any) -> dict[str, Any]:
     """Serialize the shared host-neutral context for a provider stage."""
 
     request = stage_request.request
-    payload: dict[str, Any] = {
-        "task": request.task.model_dump(mode="json"),
-        "transformation_intent": request.transformation_intent,
-        "context": request.context,
-    }
+    if isinstance(request, TaskDecompositionRequest):
+        context = request.task_context
+        payload: dict[str, Any] = {
+            "task": request.task.model_dump(mode="json"),
+            "task_context": context,
+        }
+    elif isinstance(request, TransformationDecompositionRequest):
+        context = request.transformation_context
+        payload = {
+            "task": request.task_decomposition.operational_decomposition.task.model_dump(
+                mode="json"
+            ),
+            "transformation_context": context,
+        }
     if isinstance(
         stage_request,
         (RetainRemoveClassificationRequest, AddedWorkClassificationRequest),
@@ -37,6 +48,11 @@ def stage_payload(stage_request: Any) -> dict[str, Any]:
             stage_request.retain_remove_classification.model_dump(mode="json")
         )
     return payload
+
+
+def request_metadata(stage_request: Any):
+    request = stage_request.request
+    return request.request_id, request.provenance_refs
 
 
 def stage_text(prompt: str, payload: dict[str, Any]) -> str:
@@ -97,6 +113,7 @@ __all__ = [
     "make_stage_response",
     "parse_model_payload",
     "raise_provider_failure",
+    "request_metadata",
     "stage_payload",
     "stage_text",
 ]

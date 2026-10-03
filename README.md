@@ -70,13 +70,16 @@ host provider infrastructure
 DecompositionProvider
         │
         ▼
-task_decomposition.decompose(request, provider)
+task_decomposition.decompose_task(...)
         │
         ▼
-validated staged result + canonical accounting
+task_decomposition.decompose_transformation(...)
+        │
+        ▼
+validated transformation result + canonical accounting
 ```
 
-`DecompositionRequest` carries only a host-neutral task reference, transformation intent, string context, optional correlation/provenance references, and an explicit Wave 1 accounting input. The provider returns untrusted stage payloads wrapped with generic provider/stage provenance. The application validates each stage before requesting the next one and never accepts provider-supplied W0, W1, substitution, augmentation, or effect values.
+`TaskDecompositionRequest` carries task/process context only. `TransformationDecompositionRequest` consumes the resulting reusable task decomposition and carries transformation context plus explicit Wave 1 accounting input. The provider returns untrusted stage payloads wrapped with generic provider/stage provenance. The application validates each stage before requesting the next one and never accepts provider-supplied W0, W1, substitution, augmentation, or effect values.
 
 Provider SDKs, prompts, credentials, retries, tracing, persistence, and Bot0 adapters belong to the host/provider implementation. The standalone core requires no API key or `.env` file. `EffortAllocator` and `BenchmarkProvider` are optional interfaces only; no concrete allocator or benchmark integration is bundled.
 
@@ -102,10 +105,10 @@ settings can be overridden in code.
 Minimal usage is available in [`examples/openai_decompose.py`](examples/openai_decompose.py):
 
 ```python
-from task_decomposition import DecompositionRequest, decompose
+from task_decomposition import TaskDecompositionRequest, decompose
 from task_decomposition.providers.openai import OpenAIDecompositionProvider
 
-result = decompose(request_with_explicit_accounting_input, OpenAIDecompositionProvider())
+result = decompose(request, OpenAIDecompositionProvider(), transformation_context={"goal": "Automate verification"}, accounting_input=accounting_input)
 ```
 
 Replace the provider import and constructor with

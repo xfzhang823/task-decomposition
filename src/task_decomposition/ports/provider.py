@@ -11,8 +11,8 @@ from task_decomposition.contracts.provider import (
 
 
 @runtime_checkable
-class DecompositionProvider(Protocol):
-    """A provider proposes one untrusted output for each decomposition stage."""
+class TaskDecompositionProvider(Protocol):
+    """Provider capability for proposing an operational baseline."""
 
     provider_id: str
 
@@ -21,6 +21,13 @@ class DecompositionProvider(Protocol):
     ) -> ProviderStageResponse:
         """Propose operational subtasks; no accounting is authoritative."""
         ...
+
+
+@runtime_checkable
+class TransformationDecompositionProvider(Protocol):
+    """Provider capability for classifying an existing operational baseline."""
+
+    provider_id: str
 
     def classify_retain_remove(
         self, request: RetainRemoveClassificationRequest
@@ -35,4 +42,17 @@ class DecompositionProvider(Protocol):
         ...
 
 
-__all__ = ["DecompositionProvider"]
+@runtime_checkable
+class DecompositionProvider(
+    TaskDecompositionProvider, TransformationDecompositionProvider, Protocol
+):
+    """Composite compatibility port implemented by concrete providers."""
+
+    pass
+
+
+__all__ = [
+    "DecompositionProvider",
+    "TaskDecompositionProvider",
+    "TransformationDecompositionProvider",
+]

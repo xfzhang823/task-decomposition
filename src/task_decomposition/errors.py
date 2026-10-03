@@ -61,6 +61,10 @@ class MissingAccountingInputError(StageValidationError):
     """Staged output lacks the explicit effort needed for canonical accounting."""
 
 
+class MissingEffortAllocationError(StageValidationError):
+    """A reusable task baseline lacks a complete effort allocation."""
+
+
 class SupportBasisConflictError(StageValidationError):
     """Rows in one support category cannot be combined without a common basis."""
 

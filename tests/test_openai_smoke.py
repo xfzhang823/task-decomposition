@@ -6,12 +6,12 @@ import pytest
 
 from task_decomposition import (
     AbsoluteEffortInput,
-    DecompositionRequest,
     EffortQuantity,
     EffortUnit,
     RatioBasis,
     SupportWorkInput,
     SupportWorkInputs,
+    TaskDecompositionRequest,
     TaskReference,
     TimeBasis,
     decompose,
@@ -38,14 +38,18 @@ def test_live_openai_three_stage_decomposition():
             time_basis=period,
         )
 
-    request = DecompositionRequest(
+    request = TaskDecompositionRequest(
         task=TaskReference(
             task_id="live-smoke-task",
             task_name="Process a customer address update",
             task_description="Receive a request, verify it, update the record, and notify the customer.",
         ),
-        transformation_intent="Identify which human activities remain or are removed after assistance is introduced.",
-        context={"domain": "customer_support"},
+        task_context={"domain": "customer_support"},
+    )
+    result = decompose(
+        request,
+        OpenAIDecompositionProvider(),
+        transformation_context={"target": "assisted address updates"},
         accounting_input=AbsoluteEffortInput(
             baseline_human_effort=effort(100),
             retained_human_work=effort(60),
@@ -57,6 +61,5 @@ def test_live_openai_three_stage_decomposition():
             ),
         ),
     )
-    result = decompose(request, OpenAIDecompositionProvider())
     assert len(result.provider_provenance) == 3
     assert result.accounting.w0 == 100

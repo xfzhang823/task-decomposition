@@ -27,6 +27,7 @@ from task_decomposition.providers.prompts import (
     OPERATIONAL_DECOMPOSITION_PROMPT,
     RETAIN_REMOVE_PROMPT,
 )
+from task_decomposition.providers._shared import request_metadata, stage_payload
 
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
@@ -59,15 +60,12 @@ class OpenAIDecompositionProvider:
     def generate_operational_decomposition(
         self, request: OperationalDecompositionRequest
     ) -> ProviderStageResponse:
-        payload = {
-            "task": request.request.task.model_dump(mode="json"),
-            "transformation_intent": request.request.transformation_intent,
-            "context": request.request.context,
-        }
+        payload = stage_payload(request)
+        request_id, references = request_metadata(request)
         return self._structured_stage(
             stage=ProviderStage.OPERATIONAL_DECOMPOSITION,
-            request_id=request.request.request_id,
-            references=request.request.provenance_refs,
+            request_id=request_id,
+            references=references,
             prompt=OPERATIONAL_DECOMPOSITION_PROMPT,
             payload=payload,
             schema=OperationalDecomposition,
@@ -76,18 +74,12 @@ class OpenAIDecompositionProvider:
     def classify_retain_remove(
         self, request: RetainRemoveClassificationRequest
     ) -> ProviderStageResponse:
-        payload = {
-            "task": request.request.task.model_dump(mode="json"),
-            "transformation_intent": request.request.transformation_intent,
-            "context": request.request.context,
-            "operational_decomposition": request.operational_decomposition.model_dump(
-                mode="json"
-            ),
-        }
+        payload = stage_payload(request)
+        request_id, references = request_metadata(request)
         return self._structured_stage(
             stage=ProviderStage.RETAIN_REMOVE_CLASSIFICATION,
-            request_id=request.request.request_id,
-            references=request.request.provenance_refs,
+            request_id=request_id,
+            references=references,
             prompt=RETAIN_REMOVE_PROMPT,
             payload=payload,
             schema=RetainRemoveClassification,
@@ -96,21 +88,12 @@ class OpenAIDecompositionProvider:
     def classify_added_work(
         self, request: AddedWorkClassificationRequest
     ) -> ProviderStageResponse:
-        payload = {
-            "task": request.request.task.model_dump(mode="json"),
-            "transformation_intent": request.request.transformation_intent,
-            "context": request.request.context,
-            "operational_decomposition": request.operational_decomposition.model_dump(
-                mode="json"
-            ),
-            "retain_remove_classification": request.retain_remove_classification.model_dump(
-                mode="json"
-            ),
-        }
+        payload = stage_payload(request)
+        request_id, references = request_metadata(request)
         return self._structured_stage(
             stage=ProviderStage.ADDED_WORK_CLASSIFICATION,
-            request_id=request.request.request_id,
-            references=request.request.provenance_refs,
+            request_id=request_id,
+            references=references,
             prompt=ADDED_WORK_PROMPT,
             payload=payload,
             schema=AddedWorkClassification,

@@ -9,12 +9,14 @@ from task_decomposition import (
     ProviderExecutionError,
     ProviderOutputError,
     ProviderStage,
+    TaskDecomposition,
     decompose,
 )
 from task_decomposition.contracts.provider import (
     AddedWorkClassificationRequest,
     OperationalDecompositionRequest,
     RetainRemoveClassificationRequest,
+    TransformationDecompositionRequest,
 )
 from task_decomposition.providers.gemini import (
     DEFAULT_GEMINI_MODEL,
@@ -22,7 +24,7 @@ from task_decomposition.providers.gemini import (
     GeminiProviderConfig,
 )
 
-from test_provider_application import request
+from test_provider_application import account_input, request
 from test_staged_pipeline import make_added, make_classification, make_operational
 
 
@@ -46,16 +48,24 @@ class FakeGeminiClient:
 
 
 def stage_requests():
-    decomposition_request = request()
+    task_request = request()
     operational = make_operational()
     classification = make_classification()
+    transformation_request = TransformationDecompositionRequest(
+        task_decomposition=TaskDecomposition(
+            operational_decomposition=operational,
+        ),
+        transformation_context={"domain": "customer_support"},
+        accounting_input=account_input(),
+        request_id="request-1",
+    )
     return (
-        OperationalDecompositionRequest(request=decomposition_request),
+        OperationalDecompositionRequest(request=task_request),
         RetainRemoveClassificationRequest(
-            request=decomposition_request, operational_decomposition=operational
+            request=transformation_request, operational_decomposition=operational
         ),
         AddedWorkClassificationRequest(
-            request=decomposition_request,
+            request=transformation_request,
             operational_decomposition=operational,
             retain_remove_classification=classification,
         ),
@@ -103,7 +113,12 @@ def test_gemini_implements_port_and_maps_all_stages():
 
 def test_gemini_adapter_runs_validated_application():
     provider_instance, _ = provider()
-    result = decompose(request(), provider_instance)
+    result = decompose(
+        request(),
+        provider_instance,
+        transformation_context={"domain": "customer_support"},
+        accounting_input=account_input(),
+    )
     assert result.accounting.w1 == 74
     assert result.accounting.net_substitution_ratio == Decimal("0.26")
     assert all(item.provider_id == "gemini" for item in result.provider_provenance)

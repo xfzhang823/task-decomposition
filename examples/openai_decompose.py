@@ -2,7 +2,7 @@
 
 from task_decomposition import (
     AbsoluteEffortInput,
-    DecompositionRequest,
+    TaskDecompositionRequest,
     EffortQuantity,
     EffortUnit,
     SupportWorkInput,
@@ -30,26 +30,33 @@ def main() -> None:
             time_basis=period,
         )
 
-    request = DecompositionRequest(
+    request = TaskDecompositionRequest(
         task=TaskReference(
             task_id="example-task",
             task_name="Process a customer account update request",
             task_description="Receive, verify, apply, and communicate a customer account change.",
         ),
-        transformation_intent="Reduce avoidable manual work while retaining required controls.",
-        context={"domain": "customer_support"},
-        accounting_input=AbsoluteEffortInput(
-            baseline_human_effort=effort(100),
-            retained_human_work=effort(60),
-            gross_removed_work=effort(40),
-            support_work=SupportWorkInputs(
-                governance=support(4),
-                operational_support=support(8),
-                lifecycle_support=support(2),
-            ),
+        task_context={"domain": "customer_support"},
+        baseline_effort=None,
+    )
+    accounting_input = AbsoluteEffortInput(
+        baseline_human_effort=effort(100),
+        retained_human_work=effort(60),
+        gross_removed_work=effort(40),
+        support_work=SupportWorkInputs(
+            governance=support(4),
+            operational_support=support(8),
+            lifecycle_support=support(2),
         ),
     )
-    result = decompose(request, OpenAIDecompositionProvider())
+    result = decompose(
+        request,
+        OpenAIDecompositionProvider(),
+        transformation_context={
+            "goal": "Reduce avoidable manual work while retaining required controls."
+        },
+        accounting_input=accounting_input,
+    )
     print(result.accounting.model_dump(mode="json"))
 
 

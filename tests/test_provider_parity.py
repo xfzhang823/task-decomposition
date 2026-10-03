@@ -8,7 +8,7 @@ from task_decomposition.providers.deepseek import DeepSeekDecompositionProvider
 from task_decomposition.providers.gemini import GeminiDecompositionProvider
 from task_decomposition.providers.openai import OpenAIDecompositionProvider
 
-from test_provider_application import request
+from test_provider_application import account_input, request
 from test_staged_pipeline import make_added, make_classification, make_operational
 
 
@@ -73,7 +73,12 @@ class DeepSeekClient:
     ids=["openai", "gemini", "deepseek"],
 )
 def test_equivalent_provider_outputs_have_identical_canonical_accounting(provider):
-    result = decompose(request(), provider())
+    result = decompose(
+        request(),
+        provider(),
+        transformation_context={"domain": "customer_support"},
+        accounting_input=account_input(),
+    )
     accounting = result.accounting
     assert accounting.w0 == Decimal("100")
     assert accounting.w1 == Decimal("74")

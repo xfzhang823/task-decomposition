@@ -11,13 +11,19 @@ from task_decomposition.ports.effort_allocator import (
     EffortAllocationResult,
     EffortAllocator,
 )
-from task_decomposition.ports.provider import DecompositionProvider
+from task_decomposition.ports.provider import (
+    DecompositionProvider,
+    TaskDecompositionProvider,
+    TransformationDecompositionProvider,
+)
 
 __all__ = [
     "BenchmarkProvider",
     "BenchmarkQuery",
     "BenchmarkReference",
     "DecompositionProvider",
+    "TaskDecompositionProvider",
+    "TransformationDecompositionProvider",
     "EffortAllocation",
     "EffortAllocationRequest",
     "EffortAllocationResult",

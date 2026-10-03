@@ -4,7 +4,6 @@ import pytest
 
 from task_decomposition import (
     DecompositionProvider,
-    DecompositionRequest,
     MissingAccountingInputError,
     OperationalDecompositionRequest,
     ProviderContractValidationError,
@@ -14,6 +13,8 @@ from task_decomposition import (
     ProviderStage,
     ProviderStageResponse,
     RetainRemoveClassificationRequest,
+    EffortQuantity,
+    TaskDecompositionRequest,
     EffortUnit,
     RatioBasis,
     SupportWorkInput,
@@ -73,8 +74,25 @@ class FakeProvider:
         return self._response(ProviderStage.ADDED_WORK_CLASSIFICATION, self.added)
 
 
-def request(*, accounting=True):
-    accounting_input = make_absolute_accounting().model_copy(
+def request():
+    return TaskDecompositionRequest(
+        task=TASK,
+        task_context={"domain": "customer_support"},
+        baseline_effort=EffortQuantity(
+            value=100, unit=EffortUnit.EFFORT, time_basis=TimeBasis.PER_OPERATION
+        ),
+        effort_weights={
+            "sub-1": Decimal("0.30"),
+            "sub-2": Decimal("0.40"),
+            "sub-3": Decimal("0.30"),
+        },
+        request_id="request-1",
+    )
+
+
+def account_input():
+    accounting_input = make_absolute_accounting()
+    return accounting_input.model_copy(
         update={
             "support_work": SupportWorkInputs(
                 governance=absolute_amount(4),
@@ -83,18 +101,20 @@ def request(*, accounting=True):
             )
         }
     )
-    return DecompositionRequest(
-        task=TASK,
-        transformation_intent="Reduce avoidable manual account-update work.",
-        context={"domain": "customer_support"},
-        request_id="request-1",
-        accounting_input=accounting_input if accounting else None,
+
+
+def run_decompose(task_request, provider, accounting_input=None):
+    return decompose(
+        task_request,
+        provider,
+        transformation_context={"domain": "customer_support"},
+        accounting_input=accounting_input or account_input(),
     )
 
 
 def test_provider_driven_reference_case_uses_wave1_metrics():
     provider = FakeProvider()
-    result = decompose(request(), provider)
+    result = run_decompose(request(), provider)
 
     assert isinstance(provider, DecompositionProvider)
     assert provider.calls == ["operational", "classification", "added"]
@@ -124,10 +144,10 @@ def test_provider_driven_normalized_case_uses_same_staged_semantics():
         }
     )
     result = decompose(
-        request(
-            accounting=False,
-        ).model_copy(update={"accounting_input": normalized_accounting}),
+        request(),
         provider,
+        transformation_context={"domain": "customer_support"},
+        accounting_input=normalized_accounting,
     )
     assert result.accounting.w1 == Decimal("0.74")
     assert result.accounting.net_substitution_ratio == Decimal("0.26")
@@ -169,8 +189,10 @@ def test_provider_driven_degradation_remains_unclamped():
     provider = FakeProvider(
         classification=make_classification(with_effort=False), added=added
     )
-    result = decompose(
-        request().model_copy(update={"accounting_input": accounting}), provider
+    result = run_decompose(
+        request().model_copy(update={"baseline_effort": None, "effort_weights": None}),
+        provider,
+        accounting,
     )
     assert result.accounting.w1 == Decimal("125")
     assert result.accounting.net_remaining_work_ratio == Decimal("1.25")
@@ -194,7 +216,7 @@ def test_invalid_operational_output_stops_before_next_stage():
     )
     provider = FakeProvider(operational=bad)
     with pytest.raises(ProviderContractValidationError):
-        decompose(request(), provider)
+        run_decompose(request(), provider)
     assert provider.calls == ["operational"]
 
 
@@ -204,7 +226,7 @@ def test_invalid_classification_stops_before_added_stage():
     )
     provider = FakeProvider(classification=bad)
     with pytest.raises(ProviderContractValidationError):
-        decompose(request(), provider)
+        run_decompose(request(), provider)
     assert provider.calls == ["operational", "classification"]
 
 
@@ -217,7 +239,7 @@ def test_invalid_added_work_stops_before_accounting():
     }
     provider = FakeProvider(added=bad)
     with pytest.raises(ProviderContractValidationError):
-        decompose(request(), provider)
+        run_decompose(request(), provider)
     assert provider.calls == ["operational", "classification", "added"]
 
 
@@ -229,7 +251,7 @@ def test_provider_failure_is_wrapped_without_vendor_exception_leak():
 
     provider = FailingProvider()
     with pytest.raises(ProviderExecutionError, match="fake-provider") as error:
-        decompose(request(), provider)
+        run_decompose(request(), provider)
     assert isinstance(error.value.__cause__, RuntimeError)
     assert provider.calls == ["operational"]
 
@@ -244,7 +266,7 @@ def test_explicit_accounting_support_is_not_replaced_by_provider_amounts():
         }
     )
     provider = FakeProvider(added=added)
-    result = decompose(request(), provider)
+    result = run_decompose(request(), provider)
     assert result.accounting.w1 == Decimal("74")
     assert provider.calls == ["operational", "classification", "added"]
 
@@ -262,7 +284,7 @@ def test_provider_semantic_failure_is_distinguished():
     )
     provider = FakeProvider(operational=bad)
     with pytest.raises(ProviderSemanticValidationError):
-        decompose(request(), provider)
+        run_decompose(request(), provider)
 
 
 def test_wrong_response_stage_and_provenance_are_rejected():
@@ -274,7 +296,7 @@ def test_wrong_response_stage_and_provenance_are_rejected():
             )
 
     with pytest.raises(ProviderOutputError):
-        decompose(request(), WrongStageProvider())
+        run_decompose(request(), WrongStageProvider())
 
     class WrongProvenanceProvider(FakeProvider):
         def generate_operational_decomposition(self, request):
@@ -289,11 +311,16 @@ def test_wrong_response_stage_and_provenance_are_rejected():
             )
 
     with pytest.raises(ProviderOutputError):
-        decompose(request(), WrongProvenanceProvider())
+        run_decompose(request(), WrongProvenanceProvider())
 
 
 def test_missing_request_effort_fails_before_provider_call():
     provider = FakeProvider()
     with pytest.raises(MissingAccountingInputError):
-        decompose(request(accounting=False), provider)
+        decompose(
+            request(),
+            provider,
+            transformation_context={"domain": "customer_support"},
+            accounting_input=None,
+        )
     assert provider.calls == []

@@ -44,6 +44,51 @@ class OperationalDecomposition(BaseModel):
     provenance_refs: tuple[ProvenanceRef, ...] = ()
 
 
+class BaselineEffortAllocation(BaseModel):
+    """Frozen baseline effort associated with one operational subtask."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    subtask_id: str = Field(min_length=1)
+    effort: EffortQuantity | None = None
+    weight_ratio: Decimal | None = Field(default=None, ge=0)
+    provenance_refs: tuple[ProvenanceRef, ...] = ()
+
+    @model_validator(mode="after")
+    def validate_allocation_basis(self) -> "BaselineEffortAllocation":
+        if self.effort is None and self.weight_ratio is None:
+            raise ValueError("baseline allocation requires effort or weight_ratio")
+        return self
+
+
+class TaskDecomposition(BaseModel):
+    """Reusable operational decomposition with frozen baseline allocation."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    operational_decomposition: OperationalDecomposition
+    baseline_effort_allocations: tuple[BaselineEffortAllocation, ...] = ()
+    provenance_refs: tuple[ProvenanceRef, ...] = ()
+    provider_provenance: tuple[ProviderProvenance, ...] = ()
+
+    @model_validator(mode="after")
+    def validate_allocation_identity(self) -> "TaskDecomposition":
+        subtask_ids = {
+            item.subtask_id
+            for item in self.operational_decomposition.operational_subtasks
+        }
+        allocation_ids = [item.subtask_id for item in self.baseline_effort_allocations]
+        if len(allocation_ids) != len(set(allocation_ids)):
+            raise ValueError("baseline effort allocation IDs must be unique")
+        if set(allocation_ids) - subtask_ids:
+            raise ValueError("baseline effort allocation references an unknown subtask")
+        if allocation_ids and set(allocation_ids) != subtask_ids:
+            raise ValueError(
+                "baseline effort allocations must cover every operational subtask"
+            )
+        return self
+
+
 class ClassifiedSubtask(BaseModel):
     """One identity-preserving RETAIN/REMOVE classification."""
 
@@ -139,14 +184,30 @@ class StagedDecompositionResult(BaseModel):
     provider_provenance: tuple[ProviderProvenance, ...] = ()
 
 
+class TransformationDecompositionResult(BaseModel):
+    """Transformation facts plus authoritative canonical transformation impact."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    task_decomposition: TaskDecomposition
+    retain_remove_classification: RetainRemoveClassification
+    added_work_classification: AddedWorkClassification
+    accounting: CanonicalTransformationImpact
+    provenance_refs: tuple[ProvenanceRef, ...] = ()
+    provider_provenance: tuple[ProviderProvenance, ...] = ()
+
+
 __all__ = [
     "AddedWorkCategory",
     "AddedWorkClassification",
     "AddedWorkItem",
+    "BaselineEffortAllocation",
     "ClassifiedSubtask",
     "OperationalDecomposition",
     "OperationalSubtask",
     "RetainRemoveClassification",
     "StagedDecompositionResult",
     "TaskReference",
+    "TaskDecomposition",
+    "TransformationDecompositionResult",
 ]

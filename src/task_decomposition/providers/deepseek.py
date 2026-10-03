@@ -21,6 +21,7 @@ from task_decomposition.providers._shared import (
     make_stage_response,
     parse_model_payload,
     raise_provider_failure,
+    request_metadata,
     stage_payload,
     stage_text,
 )
@@ -117,12 +118,13 @@ class DeepSeekDecompositionProvider:
         payload = parse_model_payload(
             parsed, schema, provider_name="DeepSeek", stage=stage
         )
+        request_id, references = request_metadata(request)
         return make_stage_response(
             provider_id=self.provider_id,
             model_id=self.config.model,
             stage=stage,
-            request_id=request.request.request_id,
-            references=request.request.provenance_refs,
+            request_id=request_id,
+            references=references,
             payload=payload,
         )
 

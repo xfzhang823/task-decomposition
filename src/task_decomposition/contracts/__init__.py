@@ -23,21 +23,25 @@ from task_decomposition.contracts.provenance import ProvenanceRef
 from task_decomposition.contracts.provenance import ProviderProvenance, ProviderStage
 from task_decomposition.contracts.provider import (
     AddedWorkClassificationRequest,
-    DecompositionRequest,
     OperationalDecompositionRequest,
     ProviderStageResponse,
     RetainRemoveClassificationRequest,
+    TaskDecompositionRequest,
+    TransformationDecompositionRequest,
 )
 from task_decomposition.contracts.stages import (
     AddedWorkCategory,
     AddedWorkClassification,
     AddedWorkItem,
+    BaselineEffortAllocation,
     ClassifiedSubtask,
     OperationalDecomposition,
     OperationalSubtask,
     RetainRemoveClassification,
     StagedDecompositionResult,
+    TaskDecomposition,
     TaskReference,
+    TransformationDecompositionResult,
 )
 
 __all__ = [
@@ -47,13 +51,13 @@ __all__ = [
     "AddedWorkClassification",
     "AddedWorkItem",
     "AccountingMode",
+    "BaselineEffortAllocation",
     "CanonicalTransformationImpact",
     "ClassifiedSubtask",
     "EffectClassification",
     "EffortQuantity",
     "EffortUnit",
     "NormalizedAccountingInput",
-    "DecompositionRequest",
     "OperationalDecomposition",
     "OperationalDecompositionRequest",
     "OperationalSubtask",
@@ -68,7 +72,11 @@ __all__ = [
     "RetainRemoveClassificationRequest",
     "StagedDecompositionResult",
     "TaskReference",
+    "TaskDecomposition",
+    "TaskDecompositionRequest",
     "TimeBasis",
     "TransformationClassification",
+    "TransformationDecompositionRequest",
+    "TransformationDecompositionResult",
     "TransformationRow",
 ]

@@ -37,7 +37,10 @@ class RatioBasis(str, Enum):
 
 
 def _decimal(value: Decimal | int | float | str) -> Decimal:
-    return value if isinstance(value, Decimal) else Decimal(str(value))
+    result = value if isinstance(value, Decimal) else Decimal(str(value))
+    if not result.is_finite():
+        raise ContractValidationError("effort values must be finite")
+    return result
 
 
 class EffortQuantity(BaseModel):

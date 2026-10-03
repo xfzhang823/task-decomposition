@@ -1,0 +1,134 @@
+[
+  {
+    "id": "customer-support-ticket",
+    "process_name": "Customer support ticket handling",
+    "process_description": "A support agent receives a customer ticket, verifies the issue and account, searches policy and product information, diagnoses the request, communicates a resolution, escalates exceptions, and closes the case.",
+    "task_context": {"domain": "customer support", "channels": "email and web portal", "controls": "identity checks and escalation policy"},
+    "transformation_context": {"description": "An LLM retrieves relevant policy information and drafts a response. A support agent reviews the draft, handles exceptions, approves the final response, and sends it."},
+    "expected_task_count": {"min": 5, "max": 10},
+    "must_contain": ["receive", "verify", "diagnos", "communicat"],
+    "normally_retain": ["verify", "escalat", "approve", "exception"],
+    "expected_net_substitution_range": {"min": 0.15, "max": 0.65}
+  },
+  {
+    "id": "insurance-claim",
+    "process_name": "Insurance claim processing",
+    "process_description": "A claims specialist receives a claim, verifies coverage and claimant identity, gathers documents, assesses damage and liability, requests missing evidence, determines a settlement, obtains approvals, communicates the decision, and records the claim.",
+    "task_context": {"domain": "insurance claims", "controls": "coverage rules, fraud controls, approval thresholds", "inputs": "claim form, policy, evidence, adjuster reports"},
+    "transformation_context": {"description": "A model extracts claim facts, checks policy clauses, and drafts a preliminary assessment. A claims specialist reviews evidence, resolves exceptions, approves settlement authority, and communicates the decision."},
+    "expected_task_count": {"min": 7, "max": 12},
+    "must_contain": ["receive", "verif", "evidence", "assess", "settlement"],
+    "normally_retain": ["fraud", "exception", "approval", "communicat"],
+    "expected_net_substitution_range": {"min": 0.10, "max": 0.55}
+  },
+  {
+    "id": "invoice-ap",
+    "process_name": "Invoice and accounts-payable processing",
+    "process_description": "An accounts-payable team receives supplier invoices, extracts invoice fields, matches invoices to purchase orders and receipts, investigates mismatches, obtains approval, schedules payment, handles supplier queries, and maintains records.",
+    "task_context": {"domain": "accounts payable", "controls": "three-way match, approval limits, tax checks", "systems": "ERP and supplier email"},
+    "transformation_context": {"description": "Document extraction and matching are automated, while an AP analyst reviews exceptions, approves ambiguous matches, resolves supplier disputes, and releases payments."},
+    "expected_task_count": {"min": 6, "max": 10},
+    "must_contain": ["receive", "extract", "match", "exception", "payment"],
+    "normally_retain": ["exception", "approv", "dispute", "release"],
+    "expected_net_substitution_range": {"min": 0.25, "max": 0.75}
+  },
+  {
+    "id": "software-bug-triage",
+    "process_name": "Software bug triage",
+    "process_description": "An engineering team receives bug reports, reproduces issues, checks logs and recent changes, assesses severity and user impact, identifies duplicates, assigns ownership, communicates status, and prioritizes work for a release.",
+    "task_context": {"domain": "software engineering", "controls": "severity policy, release risk, incident escalation", "inputs": "tickets, logs, traces, user reports"},
+    "transformation_context": {"description": "An LLM summarizes reports, suggests duplicate matches, and drafts severity and routing recommendations. An engineer verifies reproduction, assesses risk, decides priority, and approves assignment."},
+    "expected_task_count": {"min": 6, "max": 10},
+    "must_contain": ["receive", "reproduc", "assess", "priorit", "assign"],
+    "normally_retain": ["reproduc", "risk", "priorit", "approv"],
+    "expected_net_substitution_range": {"min": 0.10, "max": 0.55}
+  },
+  {
+    "id": "sales-lead-qualification",
+    "process_name": "Sales lead qualification",
+    "process_description": "A sales development team receives inbound leads, enriches company and contact data, checks fit criteria, researches the account, contacts the prospect, qualifies needs and timing, records the outcome, and routes qualified opportunities.",
+    "task_context": {"domain": "business-to-business sales", "controls": "territory, consent, fit and disqualification rules", "channels": "web forms, CRM, phone"},
+    "transformation_context": {"description": "A model enriches lead records, summarizes public account information, and drafts outreach. A seller reviews fit, decides qualification, conducts the conversation, and approves routing."},
+    "expected_task_count": {"min": 6, "max": 10},
+    "must_contain": ["receive", "enrich", "fit", "contact", "qualif"],
+    "normally_retain": ["contact", "qualif", "decid", "approv"],
+    "expected_net_substitution_range": {"min": 0.15, "max": 0.65}
+  },
+  {
+    "id": "employee-onboarding",
+    "process_name": "Employee onboarding",
+    "process_description": "Human resources receives a new-hire record, verifies employment and identity information, collects documents, creates accounts and access, schedules orientation, coordinates equipment, assigns training, and confirms readiness with the manager.",
+    "task_context": {"domain": "human resources", "controls": "identity, payroll, privacy, access approval", "participants": "HR, IT, manager, new employee"},
+    "transformation_context": {"description": "Workflow automation prepares forms, creates standard tasks, and drafts onboarding communications. HR and IT review identity-sensitive exceptions, approve access, coordinate equipment, and confirm completion."},
+    "expected_task_count": {"min": 7, "max": 12},
+    "must_contain": ["verif", "document", "access", "equipment", "training"],
+    "normally_retain": ["identity", "access", "exception", "confirm"],
+    "expected_net_substitution_range": {"min": 0.20, "max": 0.70}
+  },
+  {
+    "id": "contract-review",
+    "process_name": "Commercial contract review",
+    "process_description": "A legal or procurement team receives a contract, identifies parties and scope, checks required clauses, compares terms to policy and fallback positions, assesses commercial and legal risk, negotiates changes, obtains approvals, and records the executed agreement.",
+    "task_context": {"domain": "commercial legal review", "controls": "approved clauses, authority limits, legal risk", "inputs": "draft contract, playbook, business requirements"},
+    "transformation_context": {"description": "An LLM extracts clauses, compares them with the playbook, and drafts issue summaries and fallback language. Counsel reviews risk, negotiates material terms, approves exceptions, and signs off."},
+    "expected_task_count": {"min": 7, "max": 12},
+    "must_contain": ["receive", "clause", "compare", "risk", "negotiat", "approv"],
+    "normally_retain": ["risk", "negotiat", "exception", "approv"],
+    "expected_net_substitution_range": {"min": 0.05, "max": 0.45}
+  },
+  {
+    "id": "medical-appointment",
+    "process_name": "Medical appointment scheduling",
+    "process_description": "A scheduling team receives a patient request, verifies identity and contact details, determines appointment type and urgency, checks provider and resource availability, handles insurance or referral requirements, books the appointment, sends instructions, and manages changes or cancellations.",
+    "task_context": {"domain": "healthcare administration", "controls": "privacy, urgency, referral, insurance", "participants": "patient, scheduler, provider"},
+    "transformation_context": {"description": "A scheduling assistant collects request details, proposes available slots, and drafts reminders. A scheduler handles urgent, ambiguous, privacy-sensitive, or referral exceptions and confirms the booking."},
+    "expected_task_count": {"min": 6, "max": 10},
+    "must_contain": ["receive", "verif", "urgency", "availability", "book"],
+    "normally_retain": ["urgency", "privacy", "exception", "confirm"],
+    "expected_net_substitution_range": {"min": 0.20, "max": 0.70}
+  },
+  {
+    "id": "quality-inspection",
+    "process_name": "Manufacturing quality inspection",
+    "process_description": "A quality inspector receives a production lot, identifies inspection requirements, samples units, performs measurements and visual checks, records results, investigates defects, decides disposition, escalates safety or recurring issues, and releases or quarantines the lot.",
+    "task_context": {"domain": "manufacturing quality", "controls": "sampling plan, tolerances, safety, nonconformance process", "inputs": "lot record, specifications, measurement data"},
+    "transformation_context": {"description": "Computer vision and sensor analytics flag likely defects and prepare inspection records. An inspector validates borderline findings, investigates nonconformance, decides disposition, and approves lot release."},
+    "expected_task_count": {"min": 7, "max": 12},
+    "must_contain": ["receive", "sample", "measure", "defect", "disposition", "release"],
+    "normally_retain": ["borderline", "investigat", "disposition", "approv", "safety"],
+    "expected_net_substitution_range": {"min": 0.15, "max": 0.60}
+  },
+  {
+    "id": "wealth-onboarding",
+    "process_name": "Wealth-management client onboarding",
+    "process_description": "An adviser team receives a prospective client, verifies identity, collects financial and suitability information, performs know-your-customer checks, understands goals and risk tolerance, prepares recommendations, obtains approvals, opens accounts, and documents the relationship.",
+    "task_context": {"domain": "wealth management", "controls": "KYC, suitability, privacy, approval and recordkeeping", "participants": "client, adviser, operations, compliance"},
+    "transformation_context": {"description": "A system extracts client documents, drafts a profile and meeting summary, and prepares standard account-opening forms. An adviser and compliance reviewer verify identity, assess suitability, approve exceptions, and make recommendations."},
+    "expected_task_count": {"min": 8, "max": 13},
+    "must_contain": ["verif", "KYC", "suitab", "risk", "recommend", "approv"],
+    "normally_retain": ["suitab", "risk", "recommend", "exception", "approv"],
+    "expected_net_substitution_range": {"min": 0.05, "max": 0.45}
+  },
+  {
+    "id": "procurement-exception",
+    "process_name": "Purchase-order exception handling",
+    "process_description": "A procurement operations team receives a purchase request, checks budget and policy, validates supplier and coding, routes approvals, resolves price or quantity exceptions, issues or changes a purchase order, and records the decision for audit.",
+    "task_context": {"domain": "procurement operations", "controls": "budget, supplier, delegation, audit trail", "participants": "requester, buyer, approver, supplier"},
+    "transformation_context": {"description": "Workflow automation checks standard policy and prepares purchase-order drafts. A buyer reviews nonstandard suppliers, price or quantity exceptions, obtains approvals, and records the final decision."},
+    "expected_task_count": {"min": 6, "max": 10},
+    "must_contain": ["receive", "budget", "supplier", "approv", "exception", "purchase order"],
+    "normally_retain": ["exception", "approv", "supplier", "audit"],
+    "expected_net_substitution_range": {"min": 0.25, "max": 0.75}
+  },
+  {
+    "id": "it-access-request",
+    "process_name": "IT access request fulfillment",
+    "process_description": "An IT service desk receives an access request, verifies the requester and manager, identifies the requested system and role, checks entitlement policy, obtains approvals, provisions or changes access, confirms completion, and reviews or removes access when required.",
+    "task_context": {"domain": "IT service management", "controls": "least privilege, manager approval, segregation of duties, audit", "systems": "service desk and identity platform"},
+    "transformation_context": {"description": "A workflow assistant classifies requests, checks standard role mappings, drafts approval tasks, and prepares provisioning instructions. An administrator reviews exceptions, approves privileged access, provisions sensitive roles, and confirms completion."},
+    "expected_task_count": {"min": 7, "max": 11},
+    "must_contain": ["receive", "verif", "role", "approv", "provision", "confirm"],
+    "normally_retain": ["privileged", "exception", "approv", "confirm"],
+    "expected_net_substitution_range": {"min": 0.25, "max": 0.75}
+  }
+]

@@ -84,9 +84,6 @@ from task_decomposition.errors import (
     ProviderSemanticValidationError,
 )
 from task_decomposition.ports import (
-    BenchmarkProvider,
-    BenchmarkQuery,
-    BenchmarkReference,
     DecompositionProvider,
     EffortAllocation,
     EffortAllocationRequest,
@@ -122,9 +119,6 @@ __all__ = [
     "DecompositionProvider",
     "TaskDecompositionRequest",
     "TransformationDecompositionRequest",
-    "BenchmarkProvider",
-    "BenchmarkQuery",
-    "BenchmarkReference",
     "EffortAllocation",
     "EffortAllocationRequest",
     "EffortAllocationResult",

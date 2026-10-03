@@ -1,140 +1,144 @@
 # Task Decomposition
 
-A reusable Python package for decomposing roles, work descriptions, and business context into structured tasks.
+`task-decomposition` is a host-neutral Python library for decomposing operational work and evaluating a specified transformation against a reusable baseline.
 
-## Purpose
+## Architecture
 
-`task-decomposition` provides a standalone task decomposition capability that can be used by workflow, workforce, agent, and simulation systems.
+```text
+process / task
+      ↓
+decompose_task(...)
+      ↓
+TaskDecomposition
+      ↓
+decompose_transformation(...)
+      ↓
+TransformationDecompositionResult
+```
 
-The package is responsible for:
+Task decomposition answers “What work exists?” It produces validated operational subtasks and explicit baseline effort allocation or weights.
 
-- Accepting role, work, or process context
-- Decomposing work into structured tasks
-- Normalizing decomposition results into canonical task models
-- Preserving decomposition metadata and provenance
-- Providing stable contracts for downstream consumers
+Transformation decomposition answers “What happens to that work under the specified transformation?” It consumes an existing `TaskDecomposition`, classifies subtasks as `RETAIN` or `REMOVE`, identifies added/support human work, and invokes deterministic canonical accounting.
 
-It does **not** own downstream automation analysis, workforce transformation, workflow simulation, or capacity computation.
+`decompose(...)` is a convenience operation that composes these two capabilities. It is not a separate architecture and does not own duplicate decomposition or accounting logic.
 
-## Wave 1 canonical accounting
+## Repository ownership
 
-Wave 1 provides the host-neutral deterministic accounting foundation. For baseline human work `W0`:
+This repository owns operational task decomposition, baseline effort allocation, transformation-specific RETAIN/REMOVE classification, added/support-work classification, deterministic transformation accounting, and provider adapters for decomposition.
+
+This repository does not own workflow execution, workflow throughput or capacity computation, scenario orchestration, simulation, Monte Carlo, grid search, workforce planning, or alternative-scenario management. Hosts and downstream systems own those concerns.
+
+## Task decomposition
+
+`decompose_task(request, provider, effort_allocator=None)` accepts a `TaskDecompositionRequest` containing a task reference, task/process context, and optional explicit baseline effort and weights. It asks a `TaskDecompositionProvider` for operational subtasks, validates the untrusted response, and returns a frozen `TaskDecomposition`.
+
+The reusable baseline invariant is central: transformation decomposition consumes an existing task decomposition and does not regenerate its subtasks or re-estimate its baseline effort.
+
+## Transformation decomposition
+
+`decompose_transformation(request, provider)` accepts a `TransformationDecompositionRequest` containing an existing `TaskDecomposition`, `transformation_context`, and explicit absolute or normalized accounting input. It asks a `TransformationDecompositionProvider` for RETAIN/REMOVE and added-work proposals, validates each stage, and returns a `TransformationDecompositionResult` containing the transformation facts and canonical impact.
+
+There is no sibling application-level `account_transformation(...)` operation. The application invokes the deterministic accounting domain after transformation facts are validated; low-level accounting functions remain directly callable for deterministic use cases and tests.
+
+## Deterministic accounting
+
+`src/task_decomposition/domain/accounting.py` is the single mathematical authority. For baseline human work `W0`, the model is:
 
 ```text
 W0 = retained_human_work + gross_removed_work
 added_human_work = governance_work + operational_support_work + lifecycle_support_work
 W1 = retained_human_work + added_human_work
-```
-
-The public result keeps gross removal distinct from net substitution:
-
-```text
 gross_removed_work_ratio = gross_removed_work / W0
 net_remaining_work_ratio = W1 / W0
 net_substitution_ratio = 1 - net_remaining_work_ratio
 net_augmentation_multiplier = W0 / W1
 ```
 
-Accounting is available in `NORMALIZED` mode (`W0 = 1.0`) and `ABSOLUTE` mode with an explicit effort unit and time basis. Both modes use the same formulas. Support values must use `RatioBasis`: baseline ratio, gross-removed ratio, already-normalized contribution, or absolute effort. Historical Path B support values with unknown basis are not interpreted.
+Gross removed work is not net substitution. Added human work reduces net substitution and can produce negative net substitution when `W1 > W0`. Effect is derived from `W0` and `W1` as `GAIN`, `NEUTRAL`, or `DEGRADATION`; ratios are not clamped.
 
-Effect is derived from `W1` and `W0`: `GAIN`, `NEUTRAL`, or `DEGRADATION`. Canonical values are unclamped, so degradation can produce a negative net substitution ratio and an augmentation multiplier below one. A zero baseline raises `ZeroBaselineError`; a zero net effort raises an explicit invalid-denominator error because the multiplier is undefined.
+Accounting supports normalized mode with `W0 = 1.0` and absolute mode with explicit effort unit and time basis. Support inputs use an explicit `RatioBasis`: baseline ratio, gross-removed-work ratio, already-normalized contribution, or absolute effort. Zero baseline and zero post-transformation human effort are rejected because their required ratios or multiplier are undefined.
 
-Wave 1 deliberately does not implement LLM/provider generation, staged Path B decomposition, persistence, APIs, Bot0 adapters, workflow computation, or compatibility projections.
+## Providers
 
-## Wave 2 staged decomposition
-
-Wave 2 adds a provider-independent staged pipeline:
+The provider boundary is split by capability:
 
 ```text
-operational decomposition
-  -> RETAIN / REMOVE classification
-  -> added human-work classification
-  -> explicit effort/support handoff
-  -> Wave 1 canonical accounting
-```
+TaskDecompositionProvider
+  → operational decomposition
 
-Stage contracts preserve a host-neutral task reference and stable subtask IDs. Operational subtasks may declare dependencies; validators reject duplicate IDs, missing or extra classifications, unknown references, invalid dependency order, and non-contiguous stage indexes. Added work is separate from baseline RETAIN/REMOVE work and uses only the explicit Wave 1 support bases.
+TransformationDecompositionProvider
+  → RETAIN / REMOVE
+  → added human work
 
-Provider output is untrusted. The standalone validators reject readiness/scoring/meta language and require operational decomposition text to describe concrete activities. `run_staged_pipeline` accepts already-typed stage outputs and an explicit `AbsoluteEffortInput` or `NormalizedAccountingInput`; it does not call a provider or infer missing effort. It then delegates all W0/W1, gross-removal, net-substitution, augmentation, and effect calculations to Wave 1.
-
-Wave 2 does not include prompts, LLM/provider clients, API keys, persistence, review authority, Bot0 adapters, workflow computation, or historical Path B ratio conversion. Those remain later-wave or host responsibilities.
-
-## Wave 3 host integration
-
-Hosts implement the provider port outside this package:
-
-```text
-host provider infrastructure
-        │ implements
-        ▼
 DecompositionProvider
-        │
-        ▼
-task_decomposition.decompose_task(...)
-        │
-        ▼
-task_decomposition.decompose_transformation(...)
-        │
-        ▼
-validated transformation result + canonical accounting
+  → composite capability for providers implementing both
 ```
 
-`TaskDecompositionRequest` carries task/process context only. `TransformationDecompositionRequest` consumes the resulting reusable task decomposition and carries transformation context plus explicit Wave 1 accounting input. The provider returns untrusted stage payloads wrapped with generic provider/stage provenance. The application validates each stage before requesting the next one and never accepts provider-supplied W0, W1, substitution, augmentation, or effect values.
+OpenAI, Gemini, and DeepSeek adapters may implement both capabilities while sharing only narrow provider infrastructure. Provider output is untrusted: the application validates it before advancing to the next stage, and providers never calculate authoritative W0, W1, substitution, augmentation, or effect values.
 
-Provider SDKs, prompts, credentials, retries, tracing, persistence, and Bot0 adapters belong to the host/provider implementation. The standalone core requires no API key or `.env` file. `EffortAllocator` and `BenchmarkProvider` are optional interfaces only; no concrete allocator or benchmark integration is bundled.
-
-## Optional concrete providers
-
-Wave 3B and Wave 3C provide three interchangeable adapters without making any
-vendor SDK a core dependency:
+The deterministic core does not require an LLM SDK. Install optional provider support with:
 
 ```bash
 uv pip install -e '.[openai]'
 uv pip install -e '.[gemini]'
 uv pip install -e '.[deepseek]'
-# or install the currently supported provider set:
 uv pip install -e '.[providers]'
 ```
 
-Configure the corresponding key in the host environment or inject it through
-the provider config: `OPENAI_API_KEY`, `GEMINI_API_KEY`, or
-`DEEPSEEK_API_KEY`. Defaults are centralized per adapter: `gpt-4o-mini`,
-`gemini-2.5-flash`, and `deepseek-chat`. Models and non-secret transport
-settings can be overridden in code.
+Configure `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `DEEPSEEK_API_KEY`, or inject credentials through the provider-specific configuration object. Bot0 is not required to use this package.
 
-Minimal usage is available in [`examples/openai_decompose.py`](examples/openai_decompose.py):
+## Minimal provider-driven usage
+
+The concrete live example is in [`examples/openai_decompose.py`](examples/openai_decompose.py). A custom or fake provider can use the same application contracts without installing an SDK.
+
+Task decomposition only:
 
 ```python
-from task_decomposition import TaskDecompositionRequest, decompose
-from task_decomposition.providers.openai import OpenAIDecompositionProvider
+from task_decomposition import decompose_task
 
-result = decompose(request, OpenAIDecompositionProvider(), transformation_context={"goal": "Automate verification"}, accounting_input=accounting_input)
+baseline = decompose_task(task_request, provider, effort_allocator=allocator)
 ```
 
-Replace the provider import and constructor with
-`GeminiDecompositionProvider(GeminiProviderConfig(...))` or
-`DeepSeekDecompositionProvider(DeepSeekProviderConfig(...))` to select another
-provider. All three adapters use the same prompts and stage contracts. Their
-outputs are untrusted and pass through the same validators before Wave 1
-deterministic accounting runs. The request must supply explicit accounting /
-effort input; no provider is allowed to invent authoritative effort or final
-metrics. Bot0 is not required to run the standalone providers.
+Transformation decomposition from that existing baseline:
 
-The core remains usable with fake or custom providers without installing any
-LLM SDK. A future provider only needs to implement the existing
-`DecompositionProvider` protocol; provider-specific transport and schema
-handling belong in its adapter.
+```python
+from task_decomposition import decompose_transformation
 
-## Architecture
+impact = decompose_transformation(transformation_request, provider)
+```
 
-```text
-Role / Work Context
-        │
-        ▼
-Task Decomposition
-        │
-        ▼
-Canonical Task Structure
-        │
-        ▼
-Downstream Consumers
+Full convenience composition:
+
+```python
+from task_decomposition import decompose, TaskDecompositionRequest, TaskReference
+from task_decomposition.providers.openai import OpenAIDecompositionProvider
+
+request = TaskDecompositionRequest(task=TaskReference(task_name="Review an invoice"), task_context={"domain": "accounts_payable"})
+result = decompose(request, OpenAIDecompositionProvider(), transformation_context={"goal": "Draft invoice checks while retaining approval"}, accounting_input=accounting_input)
+```
+
+The example assumes `accounting_input` is an explicit `AbsoluteEffortInput` or `NormalizedAccountingInput`; providers may not invent authoritative effort or final metrics.
+
+## Validation and testing
+
+Pydantic contracts enforce field and value constraints. Stage validation enforces identity, cardinality, dependency, and effort invariants. Semantic validation rejects non-operational or meta-only provider output. Deterministic accounting then validates and computes the canonical impact.
+
+Hard validity is machine-checkable: schemas, identities, dependencies, allocations, accounting reconciliation, and derived identities must hold. Semantic quality is a separate human-review concern covering completeness, overlap, granularity, effort plausibility, transformation plausibility, and support-work plausibility.
+
+The `benchmarks/` corpus and review helpers support credential-free framework tests and opt-in live review. Ordinary tests do not require network access or provider credentials. S4B-2 did not execute live providers because no provider keys were configured, so live semantic quality remains deferred to manual evaluation.
+
+Run the normal checks with:
+
+```bash
+pytest
+ruff check src tests
+ruff format --check src tests
+python -m compileall -q src
+git diff --check
+```
+
+## Further documentation
+
+- [`docs/DECOMPOSITION_MODEL.md`](docs/DECOMPOSITION_MODEL.md) explains the two capabilities and their contracts.
+- [`docs/ACCOUNTING_MODEL.md`](docs/ACCOUNTING_MODEL.md) explains quantities, equations, modes, units, ranges, and edge behavior.
+- [`AGENTS.md`](AGENTS.md) gives concise maintenance rules for coding agents.

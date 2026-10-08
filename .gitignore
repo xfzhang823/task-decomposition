@@ -15,3 +15,7 @@ wheels/
 .env
 .env.*
 !.env.example
+
+# Runtime traces
+/logs/
+/traces/

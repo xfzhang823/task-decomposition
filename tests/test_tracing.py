@@ -18,6 +18,7 @@ from task_decomposition import (
     ProviderSemanticValidationError,
     TraceLogger,
     decompose_task,
+    tracing,
 )
 from task_decomposition.providers.deepseek import DeepSeekDecompositionProvider
 from task_decomposition.providers.openai import OpenAIDecompositionProvider
@@ -32,6 +33,27 @@ def test_tracing_is_disabled_by_default(tmp_path, monkeypatch):
     tracer = TraceLogger.from_env()
     tracer.emit("test.disabled", data={"api_key": "sk-never-written"})
     assert not list(tmp_path.iterdir())
+
+
+def test_default_trace_directory_is_repository_root_logs_llm(tmp_path, monkeypatch):
+    monkeypatch.setattr(tracing, "repository_root", lambda: tmp_path)
+    tracer = TraceLogger(enabled=True, console=False)
+    tracer.emit("test.default")
+    assert (tmp_path / "logs" / "llm" / "task_decomposition.jsonl").exists()
+
+
+def test_trace_directory_override_is_resolved_from_repository_root(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(tracing, "repository_root", lambda: tmp_path)
+    tracer = TraceLogger(enabled=True, directory="custom-logs", console=False)
+    tracer.emit("test.override")
+    assert (tmp_path / "custom-logs" / "task_decomposition.jsonl").exists()
+    monkeypatch.setenv("TASK_DECOMPOSITION_TRACE_ENABLED", "true")
+    monkeypatch.setenv("TASK_DECOMPOSITION_TRACE_DIR", "env-logs")
+    env_tracer = TraceLogger.from_env()
+    env_tracer.emit("test.env-override")
+    assert (tmp_path / "env-logs" / "task_decomposition.jsonl").exists()
 
 
 def test_successful_generation_writes_structured_trace_with_correlation_id(tmp_path):
@@ -49,6 +71,7 @@ def test_successful_generation_writes_structured_trace_with_correlation_id(tmp_p
         "llm.response",
         "llm.parsed",
         "validation.structural",
+        "execution.summary",
     ]
     assert {event["correlation_id"] for event in events} == {"request-1"}
     request_event = events[1]
@@ -87,9 +110,13 @@ def test_empty_openai_response_is_traced_before_output_error(tmp_path):
         provider.generate_operational_decomposition(openai_requests()[0])
 
     events = records(tmp_path / "task_decomposition.jsonl")
-    assert events[-1]["event"] == "validation.structural"
-    assert events[-1]["data"]["result"] == "failure"
-    assert any(event["event"] == "llm.response" for event in events)
+    validation = [
+        event for event in events if event["event"] == "validation.structural"
+    ][-1]
+    assert validation["data"]["result"] == "failure"
+    response = [event for event in events if event["event"] == "llm.response"][-1]
+    assert response["data"]["raw_response_available"] is True
+    assert response["data"]["raw_output_state"] == "unavailable"
 
 
 def test_empty_response_records_structural_failure_and_correlation_id(tmp_path):
@@ -103,7 +130,13 @@ def test_empty_response_records_structural_failure_and_correlation_id(tmp_path):
         provider.generate_operational_decomposition(deepseek_requests()[0])
 
     events = records(tmp_path / "task_decomposition.jsonl")
-    assert events[-1]["event"] == "validation.structural"
+    validation = [
+        event for event in events if event["event"] == "validation.structural"
+    ][-1]
+    response = [event for event in events if event["event"] == "llm.response"][-1]
+    assert response["data"]["raw_response_available"] is True
+    assert response["data"]["raw_output_state"] == "empty"
+    assert validation["data"]["result"] == "failure"
     assert all(event["correlation_id"] == "request-1" for event in events)
 
 

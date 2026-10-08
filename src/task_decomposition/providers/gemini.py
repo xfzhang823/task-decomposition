@@ -152,7 +152,14 @@ class GeminiDecompositionProvider:
         parsed = getattr(response, "parsed", None)
         if parsed is None:
             parsed = getattr(response, "text", None)
-        self.tracer.response(invocation, raw=response, parsed=parsed)
+        self.tracer.response(
+            invocation,
+            raw=response,
+            parsed=parsed,
+            raw_output=getattr(response, "text", None)
+            if getattr(response, "text", None) is not None
+            else parsed,
+        )
         if parsed is None or parsed == "":
             self.tracer.validation(
                 phase="structural",

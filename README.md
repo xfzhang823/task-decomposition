@@ -144,17 +144,30 @@ JSONL lifecycle trace for the OpenAI example:
 
 ```bash
 TASK_DECOMPOSITION_TRACE_ENABLED=true \
-TASK_DECOMPOSITION_TRACE_DIR=traces \
 TASK_DECOMPOSITION_TRACE_CONSOLE=true \
-python examples/openai_decompose.py
+python examples/openai_decompose.py \
+  --task-name "Review an invoice" \
+  --task-description "Validate the invoice and approve or reject it."
 ```
 
-The detailed trace is appended to `traces/task_decomposition.jsonl`; each line
-is one event linked by `correlation_id` and `invocation_id`. Console output is a
-concise event summary. Tracing includes full prompts and structured responses,
+The detailed trace is appended to `logs/llm/task_decomposition.jsonl`; each
+line is one event linked by `correlation_id` and `invocation_id`. Console output
+is a concise event summary. Tracing includes full prompts and structured responses,
 which may contain sensitive business data. API keys, authorization values, and
-common provider key formats are redacted, but the trace directory must still be
-protected.
+common provider key formats are redacted, but the `logs/` directory must still
+be protected. Set `TASK_DECOMPOSITION_TRACE_DIR` to override the directory;
+relative overrides resolve from the repository root.
+
+Useful filters include:
+
+```bash
+jq -c 'select(.correlation_id == "REQUEST_ID")' logs/llm/task_decomposition.jsonl
+jq -c 'select(.stage == "retain_remove_classification" or .event == "llm.exception")' logs/llm/task_decomposition.jsonl
+```
+
+You can ask Codex: “Inspect the latest logs under `logs/llm/`, identify the
+failed stage, examine the request and response events, and explain the root
+cause.”
 
 Provider SDK limitation: successful OpenAI, DeepSeek, and Gemini responses are
 recorded before contract mapping. If OpenAI `responses.parse()` raises during

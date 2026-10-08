@@ -10,6 +10,7 @@ Run the default example with::
 Provide a custom task with command-line options::
 
 TASK_DECOMPOSITION_TRACE_ENABLED=true \
+TASK_DECOMPOSITION_TRACE_DIR=logs/llm \
 TASK_DECOMPOSITION_TRACE_CONSOLE=true \
 python examples/openai_decompose.py \
   --task-name "Review an invoice" \
@@ -26,6 +27,24 @@ from pathlib import Path
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_REPOSITORY_ROOT / "src"))
 
+from task_decomposition import (
+    AbsoluteEffortInput,
+    EffortQuantity,
+    EffortUnit,
+    RatioBasis,
+    SupportWorkInput,
+    SupportWorkInputs,
+    TaskDecompositionRequest,
+    TaskReference,
+    TimeBasis,
+    TransformationDecompositionRequest,
+    decompose_task,
+    decompose_transformation,
+)
+
+from task_decomposition.providers.openai import (
+    OpenAIDecompositionProvider,
+)
 
 def _load_dotenv() -> None:
     """Load simple KEY=VALUE entries from the repository's .env file."""
@@ -47,25 +66,6 @@ def _load_dotenv() -> None:
 
 
 _load_dotenv()
-
-from task_decomposition import (
-    AbsoluteEffortInput,
-    EffortQuantity,
-    EffortUnit,
-    RatioBasis,
-    SupportWorkInput,
-    SupportWorkInputs,
-    TaskDecompositionRequest,
-    TaskReference,
-    TimeBasis,
-    TransformationDecompositionRequest,
-    decompose_task,
-    decompose_transformation,
-)
-from task_decomposition.providers.openai import (
-    OpenAIDecompositionProvider,
-)
-
 
 def _parse_args() -> argparse.Namespace:
     """Parse task details supplied on the command line."""

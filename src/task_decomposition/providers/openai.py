@@ -1,16 +1,16 @@
 """Optional OpenAI adapter for the standalone decomposition provider port."""
 
-from dataclasses import dataclass, field
 import json
+from dataclasses import dataclass, field
 from typing import Any
 
+from task_decomposition.contracts.provenance import ProviderProvenance, ProviderStage
 from task_decomposition.contracts.provider import (
     AddedWorkClassificationRequest,
     OperationalDecompositionRequest,
     ProviderStageResponse,
     RetainRemoveClassificationRequest,
 )
-from task_decomposition.contracts.provenance import ProviderProvenance, ProviderStage
 from task_decomposition.contracts.stages import (
     AddedWorkClassification,
     OperationalDecomposition,
@@ -22,12 +22,14 @@ from task_decomposition.errors import (
     ProviderExecutionError,
     ProviderOutputError,
 )
+from task_decomposition.providers._shared import request_metadata, stage_payload
 from task_decomposition.providers.prompts import (
     ADDED_WORK_PROMPT,
     OPERATIONAL_DECOMPOSITION_PROMPT,
+    OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT,
     RETAIN_REMOVE_PROMPT,
 )
-from task_decomposition.providers._shared import request_metadata, stage_payload
+from task_decomposition.tracing import TraceLogger
 
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
@@ -53,9 +55,12 @@ class OpenAIDecompositionProvider:
 
     provider_id = "openai"
 
-    def __init__(self, config: OpenAIProviderConfig | None = None, *, client=None):
+    def __init__(
+        self, config: OpenAIProviderConfig | None = None, *, client=None, tracer=None
+    ):
         self.config = config or OpenAIProviderConfig()
         self._client = client if client is not None else self._build_client()
+        self.tracer = tracer or TraceLogger.from_env()
 
     def generate_operational_decomposition(
         self, request: OperationalDecompositionRequest
@@ -67,6 +72,24 @@ class OpenAIDecompositionProvider:
             request_id=request_id,
             references=references,
             prompt=OPERATIONAL_DECOMPOSITION_PROMPT,
+            payload=payload,
+            schema=OperationalDecomposition,
+        )
+
+    def repair_operational_decomposition(
+        self, request, *, rejected_response, validation_errors
+    ):
+        payload = stage_payload(request)
+        payload["rejected_structured_output"] = rejected_response.payload.model_dump(
+            mode="json"
+        )
+        payload["semantic_validation_errors"] = list(validation_errors)
+        request_id, references = request_metadata(request)
+        return self._structured_stage(
+            stage=ProviderStage.OPERATIONAL_DECOMPOSITION,
+            request_id=request_id,
+            references=references,
+            prompt=OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT,
             payload=payload,
             schema=OperationalDecomposition,
         )
@@ -109,12 +132,13 @@ class OpenAIDecompositionProvider:
         payload: dict[str, Any],
         schema,
     ) -> ProviderStageResponse:
-        parsed = self._parse_structured(
-            stage=stage,
-            prompt=prompt,
-            payload=payload,
-            schema=schema,
-        )
+        with self.tracer.session(request_id):
+            parsed = self._parse_structured(
+                stage=stage,
+                prompt=prompt,
+                payload=payload,
+                schema=schema,
+            )
         return ProviderStageResponse(
             stage=stage,
             payload=parsed,
@@ -139,18 +163,65 @@ class OpenAIDecompositionProvider:
         }
         if self.config.max_output_tokens is not None:
             kwargs["max_output_tokens"] = self.config.max_output_tokens
+        invocation = self.tracer.invocation(
+            provider=self.provider_id,
+            stage=stage.value,
+            model=self.config.model,
+            parameters={
+                key: value
+                for key, value in kwargs.items()
+                if key not in {"input", "text_format"}
+            },
+            messages=messages,
+            schema=schema,
+            kind="repair"
+            if prompt == OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT
+            else "generation",
+        )
         try:
             response = self._client.responses.parse(**kwargs)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - normalize vendor SDK failures
+            self.tracer.exception(invocation, exc)
+            self.tracer.validation(
+                phase="structural",
+                stage=stage.value,
+                result="failure",
+                errors=(str(exc),),
+            )
             self._raise_openai_failure(stage, exc)
+        self.tracer.response(
+            invocation,
+            raw=response,
+            parsed=getattr(response, "output_parsed", None),
+        )
         parsed = getattr(response, "output_parsed", None)
         if parsed is None:
+            self.tracer.validation(
+                phase="structural",
+                stage=stage.value,
+                result="failure",
+                errors=(f"no structured output for {stage.value}",),
+            )
             raise ProviderOutputError(
                 f"OpenAI returned no structured output for {stage.value}"
             )
         try:
-            return schema.model_validate(parsed)
+            mapped = schema.model_validate(parsed)
+            self.tracer.validation(
+                phase="structural",
+                stage=stage.value,
+                result="success",
+                response=mapped,
+            )
+            return mapped
         except Exception as exc:
+            self.tracer.validation(
+                phase="structural",
+                stage=stage.value,
+                result="failure",
+                errors=(str(exc),),
+                response=parsed,
+            )
             raise ProviderOutputError(
                 f"OpenAI structured output failed contract mapping for {stage.value}"
             ) from exc

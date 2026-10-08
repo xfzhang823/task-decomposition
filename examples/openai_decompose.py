@@ -5,20 +5,48 @@ variable.
 
 Run the default example with::
 
-    PYTHONPATH=src python examples/openai_decompose.py
+    python examples/openai_decompose.py
 
 Provide a custom task with command-line options::
 
-    PYTHONPATH=src python examples/openai_decompose.py \\
-        --task-id invoice-review \\
-        --task-name "Review an invoice" \\
-        --task-description "Validate invoice details and approve or reject the invoice." \\
-        --domain finance
+TASK_DECOMPOSITION_TRACE_ENABLED=true \
+TASK_DECOMPOSITION_TRACE_CONSOLE=true \
+python examples/openai_decompose.py \
+  --task-name "Review an invoice" \
+  --task-description "Validate the invoice and approve or reject it."
 
 Use ``--help`` to see all available options.
 """
 
 import argparse
+import os
+import sys
+from pathlib import Path
+
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(_REPOSITORY_ROOT / "src"))
+
+
+def _load_dotenv() -> None:
+    """Load simple KEY=VALUE entries from the repository's .env file."""
+    dotenv_path = _REPOSITORY_ROOT / ".env"
+    if not dotenv_path.exists():
+        return
+
+    for raw_line in dotenv_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if value[:1] == value[-1:] and value[:1] in {"'", '"'}:
+            value = value[1:-1]
+        if key:
+            os.environ.setdefault(key, value)
+
+
+_load_dotenv()
 
 from task_decomposition import (
     AbsoluteEffortInput,
@@ -34,7 +62,9 @@ from task_decomposition import (
     decompose_task,
     decompose_transformation,
 )
-from task_decomposition.providers.openai import OpenAIDecompositionProvider
+from task_decomposition.providers.openai import (
+    OpenAIDecompositionProvider,
+)
 
 
 def _parse_args() -> argparse.Namespace:

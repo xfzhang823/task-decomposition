@@ -1,5 +1,9 @@
 """Clean one-call composition of the two canonical application capabilities."""
 
+from task_decomposition.application.task_decomposition import decompose_task
+from task_decomposition.application.transformation_decomposition import (
+    decompose_transformation,
+)
 from task_decomposition.contracts.effort import (
     AbsoluteEffortInput,
     NormalizedAccountingInput,
@@ -9,12 +13,9 @@ from task_decomposition.contracts.provider import (
     TransformationDecompositionRequest,
 )
 from task_decomposition.contracts.stages import TransformationDecompositionResult
-from task_decomposition.application.task_decomposition import decompose_task
-from task_decomposition.application.transformation_decomposition import (
-    decompose_transformation,
-)
 from task_decomposition.errors import MissingAccountingInputError, ProviderOutputError
 from task_decomposition.ports.provider import DecompositionProvider
+from task_decomposition.tracing import TraceLogger
 
 
 def decompose(
@@ -33,17 +34,19 @@ def decompose(
         raise ProviderOutputError(
             "provider does not implement the DecompositionProvider protocol"
         )
-    task = decompose_task(request, provider)
-    return decompose_transformation(
-        TransformationDecompositionRequest(
-            task_decomposition=task,
-            transformation_context=transformation_context,
-            accounting_input=accounting_input,
-            request_id=request.request_id,
-            provenance_refs=request.provenance_refs,
-        ),
-        provider,
-    )
+    tracer = getattr(provider, "tracer", None) or TraceLogger.from_env()
+    with tracer.session(request.request_id):
+        task = decompose_task(request, provider)
+        return decompose_transformation(
+            TransformationDecompositionRequest(
+                task_decomposition=task,
+                transformation_context=transformation_context,
+                accounting_input=accounting_input,
+                request_id=request.request_id,
+                provenance_refs=request.provenance_refs,
+            ),
+            provider,
+        )
 
 
 __all__ = ["decompose"]

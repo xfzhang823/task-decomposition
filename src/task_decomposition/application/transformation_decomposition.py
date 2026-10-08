@@ -9,17 +9,18 @@ from task_decomposition.application._provider_stage import (
 from task_decomposition.application.staged_pipeline import run_staged_pipeline
 from task_decomposition.contracts.accounting import AccountingMode
 from task_decomposition.contracts.effort import AbsoluteEffortInput
+from task_decomposition.contracts.provenance import ProviderStage
 from task_decomposition.contracts.provider import (
     AddedWorkClassificationRequest,
     RetainRemoveClassificationRequest,
     TransformationDecompositionRequest,
 )
-from task_decomposition.contracts.provenance import ProviderStage
 from task_decomposition.contracts.stages import (
     TransformationDecompositionResult,
 )
-from task_decomposition.ports.provider import TransformationDecompositionProvider
 from task_decomposition.errors import ProviderOutputError
+from task_decomposition.ports.provider import TransformationDecompositionProvider
+from task_decomposition.tracing import TraceLogger
 
 
 def decompose_transformation(
@@ -32,6 +33,12 @@ def decompose_transformation(
             "provider does not implement the TransformationDecompositionProvider capability"
         )
     provider_name = provider_id(provider)
+    tracer = getattr(provider, "tracer", None) or TraceLogger.from_env()
+    with tracer.session(request.request_id):
+        return _decompose_transformation(request, provider, provider_name)
+
+
+def _decompose_transformation(request, provider, provider_name):
     baseline = request.task_decomposition.operational_decomposition
     classification_response = call_stage(
         provider_name,

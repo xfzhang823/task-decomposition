@@ -1,5 +1,6 @@
 """Provider-independent semantic assertions for staged outputs."""
 
+import re
 from collections.abc import Iterable
 from typing import Any
 
@@ -23,7 +24,6 @@ _FORBIDDEN_PHRASES = (
     "analyze the task",
     "evaluate the task",
     "generate rationale",
-    "make a decision",
     "document rationale",
     "analyze request intake",
     "analyze automation opportunity",
@@ -54,6 +54,37 @@ _OPERATIONAL_VERBS = (
     "log",
     "process",
     "handle",
+    "compare",
+    "assess",
+    "evaluate",
+    "determine",
+    "decide",
+    "analyze",
+    "investigate",
+    "research",
+    "inspect",
+    "reconcile",
+    "calculate",
+    "apply",
+    "enter",
+    "modify",
+    "communicate",
+    "contact",
+    "operate",
+    "approve",
+    "reject",
+    "authorize",
+    "prepare",
+    "assign",
+    "select",
+    "resolve",
+    "document",
+)
+
+_ABSTRACT_LABELS = (
+    re.compile(r"^(?:make|reach|take) (?:an? )?(?:approval )?decision$"),
+    re.compile(r"^(?:ensure|achieve|complete|finish) .+$"),
+    re.compile(r"^(?:.+ )?(?:approved|rejected|completed|processed)$"),
 )
 
 
@@ -71,8 +102,18 @@ def assert_no_forbidden_meta_language(value: Any) -> None:
 def assert_operational_subtasks_are_concrete(
     output: OperationalDecomposition,
 ) -> None:
-    """Require real operational activity language, not abstract commentary."""
+    """Require a distinct unit of time-consuming operational work."""
+    issues = operational_subtask_semantic_errors(output)
+    if issues:
+        raise SemanticAssertionError("; ".join(issues))
+
+
+def operational_subtask_semantic_errors(
+    output: OperationalDecomposition,
+) -> tuple[str, ...]:
+    """Return all semantic defects, including the affected subtask IDs."""
     assert_no_forbidden_meta_language(output)
+    issues: list[str] = []
     for subtask in output.operational_subtasks:
         text = (
             " ".join(
@@ -83,10 +124,18 @@ def assert_operational_subtasks_are_concrete(
             .strip()
             .lower()
         )
-        if not any(verb in text for verb in _OPERATIONAL_VERBS):
-            raise SemanticAssertionError(
-                f"operational subtask is too meta or abstract: {subtask.subtask_name!r}"
+        if any(pattern.fullmatch(text) for pattern in _ABSTRACT_LABELS):
+            issues.append(
+                f"subtask {subtask.subtask_id!r} ({subtask.subtask_name!r}) is a vague goal, state, or outcome; describe the work being performed"
             )
+        elif not any(
+            re.search(rf"\b{re.escape(verb)}(?:s|ed|ing)?\b", text)
+            for verb in _OPERATIONAL_VERBS
+        ):
+            issues.append(
+                f"subtask {subtask.subtask_id!r} ({subtask.subtask_name!r}) does not identify a reasonable unit of operational work"
+            )
+    return tuple(issues)
 
 
 def _iter_text_values(value: Any) -> Iterable[str]:
@@ -105,4 +154,5 @@ def _iter_text_values(value: Any) -> Iterable[str]:
 __all__ = [
     "assert_no_forbidden_meta_language",
     "assert_operational_subtasks_are_concrete",
+    "operational_subtask_semantic_errors",
 ]

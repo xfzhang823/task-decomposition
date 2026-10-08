@@ -4,24 +4,31 @@ from decimal import Decimal
 
 from task_decomposition.application._provider_stage import (
     call_stage,
+    operational_validation_feedback,
     provider_id,
     validate_operational_response,
 )
+from task_decomposition.contracts.provenance import ProviderStage
 from task_decomposition.contracts.provider import (
     OperationalDecompositionRequest,
     TaskDecompositionRequest,
 )
-from task_decomposition.contracts.provenance import ProviderStage
 from task_decomposition.contracts.stages import (
     BaselineEffortAllocation,
     TaskDecomposition,
 )
-from task_decomposition.errors import MissingEffortAllocationError, ProviderOutputError
-from task_decomposition.ports.provider import TaskDecompositionProvider
-from task_decomposition.ports.effort_allocator import (
-    EffortAllocator,
-    EffortAllocationRequest,
+from task_decomposition.errors import (
+    MissingEffortAllocationError,
+    ProviderContractValidationError,
+    ProviderOutputError,
+    ProviderSemanticValidationError,
 )
+from task_decomposition.ports.effort_allocator import (
+    EffortAllocationRequest,
+    EffortAllocator,
+)
+from task_decomposition.ports.provider import TaskDecompositionProvider
+from task_decomposition.tracing import TraceLogger, current_tracer
 
 
 def decompose_task(
@@ -42,21 +49,140 @@ def decompose_task(
             "provider does not implement the TaskDecompositionProvider capability"
         )
     provider_name = provider_id(provider)
-    response = call_stage(
-        provider_name,
-        ProviderStage.OPERATIONAL_DECOMPOSITION,
-        provider.generate_operational_decomposition,
-        OperationalDecompositionRequest(request=request),
-    )
-    operational = validate_operational_response(response)
-    allocations = _allocate_baseline(
-        request, operational, effort_allocator=effort_allocator
-    )
-    return TaskDecomposition(
-        operational_decomposition=operational,
-        baseline_effort_allocations=allocations,
-        provenance_refs=operational.provenance_refs + response.provenance.references,
-        provider_provenance=(response.provenance,),
+    tracer = getattr(provider, "tracer", None) or TraceLogger.from_env()
+    with tracer.session(request.request_id):
+        response = call_stage(
+            provider_name,
+            ProviderStage.OPERATIONAL_DECOMPOSITION,
+            provider.generate_operational_decomposition,
+            OperationalDecompositionRequest(request=request),
+        )
+        operational, response = _validate_or_repair_operational(
+            provider,
+            provider_name,
+            request,
+            response,
+        )
+        allocations = _allocate_baseline(
+            request, operational, effort_allocator=effort_allocator
+        )
+        return TaskDecomposition(
+            operational_decomposition=operational,
+            baseline_effort_allocations=allocations,
+            provenance_refs=operational.provenance_refs
+            + response.provenance.references,
+            provider_provenance=(response.provenance,),
+        )
+
+
+def _validate_or_repair_operational(provider, provider_name, request, response):
+    max_repairs = 2
+    tracer = current_tracer() or getattr(provider, "tracer", TraceLogger.from_env())
+    try:
+        operational = validate_operational_response(response)
+        tracer.validation(
+            phase="semantic",
+            stage=ProviderStage.OPERATIONAL_DECOMPOSITION.value,
+            result="success",
+            response=operational,
+        )
+        return operational, response
+    except ProviderSemanticValidationError as initial_error:
+        errors = operational_validation_feedback(response)
+        if not errors:
+            errors = (str(initial_error),)
+        tracer.validation(
+            phase="semantic",
+            stage=ProviderStage.OPERATIONAL_DECOMPOSITION.value,
+            result="failure",
+            errors=errors,
+            response=response.payload,
+        )
+
+    repair = getattr(provider, "repair_operational_decomposition", None)
+    if not callable(repair):
+        raise ProviderSemanticValidationError(
+            f"operational decomposition semantic validation failed: {'; '.join(errors)}",
+            validation_errors=errors,
+            rejected_response=response,
+            repair_attempts=0,
+            final_response=response,
+        )
+
+    last_response = response
+    all_errors = list(errors)
+    for _ in range(max_repairs):
+
+        def do_repair(
+            stage_request,
+            rejected_response=last_response,
+            validation_errors=tuple(all_errors),
+        ):
+            return repair(
+                stage_request,
+                rejected_response=rejected_response,
+                validation_errors=validation_errors,
+            )
+
+        tracer.repair(
+            stage=ProviderStage.OPERATIONAL_DECOMPOSITION.value,
+            attempt=_ + 1,
+            feedback=tuple(all_errors),
+            rejected_output=last_response.payload,
+        )
+        repaired = call_stage(
+            provider_name,
+            ProviderStage.OPERATIONAL_DECOMPOSITION,
+            do_repair,
+            OperationalDecompositionRequest(request=request),
+        )
+        try:
+            operational = validate_operational_response(repaired)
+            tracer.validation(
+                phase="semantic",
+                stage=ProviderStage.OPERATIONAL_DECOMPOSITION.value,
+                result="success",
+                attempt=_ + 1,
+                response=operational,
+            )
+            tracer.repair(
+                stage=ProviderStage.OPERATIONAL_DECOMPOSITION.value,
+                attempt=_ + 1,
+                feedback=tuple(all_errors),
+                rejected_output=last_response.payload,
+                repaired_output=repaired.payload,
+            )
+            return operational, repaired
+        except ProviderContractValidationError:
+            tracer.validation(
+                phase="structural",
+                stage=ProviderStage.OPERATIONAL_DECOMPOSITION.value,
+                result="failure",
+                attempt=_ + 1,
+                errors=("repaired response failed structural validation",),
+                response=repaired.payload,
+            )
+            raise
+        except ProviderSemanticValidationError as exc:
+            tracer.validation(
+                phase="semantic",
+                stage=ProviderStage.OPERATIONAL_DECOMPOSITION.value,
+                result="failure",
+                attempt=_ + 1,
+                errors=operational_validation_feedback(repaired) or (str(exc),),
+                response=repaired.payload,
+            )
+            last_response = repaired
+            current_errors = operational_validation_feedback(repaired)
+            all_errors.extend(current_errors or (str(exc),))
+
+    raise ProviderSemanticValidationError(
+        "operational decomposition remained semantically invalid after "
+        f"{max_repairs} repair attempts: {'; '.join(all_errors)}",
+        validation_errors=tuple(all_errors),
+        rejected_response=response,
+        repair_attempts=max_repairs,
+        final_response=last_response,
     )
 
 
@@ -81,7 +207,7 @@ def _allocate_baseline(request, operational, *, effort_allocator):
             )
         total_effort = sum(
             (by_id[subtask.subtask_id].effort.value for subtask in subtasks),
-            Decimal("0"),
+            Decimal(0),
         )
         if total_effort <= 0:
             raise MissingEffortAllocationError(
@@ -111,7 +237,7 @@ def _allocate_baseline(request, operational, *, effort_allocator):
         raise MissingEffortAllocationError(
             "effort_weights must contain exactly one weight per subtask"
         )
-    total = sum(request.effort_weights.values(), Decimal("0"))
+    total = sum(request.effort_weights.values(), Decimal(0))
     if total <= 0:
         raise MissingEffortAllocationError("effort_weights must have a positive total")
     allocated = {}

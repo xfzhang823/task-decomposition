@@ -1,17 +1,39 @@
 """Shared semantic instructions for concrete provider adapters."""
 
 OPERATIONAL_DECOMPOSITION_PROMPT = """
-Decompose the supplied business task into concrete, observable operational
+Decompose the supplied business task into concrete, distinct operational
 human subtasks. Return only the requested structured object.
 
-Each subtask must describe work someone performs, such as receiving, verifying,
-checking, updating, routing, notifying, recording, or escalating. Preserve the
-task identity supplied by the caller. Use stable short subtask IDs and a
-1-based contiguous sequence. Dependencies may reference only earlier subtasks.
+Each subtask must describe a reasonable unit of time-consuming work that a
+human could perform. This includes physical work, system interaction,
+communication, information processing, investigation, analysis, evaluation,
+judgment, and decision-making. Cognitive work is valid when it says what is
+being reviewed, compared, evaluated, or determined. Do not use a label that
+merely states a goal, state, outcome, or completion result; "Make approval
+decision" is too abstract, while "Determine whether the invoice meets approval
+criteria" identifies the work. Do not split one reasonable decision into
+trivial micro-steps solely to make it sound operational. Preserve the task
+identity supplied by the caller. Use stable short subtask IDs and a 1-based
+contiguous sequence. Dependencies may reference only earlier subtasks.
 
 Return a JSON structured object only. Do not return readiness or suitability analysis, implementation plans, generic
 recommendations, transformation commentary, scoring, or final accounting.
 Do not invent authoritative effort values.
+""".strip()
+
+OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT = """
+Repair the supplied structured operational decomposition after semantic
+validation. Return the same JSON schema. Preserve the task identity and all
+already-valid subtasks, IDs, ordering, and dependencies where practical. Make
+the smallest necessary correction to each rejected subtask; do not regenerate
+unrelated content or over-decompose a reasonable unit of work.
+
+Every subtask must be a reasonable, distinct unit of time-consuming operational
+work that a human could perform. Physical work, system interaction,
+communication, information processing, investigation, analysis, evaluation,
+judgment, and sufficiently specific decision-making are all valid. A state,
+goal, outcome, completion label, or vague abstraction is not valid. Describe
+what the worker actually reviews, determines, records, communicates, or does.
 """.strip()
 
 RETAIN_REMOVE_PROMPT = """
@@ -44,5 +66,6 @@ readiness. Added work must not be disguised as a RETAIN or REMOVE row.
 __all__ = [
     "ADDED_WORK_PROMPT",
     "OPERATIONAL_DECOMPOSITION_PROMPT",
+    "OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT",
     "RETAIN_REMOVE_PROMPT",
 ]

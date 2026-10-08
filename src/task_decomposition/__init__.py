@@ -52,6 +52,7 @@ from task_decomposition.application import (
 from task_decomposition.validation import (
     assert_no_forbidden_meta_language,
     assert_operational_subtasks_are_concrete,
+    operational_subtask_semantic_errors,
     validate_added_work_classification,
     validate_operational_decomposition,
     validate_retain_remove_classification,
@@ -92,6 +93,7 @@ from task_decomposition.ports import (
     TaskDecompositionProvider,
     TransformationDecompositionProvider,
 )
+from task_decomposition.tracing import TraceInvocation, TraceLogger
 
 __all__ = [
     "AbsoluteEffortInput",
@@ -125,6 +127,8 @@ __all__ = [
     "EffortAllocator",
     "TaskDecompositionProvider",
     "TransformationDecompositionProvider",
+    "TraceInvocation",
+    "TraceLogger",
     "OperationalDecomposition",
     "OperationalDecompositionRequest",
     "OperationalSubtask",
@@ -163,6 +167,7 @@ __all__ = [
     "account_normalized",
     "assert_no_forbidden_meta_language",
     "assert_operational_subtasks_are_concrete",
+    "operational_subtask_semantic_errors",
     "aggregate_baseline_rows",
     "allocate_effort",
     "classify_effect",

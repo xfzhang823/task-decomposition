@@ -137,6 +137,32 @@ python -m compileall -q src
 git diff --check
 ```
 
+## Opt-in LLM tracing
+
+Provider tracing is disabled by default. To capture a redacted, machine-readable
+JSONL lifecycle trace for the OpenAI example:
+
+```bash
+TASK_DECOMPOSITION_TRACE_ENABLED=true \
+TASK_DECOMPOSITION_TRACE_DIR=traces \
+TASK_DECOMPOSITION_TRACE_CONSOLE=true \
+python examples/openai_decompose.py
+```
+
+The detailed trace is appended to `traces/task_decomposition.jsonl`; each line
+is one event linked by `correlation_id` and `invocation_id`. Console output is a
+concise event summary. Tracing includes full prompts and structured responses,
+which may contain sensitive business data. API keys, authorization values, and
+common provider key formats are redacted, but the trace directory must still be
+protected.
+
+Provider SDK limitation: successful OpenAI, DeepSeek, and Gemini responses are
+recorded before contract mapping. If OpenAI `responses.parse()` raises during
+its internal Pydantic/JSON parsing, the SDK may not attach the underlying
+Responses API payload to the exception. In that case the trace records the
+complete request, exception attributes, cause/context, and explicitly marks the
+raw response as unavailable; it cannot reconstruct bytes the SDK discarded.
+
 ## Further documentation
 
 - [`docs/DECOMPOSITION_MODEL.md`](docs/DECOMPOSITION_MODEL.md) explains the two capabilities and their contracts.

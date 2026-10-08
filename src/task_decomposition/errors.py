@@ -86,7 +86,22 @@ class ProviderContractValidationError(ProviderOutputError):
 
 
 class ProviderSemanticValidationError(ProviderOutputError):
-    """Provider payload failed standalone semantic assertions."""
+    """Provider payload failed semantic assertions after bounded repair."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        validation_errors=(),
+        rejected_response=None,
+        repair_attempts: int = 0,
+        final_response=None,
+    ):
+        super().__init__(message)
+        self.validation_errors = tuple(validation_errors)
+        self.rejected_response = rejected_response
+        self.repair_attempts = repair_attempts
+        self.final_response = final_response
 
 
 class ProviderConfigurationError(ProviderError):

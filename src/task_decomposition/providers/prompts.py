@@ -1,5 +1,10 @@
 """Shared semantic instructions for concrete provider adapters."""
 
+from task_decomposition.evaluation.rubric import (
+    SEMANTIC_EVALUATION_RUBRIC,
+    SEMANTIC_EVALUATION_RUBRIC_VERSION,
+)
+
 OPERATIONAL_DECOMPOSITION_PROMPT = """
 Decompose the supplied business task into concrete, distinct operational
 human subtasks. Return only the requested structured object.
@@ -63,9 +68,23 @@ by the caller. Do not calculate W0, W1, substitution, augmentation, effect, or
 readiness. Added work must not be disguised as a RETAIN or REMOVE row.
 """.strip()
 
+SEMANTIC_EVALUATION_PROMPT = f"""
+Evaluate the complete operational decomposition in the supplied input JSON.
+Use the semantic evaluation rubric below, including its decision and finding
+consistency rules. Return only the requested structured evaluation object.
+Do not include hidden reasoning or a numerical quality score. Findings must be
+concise and actionable. Evaluate the decomposition as a whole in the context
+of the original task, task description, and task context.
+
+RUBRIC VERSION: {SEMANTIC_EVALUATION_RUBRIC_VERSION}
+
+{SEMANTIC_EVALUATION_RUBRIC}
+""".strip()
+
 __all__ = [
     "ADDED_WORK_PROMPT",
     "OPERATIONAL_DECOMPOSITION_PROMPT",
     "OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT",
     "RETAIN_REMOVE_PROMPT",
+    "SEMANTIC_EVALUATION_PROMPT",
 ]

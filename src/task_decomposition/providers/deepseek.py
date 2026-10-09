@@ -17,6 +17,15 @@ from task_decomposition.contracts.stages import (
     RetainRemoveClassification,
 )
 from task_decomposition.errors import ProviderConfigurationError, ProviderOutputError
+from task_decomposition.evaluation.contracts import (
+    SemanticEvaluation,
+    SemanticEvaluationRequest,
+)
+from task_decomposition.providers._semantic import (
+    SEMANTIC_EVALUATION_STAGE,
+    parse_semantic_evaluation,
+    semantic_payload,
+)
 from task_decomposition.providers._shared import (
     make_stage_response,
     parse_model_payload,
@@ -30,6 +39,7 @@ from task_decomposition.providers.prompts import (
     OPERATIONAL_DECOMPOSITION_PROMPT,
     OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT,
     RETAIN_REMOVE_PROMPT,
+    SEMANTIC_EVALUATION_PROMPT,
 )
 from task_decomposition.tracing import TraceLogger
 
@@ -59,6 +69,109 @@ class DeepSeekDecompositionProvider:
         self.config = config or DeepSeekProviderConfig()
         self._client = client if client is not None else self._build_client()
         self.tracer = tracer or TraceLogger.from_env()
+
+    def evaluate(self, request: SemanticEvaluationRequest) -> SemanticEvaluation:
+        """Evaluate a complete operational decomposition with DeepSeek."""
+
+        with self.tracer.session(request.correlation_id or request.request_id):
+            payload = semantic_payload(request)
+            messages = [
+                {
+                    "role": "system",
+                    "content": stage_text(SEMANTIC_EVALUATION_PROMPT, payload),
+                },
+                {"role": "user", "content": "Return the requested JSON object."},
+            ]
+            kwargs = {
+                "model": self.config.model,
+                "messages": messages,
+                "response_format": {"type": "json_object"},
+            }
+            if self.config.max_tokens is not None:
+                kwargs["max_tokens"] = self.config.max_tokens
+            invocation = self.tracer.invocation(
+                provider=self.provider_id,
+                stage=SEMANTIC_EVALUATION_STAGE,
+                model=self.config.model,
+                parameters={
+                    key: value for key, value in kwargs.items() if key != "messages"
+                },
+                messages=messages,
+                schema=SemanticEvaluation,
+                kind="evaluation",
+                request_id=request.request_id,
+            )
+            try:
+                response = self._client.chat.completions.create(**kwargs)
+                content = response.choices[0].message.content
+            except Exception as exc:  # noqa: BLE001 - normalize vendor SDK failures
+                self.tracer.exception(invocation, exc)
+                self.tracer.validation(
+                    phase="evaluation",
+                    stage=SEMANTIC_EVALUATION_STAGE,
+                    result="failure",
+                    errors=(str(exc),),
+                )
+                raise_provider_failure("DeepSeek", SEMANTIC_EVALUATION_STAGE, exc)
+            self.tracer.response(
+                invocation,
+                raw=response,
+                stage=SEMANTIC_EVALUATION_STAGE,
+            )
+            if content is None or content == "":
+                self.tracer.validation(
+                    phase="evaluation",
+                    stage=SEMANTIC_EVALUATION_STAGE,
+                    result="failure",
+                    errors=("no structured evaluator output",),
+                )
+                raise ProviderOutputError(
+                    "DeepSeek returned no structured output for semantic_evaluation"
+                )
+            try:
+                parsed = json.loads(content) if isinstance(content, str) else content
+            except Exception as exc:
+                self.tracer.exception(invocation, exc)
+                self.tracer.validation(
+                    phase="evaluation",
+                    stage=SEMANTIC_EVALUATION_STAGE,
+                    result="failure",
+                    errors=(str(exc),),
+                )
+                raise ProviderOutputError(
+                    "DeepSeek returned malformed JSON for semantic_evaluation"
+                ) from exc
+            try:
+                evaluation = parse_semantic_evaluation(
+                    parsed,
+                    request,
+                    provider_name="DeepSeek",
+                    model_id=self.config.model,
+                )
+            except Exception as exc:
+                self.tracer.validation(
+                    phase="evaluation",
+                    stage=SEMANTIC_EVALUATION_STAGE,
+                    result="failure",
+                    errors=(str(exc),),
+                    response=parsed,
+                )
+                raise
+            self.tracer.validation(
+                phase="evaluation",
+                stage=SEMANTIC_EVALUATION_STAGE,
+                result="success",
+                response=evaluation,
+            )
+            self.tracer.emit(
+                "llm.parsed",
+                provider=self.provider_id,
+                stage=SEMANTIC_EVALUATION_STAGE,
+                correlation_id=invocation.correlation_id,
+                invocation_id=invocation.invocation_id,
+                data={"parsed_response": evaluation},
+            )
+            return evaluation
 
     def generate_operational_decomposition(
         self, request: OperationalDecompositionRequest

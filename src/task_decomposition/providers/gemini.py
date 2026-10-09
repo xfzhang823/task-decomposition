@@ -16,7 +16,16 @@ from task_decomposition.contracts.stages import (
     OperationalDecomposition,
     RetainRemoveClassification,
 )
-from task_decomposition.errors import ProviderConfigurationError
+from task_decomposition.errors import ProviderConfigurationError, ProviderOutputError
+from task_decomposition.evaluation.contracts import (
+    SemanticEvaluation,
+    SemanticEvaluationRequest,
+)
+from task_decomposition.providers._semantic import (
+    SEMANTIC_EVALUATION_STAGE,
+    parse_semantic_evaluation,
+    semantic_payload,
+)
 from task_decomposition.providers._shared import (
     make_stage_response,
     parse_model_payload,
@@ -30,6 +39,7 @@ from task_decomposition.providers.prompts import (
     OPERATIONAL_DECOMPOSITION_PROMPT,
     OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT,
     RETAIN_REMOVE_PROMPT,
+    SEMANTIC_EVALUATION_PROMPT,
 )
 from task_decomposition.tracing import TraceLogger
 
@@ -56,6 +66,94 @@ class GeminiDecompositionProvider:
         self.config = config or GeminiProviderConfig()
         self._client = client if client is not None else self._build_client()
         self.tracer = tracer or TraceLogger.from_env()
+
+    def evaluate(self, request: SemanticEvaluationRequest) -> SemanticEvaluation:
+        """Evaluate a complete operational decomposition with Gemini."""
+
+        with self.tracer.session(request.correlation_id or request.request_id):
+            payload = semantic_payload(request)
+            contents = stage_text(SEMANTIC_EVALUATION_PROMPT, payload)
+            config: dict[str, Any] = {
+                "response_mime_type": "application/json",
+                "response_schema": SemanticEvaluation,
+            }
+            if self.config.max_output_tokens is not None:
+                config["max_output_tokens"] = self.config.max_output_tokens
+            invocation = self.tracer.invocation(
+                provider=self.provider_id,
+                stage=SEMANTIC_EVALUATION_STAGE,
+                model=self.config.model,
+                parameters={
+                    "config": {
+                        **config,
+                        "response_schema": SemanticEvaluation.model_json_schema(),
+                    }
+                },
+                messages=contents,
+                schema=SemanticEvaluation,
+                kind="evaluation",
+                request_id=request.request_id,
+            )
+            try:
+                response = self._client.models.generate_content(
+                    model=self.config.model,
+                    contents=contents,
+                    config=config,
+                )
+            except Exception as exc:  # noqa: BLE001 - normalize vendor SDK failures
+                self.tracer.exception(invocation, exc)
+                self.tracer.validation(
+                    phase="evaluation",
+                    stage=SEMANTIC_EVALUATION_STAGE,
+                    result="failure",
+                    errors=(str(exc),),
+                )
+                raise_provider_failure("Gemini", SEMANTIC_EVALUATION_STAGE, exc)
+            parsed = getattr(response, "parsed", None)
+            if parsed is None:
+                parsed = getattr(response, "text", None)
+            self.tracer.response(
+                invocation,
+                raw=response,
+                parsed=parsed,
+                raw_output=getattr(response, "text", None)
+                if getattr(response, "text", None) is not None
+                else parsed,
+                stage=SEMANTIC_EVALUATION_STAGE,
+            )
+            if parsed is None or parsed == "":
+                self.tracer.validation(
+                    phase="evaluation",
+                    stage=SEMANTIC_EVALUATION_STAGE,
+                    result="failure",
+                    errors=("no structured evaluator output",),
+                )
+                raise ProviderOutputError(
+                    "Gemini returned no structured output for semantic_evaluation"
+                )
+            try:
+                evaluation = parse_semantic_evaluation(
+                    parsed,
+                    request,
+                    provider_name="Gemini",
+                    model_id=self.config.model,
+                )
+            except Exception as exc:
+                self.tracer.validation(
+                    phase="evaluation",
+                    stage=SEMANTIC_EVALUATION_STAGE,
+                    result="failure",
+                    errors=(str(exc),),
+                    response=parsed,
+                )
+                raise
+            self.tracer.validation(
+                phase="evaluation",
+                stage=SEMANTIC_EVALUATION_STAGE,
+                result="success",
+                response=evaluation,
+            )
+            return evaluation
 
     def generate_operational_decomposition(
         self, request: OperationalDecompositionRequest

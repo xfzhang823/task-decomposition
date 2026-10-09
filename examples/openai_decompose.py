@@ -10,11 +10,10 @@ Run the default example with::
 Provide a custom task with command-line options::
 
 TASK_DECOMPOSITION_TRACE_ENABLED=true \
-TASK_DECOMPOSITION_TRACE_DIR=logs/llm \
 TASK_DECOMPOSITION_TRACE_CONSOLE=true \
 python examples/openai_decompose.py \
-  --task-name "Review an invoice" \
-  --task-description "Validate the invoice and approve or reject it."
+  --task-name "Production Scheduling" \
+  --task-description "Review production orders, inventory availability, machine capacity, and workforce availability. Develop a feasible production schedule, assign production orders to machines and shifts, resolve scheduling conflicts, and communicate the finalized schedule to production teams."
 
 Use ``--help`` to see all available options.
 """

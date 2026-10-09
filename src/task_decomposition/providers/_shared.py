@@ -3,6 +3,7 @@
 import json
 from typing import Any
 
+from task_decomposition.contracts.provenance import ProviderProvenance, ProviderStage
 from task_decomposition.contracts.provider import (
     AddedWorkClassificationRequest,
     ProviderStageResponse,
@@ -10,7 +11,6 @@ from task_decomposition.contracts.provider import (
     TaskDecompositionRequest,
     TransformationDecompositionRequest,
 )
-from task_decomposition.contracts.provenance import ProviderProvenance, ProviderStage
 from task_decomposition.errors import (
     ProviderAuthenticationError,
     ProviderExecutionError,
@@ -98,14 +98,21 @@ def parse_model_payload(raw: Any, schema, *, provider_name: str, stage: Provider
         ) from exc
 
 
-def raise_provider_failure(provider_name: str, stage: ProviderStage, exc: Exception):
+def _stage_name(stage: ProviderStage | str) -> str:
+    return stage.value if isinstance(stage, ProviderStage) else stage
+
+
+def raise_provider_failure(
+    provider_name: str, stage: ProviderStage | str, exc: Exception
+):
+    stage_name = _stage_name(stage)
     name = type(exc).__name__.lower()
     if "auth" in name or "permission" in name or "credential" in name:
         raise ProviderAuthenticationError(
-            f"{provider_name} authentication failed during {stage.value}"
+            f"{provider_name} authentication failed during {stage_name}"
         ) from exc
     raise ProviderExecutionError(
-        f"{provider_name} request failed during {stage.value} ({type(exc).__name__})"
+        f"{provider_name} request failed during {stage_name} ({type(exc).__name__})"
     ) from exc
 
 

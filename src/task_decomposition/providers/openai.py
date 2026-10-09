@@ -22,12 +22,22 @@ from task_decomposition.errors import (
     ProviderExecutionError,
     ProviderOutputError,
 )
+from task_decomposition.evaluation.contracts import (
+    SemanticEvaluation,
+    SemanticEvaluationRequest,
+)
+from task_decomposition.providers._semantic import (
+    SEMANTIC_EVALUATION_STAGE,
+    parse_semantic_evaluation,
+    semantic_payload,
+)
 from task_decomposition.providers._shared import request_metadata, stage_payload
 from task_decomposition.providers.prompts import (
     ADDED_WORK_PROMPT,
     OPERATIONAL_DECOMPOSITION_PROMPT,
     OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT,
     RETAIN_REMOVE_PROMPT,
+    SEMANTIC_EVALUATION_PROMPT,
 )
 from task_decomposition.tracing import TraceLogger
 
@@ -61,6 +71,91 @@ class OpenAIDecompositionProvider:
         self.config = config or OpenAIProviderConfig()
         self._client = client if client is not None else self._build_client()
         self.tracer = tracer or TraceLogger.from_env()
+
+    def evaluate(self, request: SemanticEvaluationRequest) -> SemanticEvaluation:
+        """Evaluate a complete operational decomposition with OpenAI."""
+
+        with self.tracer.session(request.correlation_id or request.request_id):
+            return self._evaluate_inner(request)
+
+    def _evaluate_inner(self, request: SemanticEvaluationRequest):
+        payload = semantic_payload(request)
+        messages = [
+            {"role": "system", "content": SEMANTIC_EVALUATION_PROMPT},
+            {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+        ]
+        kwargs = {
+            "model": self.config.model,
+            "input": messages,
+            "text_format": SemanticEvaluation,
+        }
+        if self.config.max_output_tokens is not None:
+            kwargs["max_output_tokens"] = self.config.max_output_tokens
+        invocation = self.tracer.invocation(
+            provider=self.provider_id,
+            stage=SEMANTIC_EVALUATION_STAGE,
+            model=self.config.model,
+            parameters={
+                key: value
+                for key, value in kwargs.items()
+                if key not in {"input", "text_format"}
+            },
+            messages=messages,
+            schema=SemanticEvaluation,
+            kind="evaluation",
+            request_id=request.request_id,
+        )
+        try:
+            response = self._client.responses.parse(**kwargs)
+        except Exception as exc:  # noqa: BLE001 - normalize vendor SDK failures
+            self.tracer.exception(invocation, exc)
+            self.tracer.validation(
+                phase="evaluation",
+                stage=SEMANTIC_EVALUATION_STAGE,
+                result="failure",
+                errors=(str(exc),),
+            )
+            self._raise_openai_evaluation_failure(SEMANTIC_EVALUATION_STAGE, exc)
+        parsed = getattr(response, "output_parsed", None)
+        self.tracer.response(
+            invocation,
+            raw=response,
+            parsed=parsed,
+            stage=SEMANTIC_EVALUATION_STAGE,
+        )
+        if parsed is None:
+            self.tracer.validation(
+                phase="evaluation",
+                stage=SEMANTIC_EVALUATION_STAGE,
+                result="failure",
+                errors=("no structured evaluator output",),
+            )
+            raise ProviderOutputError(
+                "OpenAI returned no structured output for semantic_evaluation"
+            )
+        try:
+            evaluation = parse_semantic_evaluation(
+                parsed,
+                request,
+                provider_name="OpenAI",
+                model_id=self.config.model,
+            )
+        except Exception as exc:
+            self.tracer.validation(
+                phase="evaluation",
+                stage=SEMANTIC_EVALUATION_STAGE,
+                result="failure",
+                errors=(str(exc),),
+                response=parsed,
+            )
+            raise
+        self.tracer.validation(
+            phase="evaluation",
+            stage=SEMANTIC_EVALUATION_STAGE,
+            result="success",
+            response=evaluation,
+        )
+        return evaluation
 
     def generate_operational_decomposition(
         self, request: OperationalDecompositionRequest
@@ -251,13 +346,35 @@ class OpenAIDecompositionProvider:
 
     @staticmethod
     def _raise_openai_failure(stage, exc):
+        stage_name = stage.value if hasattr(stage, "value") else stage
         name = type(exc).__name__.lower()
         if "auth" in name or "permission" in name:
             raise ProviderAuthenticationError(
-                f"OpenAI authentication failed during {stage.value}"
+                f"OpenAI authentication failed during {stage_name}"
             ) from exc
         raise ProviderExecutionError(
-            f"OpenAI request failed during {stage.value} ({type(exc).__name__})"
+            f"OpenAI request failed during {stage_name} ({type(exc).__name__})"
+        ) from exc
+
+    @staticmethod
+    def _raise_openai_evaluation_failure(stage, exc):
+        stage_name = stage.value if hasattr(stage, "value") else stage
+        name = type(exc).__name__.lower()
+        if "auth" in name or "permission" in name:
+            raise ProviderAuthenticationError(
+                f"OpenAI authentication failed during {stage_name}"
+            ) from exc
+        if (
+            "json" in name
+            or "validation" in name
+            or "parse" in name
+            or "invalid json" in str(exc).lower()
+        ):
+            raise ProviderOutputError(
+                f"OpenAI structured output failed during {stage_name}"
+            ) from exc
+        raise ProviderExecutionError(
+            f"OpenAI request failed during {stage_name} ({type(exc).__name__})"
         ) from exc
 
 

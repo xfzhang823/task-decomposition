@@ -189,6 +189,7 @@ class TraceLogger:
         raw: Any,
         parsed: Any = None,
         raw_output: Any = _MISSING,
+        stage: str | None = None,
     ):
         if raw_output is _MISSING:
             raw_output = _extract_raw_output(raw)
@@ -203,6 +204,7 @@ class TraceLogger:
             raw_output_available = True
         self.emit(
             "llm.response",
+            stage=stage,
             correlation_id=invocation.correlation_id,
             invocation_id=invocation.invocation_id,
             data={
@@ -222,6 +224,7 @@ class TraceLogger:
         if parsed is not None:
             self.emit(
                 "llm.parsed",
+                stage=stage,
                 correlation_id=invocation.correlation_id,
                 invocation_id=invocation.invocation_id,
                 data={"parsed_response": parsed},

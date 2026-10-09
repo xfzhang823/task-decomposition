@@ -2,12 +2,15 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
+from test_provider_application import account_input, request
+from test_staged_pipeline import make_added, make_classification, make_operational
 
 from task_decomposition import (
     ProviderAuthenticationError,
     ProviderExecutionError,
     ProviderOutputError,
     ProviderStage,
+    SemanticEvaluation,
     TaskDecomposition,
     decompose,
 )
@@ -19,17 +22,14 @@ from task_decomposition.contracts.provider import (
 )
 from task_decomposition.providers.openai import (
     DEFAULT_OPENAI_MODEL,
-    OpenAIProviderConfig,
     OpenAIDecompositionProvider,
+    OpenAIProviderConfig,
 )
 from task_decomposition.providers.prompts import (
     ADDED_WORK_PROMPT,
     OPERATIONAL_DECOMPOSITION_PROMPT,
     RETAIN_REMOVE_PROMPT,
 )
-
-from test_provider_application import account_input, request
-from test_staged_pipeline import make_added, make_classification, make_operational
 
 
 class FakeResponses:
@@ -82,6 +82,7 @@ def test_each_openai_stage_uses_structured_output_and_maps_provenance():
             type(make_operational()): make_operational(),
             type(make_classification()): make_classification(),
             type(make_added()): make_added(),
+            SemanticEvaluation: {"decision": "accept", "rubric_version": "1.0"},
         }
     )
     provider = OpenAIDecompositionProvider(
@@ -124,6 +125,7 @@ def test_openai_adapter_runs_full_validated_application():
             type(make_operational()): make_operational(),
             type(make_classification()): make_classification(),
             type(make_added()): make_added(),
+            SemanticEvaluation: {"decision": "accept", "rubric_version": "1.0"},
         }
     )
     result = decompose(

@@ -4,7 +4,7 @@
 
 Task decomposition answers “What work exists?” Its canonical input is `TaskDecompositionRequest`, which contains a host-neutral `TaskReference`, `task_context`, and optional baseline effort and effort weights. It does not contain transformation context.
 
-`decompose_task(request, provider, effort_allocator=None)` asks a `TaskDecompositionProvider` to propose operational subtasks. The application validates the provider response for concrete operational work, identity, ordering, dependencies, and semantic readiness/meta-language rules. It then establishes baseline effort allocations from explicit request weights, an optional `EffortAllocator`, or no allocation when the caller intentionally requests only operational structure.
+`decompose_task(request, provider, effort_allocator=None, evaluator=None)` asks a `TaskDecompositionProvider` to propose operational subtasks. The application validates the provider response for contract shape, identity, ordering, and dependencies, then uses the configured LLM semantic evaluator for contextual operational judgment. It establishes baseline effort allocations only after evaluator acceptance.
 
 The result is a frozen `TaskDecomposition` containing `OperationalDecomposition`, `OperationalSubtask` rows, and `BaselineEffortAllocation` rows when supplied or allocated. Each baseline allocation is attached to a subtask by stable `subtask_id` and contains explicit absolute effort, normalized weight, or both as allowed by the contract.
 
@@ -22,7 +22,7 @@ After stage validation, the application applies the frozen baseline allocations 
 
 `TaskDecompositionProvider` owns only the operational decomposition proposal. `TransformationDecompositionProvider` owns only transformation-specific classification and added-work proposals. `DecompositionProvider` is the composite protocol for concrete providers that implement both capabilities. OpenAI, Gemini, and DeepSeek may each implement both without creating separate semantic models.
 
-Provider output is untrusted. Structured output from a provider is still mapped into the existing contracts and passed through contract, stage, and semantic validation. No provider-supplied accounting metrics are authoritative.
+Provider output is untrusted. Structured output from a provider is mapped into the existing contracts and passed through contract and structural validation before semantic evaluation. No provider-supplied accounting metrics are authoritative.
 
 ## Concrete example
 

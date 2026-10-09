@@ -53,10 +53,6 @@ class UnknownReferenceError(StageValidationError):
     """A stage references an unknown task, subtask, or dependency."""
 
 
-class SemanticAssertionError(StageValidationError):
-    """A staged output is meta commentary instead of operational work."""
-
-
 class MissingAccountingInputError(StageValidationError):
     """Staged output lacks the explicit effort needed for canonical accounting."""
 
@@ -86,7 +82,7 @@ class ProviderContractValidationError(ProviderOutputError):
 
 
 class ProviderSemanticValidationError(ProviderOutputError):
-    """Provider payload failed semantic assertions after bounded repair."""
+    """A valid evaluator decision rejected or could not repair a decomposition."""
 
     def __init__(
         self,
@@ -96,12 +92,14 @@ class ProviderSemanticValidationError(ProviderOutputError):
         rejected_response=None,
         repair_attempts: int = 0,
         final_response=None,
+        semantic_findings=(),
     ):
         super().__init__(message)
         self.validation_errors = tuple(validation_errors)
         self.rejected_response = rejected_response
         self.repair_attempts = repair_attempts
         self.final_response = final_response
+        self.semantic_findings = tuple(semantic_findings)
 
 
 class ProviderConfigurationError(ProviderError):
@@ -110,3 +108,11 @@ class ProviderConfigurationError(ProviderError):
 
 class ProviderAuthenticationError(ProviderError):
     """A concrete provider rejected authentication."""
+
+
+class SemanticEvaluatorUnavailableError(ProviderConfigurationError):
+    """No evaluator capability was configured for operational evaluation."""
+
+
+class SemanticEvaluatorContractError(ProviderOutputError):
+    """An injected evaluator returned a malformed or inconsistent result."""

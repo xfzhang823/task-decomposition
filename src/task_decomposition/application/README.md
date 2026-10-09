@@ -58,7 +58,7 @@ Load-bearing invariants:
 
 `decompose_task` runs only the first stage: a provider proposes operational subtasks, with no transformation context and no accounting. The result (`TaskDecomposition`) is the reusable input the transformation path consumes.
 
-Flow: check the provider implements `TaskDecompositionProvider` → `call_stage(OPERATIONAL_DECOMPOSITION)` → `validate_operational_response` → bounded semantic repair through the provider's optional `repair_operational_decomposition` hook → `_allocate_baseline`. Every repaired response returns through the same structural and semantic validation.
+Flow: check the provider implements `TaskDecompositionProvider` → `call_stage(OPERATIONAL_DECOMPOSITION)` → deterministic structural validation → `SemanticEvaluator` evaluation → bounded targeted repair through the provider's optional `repair_operational_decomposition` hook → structural revalidation and complete-decomposition re-evaluation → `_allocate_baseline`. Only an accepted decomposition reaches allocation; evaluator capability is provider-default or explicit via `decompose_task(..., evaluator=...)`.
 
 `_allocate_baseline` decides the baseline effort, in three cases:
 

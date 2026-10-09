@@ -8,7 +8,12 @@ from task_decomposition import (
     ProviderSemanticValidationError,
     ProviderStage,
     ProviderStageResponse,
-    SemanticAssertionError,
+    SemanticEvaluation,
+    SemanticEvaluationDecision,
+    SemanticFinding,
+    SemanticFindingCategory,
+    SemanticFindingCode,
+    SemanticFindingSeverity,
     decompose_task,
     validate_operational_decomposition,
 )
@@ -38,7 +43,7 @@ def invalid_operational(*names):
 
 
 class RepairProvider(FakeProvider):
-    def __init__(self, repairs):
+    def __init__(self, repairs, *, accept_after_repairs=True):
         super().__init__(
             operational=invalid_operational(
                 "Make approval decision", "Invoice approved", "Complete review"
@@ -46,6 +51,32 @@ class RepairProvider(FakeProvider):
         )
         self.repairs = list(repairs)
         self.repair_calls = []
+        self.evaluation_calls = 0
+        self.accept_after_repairs = accept_after_repairs
+
+    def evaluate(self, request):
+        self.evaluation_calls += 1
+        decision = (
+            SemanticEvaluationDecision.ACCEPT
+            if self.accept_after_repairs and self.evaluation_calls > len(self.repairs)
+            else SemanticEvaluationDecision.REPAIR
+        )
+        findings = (
+            ()
+            if decision is SemanticEvaluationDecision.ACCEPT
+            else (
+                SemanticFinding(
+                    subtask_id="sub-1",
+                    code=SemanticFindingCode.OUTCOME_NOT_WORK,
+                    category=SemanticFindingCategory.OUTCOME,
+                    severity=SemanticFindingSeverity.REPAIRABLE,
+                    message="Replace the outcome with the work producing it.",
+                ),
+            )
+        )
+        return SemanticEvaluation(
+            decision=decision, findings=findings, rubric_version="1.0"
+        )
 
     def repair_operational_decomposition(
         self, request, *, rejected_response, validation_errors
@@ -85,7 +116,7 @@ def test_semantic_failure_is_repaired_and_revalidated():
     assert "sub-1" in provider.repair_calls[0][1][0]
 
 
-def test_specific_decision_work_is_valid_but_outcome_is_not():
+def test_structural_validation_does_not_make_semantic_judgments():
     valid = make_operational().model_copy(
         update={
             "operational_subtasks": (
@@ -101,24 +132,23 @@ def test_specific_decision_work_is_valid_but_outcome_is_not():
         }
     )
     validate_operational_decomposition(valid)
-    with pytest.raises(SemanticAssertionError):
-        validate_operational_decomposition(
-            make_operational().model_copy(
-                update={
-                    "operational_subtasks": (
-                        make_operational()
-                        .operational_subtasks[0]
-                        .model_copy(
-                            update={
-                                "subtask_name": "Invoice approved",
-                                "description": None,
-                            }
-                        ),
-                        *make_operational().operational_subtasks[1:],
-                    )
-                }
-            )
+    validate_operational_decomposition(
+        make_operational().model_copy(
+            update={
+                "operational_subtasks": (
+                    make_operational()
+                    .operational_subtasks[0]
+                    .model_copy(
+                        update={
+                            "subtask_name": "Invoice approved",
+                            "description": None,
+                        }
+                    ),
+                    *make_operational().operational_subtasks[1:],
+                )
+            }
         )
+    )
 
 
 def test_multiple_semantic_failures_are_reported_and_repair_is_bounded():
@@ -130,7 +160,8 @@ def test_multiple_semantic_failures_are_reported_and_repair_is_bounded():
             invalid_operational(
                 "Make approval decision", "Invoice approved", "Complete review"
             ),
-        ]
+        ],
+        accept_after_repairs=False,
     )
     with pytest.raises(ProviderSemanticValidationError) as error:
         decompose_task(request(), provider)
@@ -139,8 +170,7 @@ def test_multiple_semantic_failures_are_reported_and_repair_is_bounded():
     assert error.value.final_response is not None
     assert len(provider.repair_calls) == 2
     assert "sub-1" in str(error.value)
-    assert "sub-2" in str(error.value)
-    assert "sub-3" in str(error.value)
+    assert "outcome_not_work" in str(error.value)
 
 
 def test_malformed_repair_cannot_bypass_structural_validation():

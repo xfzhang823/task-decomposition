@@ -1,6 +1,6 @@
 # Semantic Evaluator Provider Integration
 
-**Status:** Prompt 3 implementation. Provider-backed evaluator calls are implemented, but application orchestration and removal of the existing keyword validator are intentionally deferred.
+**Status:** Provider integration complete; application orchestration completed in Prompt 4 and final cleanup/verification in Prompt 5.
 
 ## 1. Files and integration approach
 
@@ -16,7 +16,7 @@ Changed files:
 - `src/task_decomposition/tracing.py` allows response and parsed events to carry their explicit stage.
 - `tests/test_semantic_evaluator_providers.py` adds deterministic mocked-provider coverage.
 
-No application orchestration, decomposition repair loop, transformation logic, accounting logic, or existing keyword validator was changed.
+Application orchestration now invokes these capabilities after deterministic operational structural validation. Transformation and accounting logic remain unchanged.
 
 Each concrete provider now structurally satisfies the existing `SemanticEvaluator` protocol without adding a method to `TaskDecompositionProvider`. SDK imports remain lazy in the provider constructors. No separate transport framework, registry, agent framework, Thought Graph, or multi-agent evaluator was introduced.
 
@@ -136,9 +136,9 @@ Verification completed:
 - OpenAI `responses.parse()` may fail before returning a response object, so the original raw response is not always available. The existing tracer captures exception metadata and any SDK-attached response data when exposed.
 - DeepSeek's OpenAI-compatible JSON response does not provide the same structured parsed-object surface as OpenAI; raw content is decoded and validated locally.
 - Gemini's parsed/text and usage/metadata surfaces vary by SDK response. Unavailable data remains unavailable rather than being fabricated.
-- The evaluator capability is implemented on concrete adapters but is not yet wired into application orchestration.
-- The existing keyword semantic validator remains active until the later migration phase by explicit scope decision.
+- The evaluator capability is wired into application orchestration by default for all three built-in providers.
+- Custom providers must inject an evaluator unless they expose `evaluate()` themselves; there is no lexical fallback.
 
-## 9. Deferred Prompt 4 work
+## 9. Application integration note
 
-Prompt 4 will integrate `SemanticEvaluator` into the operational decomposition path after structural validation, preserve the existing maximum of two repair attempts, feed structured findings into targeted repair, revalidate/re-evaluate repaired decompositions, and preserve final diagnostics. It will also define the application-level handling of evaluator unavailability. Transformation classification and accounting remain outside that work.
+`decompose_task` performs structural validation, invokes the evaluator, and only allocates effort after `accept`. `repair` findings are passed to the existing repair hook for at most two attempts; each repaired output is structurally validated and re-evaluated. `reject`, evaluator contract failures, and provider execution failures remain distinct. Transformation classification and accounting remain outside semantic evaluation.

@@ -2,6 +2,8 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
+from test_provider_application import account_input, request
+from test_staged_pipeline import make_added, make_classification, make_operational
 
 from task_decomposition import (
     DecompositionProvider,
@@ -25,9 +27,6 @@ from task_decomposition.providers.deepseek import (
     DeepSeekProviderConfig,
 )
 
-from test_provider_application import account_input, request
-from test_staged_pipeline import make_added, make_classification, make_operational
-
 
 class FakeCompletions:
     def __init__(self, outputs=None, error=None):
@@ -39,7 +38,10 @@ class FakeCompletions:
         self.calls.append(kwargs)
         if self.error is not None:
             raise self.error
-        content = self.outputs[len(self.calls) - 1]
+        if "semantic evaluation" in kwargs["messages"][0]["content"].lower():
+            content = '{"decision":"accept","rubric_version":"1.0"}'
+        else:
+            content = self.outputs.pop(0)
         return SimpleNamespace(
             choices=[SimpleNamespace(message=SimpleNamespace(content=content))]
         )
@@ -118,7 +120,7 @@ def test_deepseek_implements_port_and_maps_all_stages():
 
 
 def test_deepseek_adapter_runs_validated_application():
-    provider_instance, client = provider()
+    provider_instance, _client = provider()
     result = decompose(
         request(),
         provider_instance,

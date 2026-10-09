@@ -1,10 +1,5 @@
-"""Pure provider-independent stage and semantic validation."""
+"""Pure provider-independent structural validation."""
 
-from task_decomposition.validation.semantic import (
-    assert_no_forbidden_meta_language,
-    assert_operational_subtasks_are_concrete,
-    operational_subtask_semantic_errors,
-)
 from task_decomposition.validation.stages import (
     validate_added_work_classification,
     validate_operational_decomposition,
@@ -13,9 +8,6 @@ from task_decomposition.validation.stages import (
 )
 
 __all__ = [
-    "assert_no_forbidden_meta_language",
-    "assert_operational_subtasks_are_concrete",
-    "operational_subtask_semantic_errors",
     "validate_added_work_classification",
     "validate_operational_decomposition",
     "validate_retain_remove_classification",

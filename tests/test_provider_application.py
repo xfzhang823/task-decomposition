@@ -1,29 +1,6 @@
 from decimal import Decimal
 
 import pytest
-
-from task_decomposition import (
-    DecompositionProvider,
-    MissingAccountingInputError,
-    OperationalDecompositionRequest,
-    ProviderContractValidationError,
-    ProviderExecutionError,
-    ProviderProvenance,
-    ProviderSemanticValidationError,
-    ProviderStage,
-    ProviderStageResponse,
-    RetainRemoveClassificationRequest,
-    EffortQuantity,
-    TaskDecompositionRequest,
-    EffortUnit,
-    RatioBasis,
-    SupportWorkInput,
-    SupportWorkInputs,
-    TimeBasis,
-    decompose,
-)
-from task_decomposition.errors import ProviderOutputError
-
 from test_staged_pipeline import (
     TASK,
     absolute_amount,
@@ -34,6 +11,31 @@ from test_staged_pipeline import (
     make_operational,
     normalized_amount,
 )
+
+from task_decomposition import (
+    DecompositionProvider,
+    EffortQuantity,
+    EffortUnit,
+    MissingAccountingInputError,
+    OperationalDecompositionRequest,
+    ProviderContractValidationError,
+    ProviderExecutionError,
+    ProviderProvenance,
+    ProviderSemanticValidationError,
+    ProviderStage,
+    ProviderStageResponse,
+    RatioBasis,
+    RetainRemoveClassificationRequest,
+    SemanticEvaluation,
+    SemanticEvaluationDecision,
+    SupportWorkInput,
+    SupportWorkInputs,
+    TaskDecompositionRequest,
+    TimeBasis,
+    decompose,
+    decompose_task,
+)
+from task_decomposition.errors import ProviderOutputError
 
 
 class FakeProvider:
@@ -62,6 +64,12 @@ class FakeProvider:
     ):
         self.calls.append("operational")
         return self._response(ProviderStage.OPERATIONAL_DECOMPOSITION, self.operational)
+
+    def evaluate(self, request):
+        return SemanticEvaluation(
+            decision=SemanticEvaluationDecision.ACCEPT,
+            rubric_version="1.0",
+        )
 
     def classify_retain_remove(self, request: RetainRemoveClassificationRequest):
         self.calls.append("classification")
@@ -118,8 +126,8 @@ def test_provider_driven_reference_case_uses_wave1_metrics():
 
     assert isinstance(provider, DecompositionProvider)
     assert provider.calls == ["operational", "classification", "added"]
-    assert result.accounting.w0 == Decimal("100")
-    assert result.accounting.w1 == Decimal("74")
+    assert result.accounting.w0 == Decimal(100)
+    assert result.accounting.w1 == Decimal(74)
     assert result.accounting.gross_removed_work_ratio == Decimal("0.4")
     assert result.accounting.added_human_work_ratio == Decimal("0.14")
     assert result.accounting.net_remaining_work_ratio == Decimal("0.74")
@@ -194,7 +202,7 @@ def test_provider_driven_degradation_remains_unclamped():
         provider,
         accounting,
     )
-    assert result.accounting.w1 == Decimal("125")
+    assert result.accounting.w1 == Decimal(125)
     assert result.accounting.net_remaining_work_ratio == Decimal("1.25")
     assert result.accounting.net_substitution_ratio == Decimal("-0.25")
     assert result.accounting.net_augmentation_multiplier == Decimal("0.8")
@@ -267,7 +275,7 @@ def test_explicit_accounting_support_is_not_replaced_by_provider_amounts():
     )
     provider = FakeProvider(added=added)
     result = run_decompose(request(), provider)
-    assert result.accounting.w1 == Decimal("74")
+    assert result.accounting.w1 == Decimal(74)
     assert provider.calls == ["operational", "classification", "added"]
 
 
@@ -283,8 +291,25 @@ def test_provider_semantic_failure_is_distinguished():
         }
     )
     provider = FakeProvider(operational=bad)
+
+    class RejectingEvaluator:
+        def evaluate(self, request):
+            return {
+                "decision": "reject",
+                "rubric_version": "1.0",
+                "findings": [
+                    {
+                        "code": "outcome_not_work",
+                        "category": "outcome",
+                        "severity": "blocking",
+                        "subtask_id": "sub-1",
+                        "message": "The result is not the work that produces it.",
+                    }
+                ],
+            }
+
     with pytest.raises(ProviderSemanticValidationError):
-        run_decompose(request(), provider)
+        decompose_task(request(), provider, evaluator=RejectingEvaluator())
 
 
 def test_wrong_response_stage_and_provenance_are_rejected():

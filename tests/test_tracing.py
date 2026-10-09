@@ -179,7 +179,7 @@ def test_semantic_repair_failure_is_traced_with_attempts(tmp_path):
     invalid = invalid_operational(
         "Make approval decision", "Invoice approved", "Complete review"
     )
-    provider = RepairProvider([invalid, invalid])
+    provider = RepairProvider([invalid, invalid], accept_after_repairs=False)
     provider.tracer = tracer
 
     with pytest.raises(ProviderSemanticValidationError):
@@ -189,6 +189,7 @@ def test_semantic_repair_failure_is_traced_with_attempts(tmp_path):
     repair_requests = [event for event in events if event["event"] == "repair.request"]
     assert [event["attempt"] for event in repair_requests] == [1, 2]
     assert any(
-        event["event"] == "validation.semantic" and event["data"]["result"] == "failure"
+        event["event"] == "validation.evaluation"
+        and event["data"]["result"] == "repair"
         for event in events
     )

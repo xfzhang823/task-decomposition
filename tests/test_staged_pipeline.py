@@ -29,12 +29,10 @@ from task_decomposition.errors import (
     CardinalityError,
     IdentityMismatchError,
     MissingAccountingInputError,
-    SemanticAssertionError,
     StageDependencyError,
     SupportBasisConflictError,
     UnknownReferenceError,
 )
-
 
 TASK = TaskReference(
     task_id="task-1",
@@ -184,8 +182,8 @@ def test_end_to_end_absolute_pipeline_delegates_to_wave1_accounting():
         make_absolute_accounting(),
     )
 
-    assert result.accounting.w0 == Decimal("100")
-    assert result.accounting.w1 == Decimal("74")
+    assert result.accounting.w0 == Decimal(100)
+    assert result.accounting.w1 == Decimal(74)
     assert result.accounting.gross_removed_work_ratio == Decimal("0.4")
     assert result.accounting.added_human_work_ratio == Decimal("0.14")
     assert result.accounting.net_remaining_work_ratio == Decimal("0.74")
@@ -322,7 +320,7 @@ def test_sequence_duplicate_added_work_and_bad_category_are_rejected():
         )
 
 
-def test_semantic_assertions_reject_meta_and_readiness_output():
+def test_operational_structure_does_not_apply_lexical_semantic_rejection():
     bad = make_operational().model_copy(
         update={
             "operational_subtasks": (
@@ -338,8 +336,7 @@ def test_semantic_assertions_reject_meta_and_readiness_output():
             )
         }
     )
-    with pytest.raises(SemanticAssertionError):
-        validate_operational_decomposition(bad)
+    validate_operational_decomposition(bad)
 
 
 def test_added_work_requires_explicit_basis_and_amount_for_accounting():

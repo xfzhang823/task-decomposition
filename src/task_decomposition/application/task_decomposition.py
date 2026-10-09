@@ -4,7 +4,6 @@ from decimal import Decimal
 
 from task_decomposition.application._provider_stage import (
     call_stage,
-    operational_validation_feedback,
     provider_id,
     validate_operational_response,
 )
@@ -20,9 +19,20 @@ from task_decomposition.contracts.stages import (
 from task_decomposition.errors import (
     MissingEffortAllocationError,
     ProviderContractValidationError,
+    ProviderError,
+    ProviderExecutionError,
     ProviderOutputError,
     ProviderSemanticValidationError,
+    SemanticEvaluatorContractError,
+    SemanticEvaluatorUnavailableError,
 )
+from task_decomposition.evaluation.contracts import (
+    SemanticEvaluation,
+    SemanticEvaluationDecision,
+    SemanticEvaluationRequest,
+    SemanticFinding,
+)
+from task_decomposition.evaluation.rubric import SEMANTIC_EVALUATION_RUBRIC_VERSION
 from task_decomposition.ports.effort_allocator import (
     EffortAllocationRequest,
     EffortAllocator,
@@ -36,6 +46,7 @@ def decompose_task(
     provider: TaskDecompositionProvider,
     *,
     effort_allocator: EffortAllocator | None = None,
+    evaluator=None,
 ) -> TaskDecomposition:
     """Generate and validate a reusable task decomposition.
 
@@ -62,6 +73,7 @@ def decompose_task(
             provider_name,
             request,
             response,
+            evaluator=evaluator,
         )
         allocations = _allocate_baseline(
             request, operational, effort_allocator=effort_allocator
@@ -75,48 +87,31 @@ def decompose_task(
         )
 
 
-def _validate_or_repair_operational(provider, provider_name, request, response):
-    max_repairs = 2
+def _validate_or_repair_operational(
+    provider, provider_name, request, response, *, evaluator=None
+):
     tracer = current_tracer() or getattr(provider, "tracer", TraceLogger.from_env())
-    try:
-        operational = validate_operational_response(response)
-        tracer.validation(
-            phase="semantic",
-            stage=ProviderStage.OPERATIONAL_DECOMPOSITION.value,
-            result="success",
-            response=operational,
-        )
+    operational = validate_operational_response(response)
+    selected = _resolve_evaluator(provider, evaluator)
+    evaluation = _evaluate(selected, request, operational, tracer=tracer)
+    if evaluation.decision is SemanticEvaluationDecision.ACCEPT:
         return operational, response
-    except ProviderSemanticValidationError as initial_error:
-        errors = operational_validation_feedback(response)
-        if not errors:
-            errors = (str(initial_error),)
-        tracer.validation(
-            phase="semantic",
-            stage=ProviderStage.OPERATIONAL_DECOMPOSITION.value,
-            result="failure",
-            errors=errors,
-            response=response.payload,
-        )
+    if evaluation.decision is SemanticEvaluationDecision.REJECT:
+        raise _semantic_failure(evaluation, response, response, 0)
 
     repair = getattr(provider, "repair_operational_decomposition", None)
     if not callable(repair):
-        raise ProviderSemanticValidationError(
-            f"operational decomposition semantic validation failed: {'; '.join(errors)}",
-            validation_errors=errors,
-            rejected_response=response,
-            repair_attempts=0,
-            final_response=response,
-        )
+        raise _semantic_failure(evaluation, response, response, 0, unavailable=True)
 
     last_response = response
-    all_errors = list(errors)
-    for _ in range(max_repairs):
+    last_evaluation = evaluation
+    for attempt in range(1, 3):
+        feedback = _finding_feedback(last_evaluation.findings)
 
         def do_repair(
             stage_request,
             rejected_response=last_response,
-            validation_errors=tuple(all_errors),
+            validation_errors=feedback,
         ):
             return repair(
                 stage_request,
@@ -126,8 +121,8 @@ def _validate_or_repair_operational(provider, provider_name, request, response):
 
         tracer.repair(
             stage=ProviderStage.OPERATIONAL_DECOMPOSITION.value,
-            attempt=_ + 1,
-            feedback=tuple(all_errors),
+            attempt=attempt,
+            feedback=feedback,
             rejected_output=last_response.payload,
         )
         repaired = call_stage(
@@ -138,51 +133,121 @@ def _validate_or_repair_operational(provider, provider_name, request, response):
         )
         try:
             operational = validate_operational_response(repaired)
-            tracer.validation(
-                phase="semantic",
-                stage=ProviderStage.OPERATIONAL_DECOMPOSITION.value,
-                result="success",
-                attempt=_ + 1,
-                response=operational,
-            )
-            tracer.repair(
-                stage=ProviderStage.OPERATIONAL_DECOMPOSITION.value,
-                attempt=_ + 1,
-                feedback=tuple(all_errors),
-                rejected_output=last_response.payload,
-                repaired_output=repaired.payload,
-            )
-            return operational, repaired
         except ProviderContractValidationError:
             tracer.validation(
                 phase="structural",
                 stage=ProviderStage.OPERATIONAL_DECOMPOSITION.value,
                 result="failure",
-                attempt=_ + 1,
+                attempt=attempt,
                 errors=("repaired response failed structural validation",),
                 response=repaired.payload,
             )
             raise
-        except ProviderSemanticValidationError as exc:
-            tracer.validation(
-                phase="semantic",
-                stage=ProviderStage.OPERATIONAL_DECOMPOSITION.value,
-                result="failure",
-                attempt=_ + 1,
-                errors=operational_validation_feedback(repaired) or (str(exc),),
-                response=repaired.payload,
-            )
-            last_response = repaired
-            current_errors = operational_validation_feedback(repaired)
-            all_errors.extend(current_errors or (str(exc),))
+        tracer.repair(
+            stage=ProviderStage.OPERATIONAL_DECOMPOSITION.value,
+            attempt=attempt,
+            feedback=feedback,
+            rejected_output=last_response.payload,
+            repaired_output=repaired.payload,
+        )
+        evaluation = _evaluate(
+            selected, request, operational, tracer=tracer, attempt=attempt
+        )
+        if evaluation.decision is SemanticEvaluationDecision.ACCEPT:
+            return operational, repaired
+        if evaluation.decision is SemanticEvaluationDecision.REJECT:
+            raise _semantic_failure(evaluation, response, repaired, attempt)
+        last_response = repaired
+        last_evaluation = evaluation
 
-    raise ProviderSemanticValidationError(
-        "operational decomposition remained semantically invalid after "
-        f"{max_repairs} repair attempts: {'; '.join(all_errors)}",
-        validation_errors=tuple(all_errors),
-        rejected_response=response,
-        repair_attempts=max_repairs,
-        final_response=last_response,
+    raise _semantic_failure(last_evaluation, response, last_response, 2)
+
+
+def _resolve_evaluator(provider, evaluator):
+    selected = (
+        evaluator if evaluator is not None else getattr(provider, "evaluate", None)
+    )
+    if not callable(selected) and not callable(getattr(selected, "evaluate", None)):
+        raise SemanticEvaluatorUnavailableError(
+            "operational semantic evaluation requires an evaluator; inject one "
+            "or use a provider with an evaluate() capability"
+        )
+    return selected
+
+
+def _evaluate(evaluator, request, operational, *, tracer, attempt=None):
+    evaluation_request = SemanticEvaluationRequest(
+        task=request.task,
+        task_context=request.task_context,
+        operational_decomposition=operational,
+        rubric_version=SEMANTIC_EVALUATION_RUBRIC_VERSION,
+        request_id=request.request_id,
+        correlation_id=tracer.current_correlation_id(request.request_id),
+    )
+    try:
+        result = (
+            evaluator.evaluate(evaluation_request)
+            if hasattr(evaluator, "evaluate")
+            else evaluator(evaluation_request)
+        )
+    except ProviderError:
+        raise
+    except Exception as exc:
+        tracer.emit(
+            "evaluator.exception",
+            stage="semantic_evaluation",
+            attempt=attempt,
+            data={"exception_type": type(exc).__name__, "message": str(exc)},
+        )
+        raise ProviderExecutionError(
+            f"semantic evaluator failed during semantic_evaluation: {exc}"
+        ) from exc
+    try:
+        result = SemanticEvaluation.model_validate(result)
+        if result.rubric_version != evaluation_request.rubric_version:
+            raise ValueError("evaluator returned an unexpected rubric version")
+        known_ids = {item.subtask_id for item in operational.operational_subtasks}
+        if any(
+            finding.subtask_id is not None and finding.subtask_id not in known_ids
+            for finding in result.findings
+        ):
+            raise ValueError("evaluator returned a finding for an unknown subtask")
+    except Exception as exc:
+        raise SemanticEvaluatorContractError(
+            f"semantic evaluator returned an invalid evaluation: {exc}"
+        ) from exc
+    tracer.validation(
+        phase="evaluation",
+        stage="semantic_evaluation",
+        result=result.decision.value,
+        attempt=attempt,
+        errors=_finding_feedback(result.findings),
+        response=result,
+    )
+    return result
+
+
+def _finding_feedback(findings: tuple[SemanticFinding, ...]) -> tuple[str, ...]:
+    return tuple(
+        f"[{finding.code.value}] [{finding.severity.value}] "
+        f"subtask={finding.subtask_id or 'decomposition'}: {finding.message}"
+        for finding in findings
+    )
+
+
+def _semantic_failure(
+    evaluation, rejected_response, final_response, attempts, *, unavailable=False
+):
+    feedback = _finding_feedback(evaluation.findings)
+    suffix = "; repair capability unavailable" if unavailable else ""
+    return ProviderSemanticValidationError(
+        f"operational decomposition semantic decision {evaluation.decision.value!r}"
+        f"{suffix}: {'; '.join(feedback)}",
+        validation_errors=feedback,
+        semantic_findings=evaluation.findings,
+        rejected_response=rejected_response,
+        repair_attempts=attempts,
+        final_response=final_response,
     )
 
 

@@ -17,9 +17,6 @@ from task_decomposition.errors import (
     StageValidationError,
     UnknownReferenceError,
 )
-from task_decomposition.validation.semantic import (
-    assert_operational_subtasks_are_concrete,
-)
 
 
 def validate_operational_decomposition(
@@ -62,7 +59,6 @@ def validate_operational_decomposition(
             raise StageDependencyError(
                 f"subtask {item.subtask_id!r} dependencies must precede it"
             )
-    assert_operational_subtasks_are_concrete(output)
     return output
 
 

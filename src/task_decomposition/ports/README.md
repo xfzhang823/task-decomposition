@@ -51,14 +51,17 @@ Lets a host split a parent effort across operational subtasks. Supplies per-row 
 ## Usage
 
 ```python
-from task_decomposition import decompose                    # application entry point
+from task_decomposition import decompose  # application entry point
 from task_decomposition.ports import DecompositionProvider  # the port to implement
 
-class MyProvider:                                           # host-side adapter
+
+class MyProvider:  # host-side adapter
     provider_id = "my-provider"
+
     def generate_operational_decomposition(self, request): ...
     def classify_retain_remove(self, request): ...
     def classify_added_work(self, request): ...
 
-result = decompose(request, MyProvider())                   # validated staged result + accounting
+
+result = decompose(request, MyProvider())  # validated staged result + accounting
 ```

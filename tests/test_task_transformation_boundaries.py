@@ -16,6 +16,8 @@ from task_decomposition import (
     ProviderStageResponse,
     RatioBasis,
     RetainRemoveClassification,
+    SemanticEvaluation,
+    SemanticEvaluationDecision,
     SupportWorkInput,
     SupportWorkInputs,
     TaskDecompositionRequest,
@@ -32,7 +34,6 @@ from task_decomposition.ports import (
     TaskDecompositionProvider,
     TransformationDecompositionProvider,
 )
-
 
 TASK = TaskReference(
     task_id="task-boundary",
@@ -163,6 +164,12 @@ class BoundaryProvider:
             ),
         )
 
+    def evaluate(self, request):
+        return SemanticEvaluation(
+            decision=SemanticEvaluationDecision.ACCEPT,
+            rubric_version="1.0",
+        )
+
     def generate_operational_decomposition(self, request):
         self.calls.append("task")
         self.task_request = request.request
@@ -216,9 +223,9 @@ def test_task_decomposition_is_independent_and_allocates_baseline():
     assert provider.calls == ["task"]
     assert len(baseline.operational_decomposition.operational_subtasks) == 3
     assert [item.effort.value for item in baseline.baseline_effort_allocations] == [
-        Decimal("30"),
-        Decimal("40"),
-        Decimal("30"),
+        Decimal(30),
+        Decimal(40),
+        Decimal(30),
     ]
 
 
@@ -232,8 +239,8 @@ def test_transformation_decomposition_consumes_fixed_baseline():
     assert isinstance(provider, TransformationDecompositionProvider)
     assert result.task_decomposition is original
     assert provider.calls == ["task", "retain-remove", "added-work"]
-    assert result.accounting.w0 == Decimal("100")
-    assert result.accounting.w1 == Decimal("74")
+    assert result.accounting.w0 == Decimal(100)
+    assert result.accounting.w1 == Decimal(74)
     assert result.accounting.net_substitution_ratio == Decimal("0.26")
     assert baseline == original
 
@@ -253,8 +260,8 @@ def test_frozen_baseline_is_reused_for_multiple_transformations():
     assert result_a.task_decomposition is baseline
     assert result_b.task_decomposition is baseline
     assert baseline.baseline_effort_allocations == allocations
-    assert result_a.accounting.w1 == Decimal("74")
-    assert result_b.accounting.w1 == Decimal("114")
+    assert result_a.accounting.w1 == Decimal(74)
+    assert result_b.accounting.w1 == Decimal(114)
     assert result_b.accounting.effect.value == "degradation"
 
 

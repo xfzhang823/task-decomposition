@@ -2,6 +2,8 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
+from test_provider_application import account_input, request
+from test_staged_pipeline import make_added, make_classification, make_operational
 
 from task_decomposition import (
     DecompositionProvider,
@@ -9,6 +11,7 @@ from task_decomposition import (
     ProviderExecutionError,
     ProviderOutputError,
     ProviderStage,
+    SemanticEvaluation,
     TaskDecomposition,
     decompose,
 )
@@ -23,9 +26,6 @@ from task_decomposition.providers.gemini import (
     GeminiDecompositionProvider,
     GeminiProviderConfig,
 )
-
-from test_provider_application import account_input, request
-from test_staged_pipeline import make_added, make_classification, make_operational
 
 
 class FakeModels:
@@ -78,6 +78,7 @@ def provider():
             type(make_operational()): make_operational(),
             type(make_classification()): make_classification(),
             type(make_added()): make_added(),
+            SemanticEvaluation: {"decision": "accept", "rubric_version": "1.0"},
         }
     )
     return GeminiDecompositionProvider(

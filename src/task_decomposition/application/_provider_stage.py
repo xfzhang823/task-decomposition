@@ -6,15 +6,9 @@ from task_decomposition.errors import (
     ProviderError,
     ProviderExecutionError,
     ProviderOutputError,
-    ProviderSemanticValidationError,
-    SemanticAssertionError,
     StageValidationError,
 )
 from task_decomposition.tracing import current_tracer
-from task_decomposition.validation.semantic import (
-    assert_no_forbidden_meta_language,
-    operational_subtask_semantic_errors,
-)
 from task_decomposition.validation.stages import (
     validate_added_work_classification,
     validate_operational_decomposition,
@@ -85,8 +79,6 @@ def validate_operational_response(response):
                 response=result,
             )
         return result
-    except SemanticAssertionError as exc:
-        raise ProviderSemanticValidationError(str(exc)) from exc
     except StageValidationError as exc:
         if current_tracer():
             current_tracer().validation(
@@ -99,17 +91,8 @@ def validate_operational_response(response):
         raise ProviderContractValidationError(str(exc)) from exc
 
 
-def operational_validation_feedback(response):
-    """Return structured semantic feedback for a structurally valid response."""
-    try:
-        return operational_subtask_semantic_errors(response.payload)
-    except SemanticAssertionError as exc:
-        return (str(exc),)
-
-
 def validate_classification_response(operational, response):
     try:
-        assert_no_forbidden_meta_language(response.payload)
         result = validate_retain_remove_classification(operational, response.payload)
         tracer = current_tracer()
         if tracer:
@@ -120,16 +103,6 @@ def validate_classification_response(operational, response):
                 response=result,
             )
         return result
-    except SemanticAssertionError as exc:
-        if current_tracer():
-            current_tracer().validation(
-                phase="semantic",
-                stage="retain_remove_classification",
-                result="failure",
-                errors=(str(exc),),
-                response=response.payload,
-            )
-        raise ProviderSemanticValidationError(str(exc)) from exc
     except StageValidationError as exc:
         if current_tracer():
             current_tracer().validation(
@@ -144,7 +117,6 @@ def validate_classification_response(operational, response):
 
 def validate_added_response(operational, classification, response):
     try:
-        assert_no_forbidden_meta_language(response.payload)
         result = validate_added_work_classification(
             operational, classification, response.payload
         )
@@ -157,16 +129,6 @@ def validate_added_response(operational, classification, response):
                 response=result,
             )
         return result
-    except SemanticAssertionError as exc:
-        if current_tracer():
-            current_tracer().validation(
-                phase="semantic",
-                stage="added_work_classification",
-                result="failure",
-                errors=(str(exc),),
-                response=response.payload,
-            )
-        raise ProviderSemanticValidationError(str(exc)) from exc
     except StageValidationError as exc:
         if current_tracer():
             current_tracer().validation(
@@ -181,7 +143,6 @@ def validate_added_response(operational, classification, response):
 
 __all__ = [
     "call_stage",
-    "operational_validation_feedback",
     "provider_id",
     "validate_added_response",
     "validate_classification_response",

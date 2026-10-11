@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -24,10 +25,13 @@ from task_decomposition.providers.openai import (
     DEFAULT_OPENAI_MODEL,
     OpenAIDecompositionProvider,
     OpenAIProviderConfig,
+    _provider_text_format,
+    _strict_text_format,
 )
 from task_decomposition.providers.prompts import (
     ADDED_WORK_PROMPT,
     OPERATIONAL_DECOMPOSITION_PROMPT,
+    OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT,
     RETAIN_REMOVE_PROMPT,
 )
 
@@ -44,6 +48,32 @@ class FakeResponses:
             raise self.error
         schema = kwargs["text_format"]
         return SimpleNamespace(output_parsed=self.outputs.get(schema))
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        if self.error is not None:
+            raise self.error
+        name = kwargs["text"]["format"]["name"]
+        value = next(
+            (
+                value
+                for schema, value in self.outputs.items()
+                if schema.__name__ == name
+            ),
+            None,
+        )
+        if hasattr(value, "model_dump_json"):
+            raw = value.model_dump_json()
+        elif isinstance(value, dict):
+            raw = json.dumps(value)
+        else:
+            raw = value
+        return SimpleNamespace(
+            status="completed",
+            output_text=raw,
+            output=(),
+            usage=None,
+        )
 
 
 class FakeClient:
@@ -109,14 +139,116 @@ def test_each_openai_stage_uses_structured_output_and_maps_provenance():
     )
     assert all(call["max_output_tokens"] == 321 for call in client.responses.calls)
     assert (
-        client.responses.calls[0]["text_format"].__name__ == "OperationalDecomposition"
+        client.responses.calls[0]["text"]["format"]["name"]
+        == "OperationalDecomposition"
     )
     assert (
         OPERATIONAL_DECOMPOSITION_PROMPT
         in client.responses.calls[0]["input"][0]["content"]
     )
     assert RETAIN_REMOVE_PROMPT in client.responses.calls[1]["input"][0]["content"]
+    assert "JSON Output Rules" in RETAIN_REMOVE_PROMPT
     assert ADDED_WORK_PROMPT in client.responses.calls[2]["input"][0]["content"]
+
+
+def test_openai_retain_remove_stage_override_reaches_request():
+    client = FakeClient(outputs={type(make_classification()): make_classification()})
+    provider = OpenAIDecompositionProvider(
+        OpenAIProviderConfig(
+            max_output_tokens=2000,
+            stage_output_tokens={
+                ProviderStage.RETAIN_REMOVE_CLASSIFICATION: 4000,
+            },
+        ),
+        client=client,
+    )
+
+    provider.classify_retain_remove(stage_requests()[1])
+
+    assert client.responses.calls[0]["max_output_tokens"] == 4000
+
+
+def test_openai_operational_stage_override_reaches_request():
+    client = FakeClient(outputs={type(make_operational()): make_operational()})
+    provider = OpenAIDecompositionProvider(
+        OpenAIProviderConfig(
+            max_output_tokens=2000,
+            stage_output_tokens={
+                ProviderStage.OPERATIONAL_DECOMPOSITION: 4000,
+            },
+        ),
+        client=client,
+    )
+
+    provider.generate_operational_decomposition(stage_requests()[0])
+
+    assert client.responses.calls[0]["max_output_tokens"] == 4000
+
+
+def test_openai_operational_provider_schema_uses_numeric_effort_weight():
+    schema = _provider_text_format(
+        ProviderStage.OPERATIONAL_DECOMPOSITION,
+        type(make_operational()),
+    )["schema"]["$defs"]["OperationalSubtask"]["properties"]
+
+    assert schema["relative_effort_weight"] == {
+        "anyOf": [
+            {"exclusiveMinimum": 0, "type": "number"},
+            {"type": "null"},
+        ]
+    }
+
+
+def test_openai_converts_numeric_effort_weight_to_decimal():
+    operational = make_operational().model_dump(mode="json")
+    for index, subtask in enumerate(operational["operational_subtasks"], start=1):
+        subtask["relative_effort_weight"] = index + 0.5
+    provider = OpenAIDecompositionProvider(
+        client=FakeClient(outputs={type(make_operational()): operational})
+    )
+
+    result = provider.generate_operational_decomposition(stage_requests()[0])
+
+    assert [
+        type(subtask.relative_effort_weight)
+        for subtask in result.payload.operational_subtasks
+    ] == [Decimal, Decimal, Decimal]
+
+
+def test_provider_prompts_request_compact_optional_fields():
+    assert (
+        "Keep each subtask name and description concise"
+        in OPERATIONAL_DECOMPOSITION_PROMPT
+    )
+    assert (
+        "Keep names and descriptions concise" in OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT
+    )
+    assert "Set optional descriptions, dependencies" in ADDED_WORK_PROMPT
+
+
+def test_openai_strict_schemas_require_nested_and_optional_fields():
+    def assert_strict(schema):
+        if schema.get("type") == "object":
+            assert schema["additionalProperties"] is False
+            assert set(schema["required"]) == set(schema["properties"])
+            for value in schema["properties"].values():
+                assert_strict(value)
+        for value in schema.get("$defs", {}).values():
+            assert_strict(value)
+        for value in schema.get("anyOf", []):
+            assert_strict(value)
+        if isinstance(schema.get("items"), dict):
+            assert_strict(schema["items"])
+
+    for schema in (
+        type(make_operational()),
+        type(make_classification()),
+        type(make_added()),
+        SemanticEvaluation,
+    ):
+        strict_format = _strict_text_format(schema)
+        assert strict_format["strict"] is True
+        assert_strict(strict_format["schema"])
 
 
 def test_openai_adapter_runs_full_validated_application():
@@ -145,6 +277,53 @@ def test_missing_structured_response_is_rejected():
     provider = OpenAIDecompositionProvider(client=FakeClient())
     with pytest.raises(ProviderOutputError, match="no structured output"):
         provider.generate_operational_decomposition(stage_requests()[0])
+
+
+@pytest.mark.parametrize(
+    ("response_kwargs", "message"),
+    [
+        ({"output_text": ""}, "no structured output"),
+        (
+            {
+                "status": "incomplete",
+                "incomplete_details": SimpleNamespace(reason="max_output_tokens"),
+                "output_text": "{",
+            },
+            "incomplete structured output",
+        ),
+        (
+            {
+                "output_text": "",
+                "output": (
+                    SimpleNamespace(
+                        content=(SimpleNamespace(type="refusal", refusal="safety"),)
+                    ),
+                ),
+            },
+            "refused structured output",
+        ),
+        ({"output_text": "not json"}, "malformed JSON"),
+        ({"output_text": '{"task": {}}'}, "schema validation"),
+    ],
+)
+def test_structured_output_failures_are_explicit(response_kwargs, message):
+    class ResponseClient(FakeClient):
+        def __init__(self):
+            self.responses = FakeResponses()
+
+            response = {
+                "status": "completed",
+                "output_text": "",
+                "output": (),
+                **response_kwargs,
+            }
+            self.responses.create = lambda **kwargs: (
+                self.responses.calls.append(kwargs) or SimpleNamespace(**response)
+            )
+
+    provider = OpenAIDecompositionProvider(client=ResponseClient())
+    with pytest.raises(ProviderOutputError, match=message):
+        provider.classify_retain_remove(stage_requests()[1])
 
 
 def test_openai_request_failure_is_wrapped():
@@ -191,7 +370,7 @@ def test_openai_provider_model_mapping_failure_is_wrapped():
         pass
 
     client = FakeClient(outputs={type(make_operational()): BadPayload()})
-    with pytest.raises(ProviderOutputError, match="contract mapping"):
+    with pytest.raises(ProviderOutputError, match="malformed JSON"):
         OpenAIDecompositionProvider(client=client).generate_operational_decomposition(
             stage_requests()[0]
         )

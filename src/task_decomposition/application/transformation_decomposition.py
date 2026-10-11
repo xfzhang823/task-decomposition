@@ -20,7 +20,7 @@ from task_decomposition.contracts.stages import (
 )
 from task_decomposition.errors import ProviderOutputError
 from task_decomposition.ports.provider import TransformationDecompositionProvider
-from task_decomposition.tracing import TraceLogger
+from task_decomposition.tracing import TraceLogger, current_tracer
 
 
 def decompose_transformation(
@@ -33,7 +33,9 @@ def decompose_transformation(
             "provider does not implement the TransformationDecompositionProvider capability"
         )
     provider_name = provider_id(provider)
-    tracer = getattr(provider, "tracer", None) or TraceLogger.from_env()
+    tracer = (
+        current_tracer() or getattr(provider, "tracer", None) or TraceLogger.from_env()
+    )
     with tracer.session(request.request_id):
         return _decompose_transformation(request, provider, provider_name)
 

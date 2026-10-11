@@ -1,6 +1,7 @@
 """Small provider-adapter helpers with no vendor SDK dependencies."""
 
 import json
+from collections.abc import Mapping
 from typing import Any
 
 from task_decomposition.contracts.provenance import ProviderProvenance, ProviderStage
@@ -16,6 +17,39 @@ from task_decomposition.errors import (
     ProviderExecutionError,
     ProviderOutputError,
 )
+
+OUTPUT_TOKEN_STAGES = frozenset(
+    {
+        ProviderStage.OPERATIONAL_DECOMPOSITION.value,
+        ProviderStage.RETAIN_REMOVE_CLASSIFICATION.value,
+        ProviderStage.ADDED_WORK_CLASSIFICATION.value,
+        "semantic_evaluation",
+    }
+)
+
+
+def validate_stage_output_tokens(values: Mapping[Any, Any] | None) -> None:
+    if values is None:
+        return
+    if not isinstance(values, Mapping):
+        raise TypeError("stage_output_tokens must be a mapping")
+    for stage, budget in values.items():
+        stage_name = stage.value if isinstance(stage, ProviderStage) else stage
+        if stage_name not in OUTPUT_TOKEN_STAGES:
+            raise ValueError(f"unsupported stage_output_tokens key: {stage!r}")
+        if isinstance(budget, bool) or not isinstance(budget, int) or budget <= 0:
+            raise ValueError(
+                f"stage_output_tokens[{stage_name!r}] must be a positive integer"
+            )
+
+
+def stage_output_tokens(
+    values: Mapping[Any, int] | None, stage: ProviderStage | str, fallback: int | None
+) -> int | None:
+    if values is None:
+        return fallback
+    stage_name = stage.value if isinstance(stage, ProviderStage) else stage
+    return values.get(stage_name, values.get(stage, fallback))
 
 
 def stage_payload(stage_request: Any) -> dict[str, Any]:

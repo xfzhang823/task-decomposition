@@ -150,19 +150,23 @@ python examples/openai_decompose.py \
   --task-description "Validate the invoice and approve or reject it."
 ```
 
-The detailed trace is appended to `logs/llm/task_decomposition.jsonl`; each
-line is one event linked by `correlation_id` and `invocation_id`. Console output
+The detailed trace is written to a timestamped file such as
+`logs/llm/task_decomposition_2026-10-09_143012.jsonl`; each
+line is one event linked by the execution-level `correlation_id`. Console output
 is a concise event summary. Tracing includes full prompts and structured responses,
 which may contain sensitive business data. API keys, authorization values, and
 common provider key formats are redacted, but the `logs/` directory must still
 be protected. Set `TASK_DECOMPOSITION_TRACE_DIR` to override the directory;
 relative overrides resolve from the repository root.
+Each execution keeps its lifecycle in one file; if two executions start in the
+same second, the later file receives a short unique suffix.
 
 Useful filters include:
 
 ```bash
-jq -c 'select(.correlation_id == "REQUEST_ID")' logs/llm/task_decomposition.jsonl
-jq -c 'select(.stage == "retain_remove_classification" or .event == "llm.exception")' logs/llm/task_decomposition.jsonl
+TRACE_FILE=$(ls -t logs/llm/task_decomposition_*.jsonl | head -1)
+jq -c 'select(.correlation_id == "REQUEST_ID")' "$TRACE_FILE"
+jq -c 'select(.stage == "retain_remove_classification" or .event == "llm.exception")' "$TRACE_FILE"
 ```
 
 You can ask Codex: “Inspect the latest logs under `logs/llm/`, identify the

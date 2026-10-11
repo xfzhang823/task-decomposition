@@ -2,13 +2,14 @@
 
 from decimal import Decimal
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from task_decomposition.contracts.accounting import CanonicalTransformationImpact
 from task_decomposition.contracts.decomposition import TransformationClassification
 from task_decomposition.contracts.effort import EffortQuantity, SupportWorkInput
-from task_decomposition.contracts.provenance import ProviderProvenance, ProvenanceRef
+from task_decomposition.contracts.provenance import ProvenanceRef, ProviderProvenance
 
 
 class TaskReference(BaseModel):
@@ -30,6 +31,7 @@ class OperationalSubtask(BaseModel):
     subtask_id: str = Field(min_length=1)
     subtask_name: str = Field(min_length=1)
     description: str | None = None
+    relative_effort_weight: Decimal | None = Field(default=None, gt=0)
     depends_on: tuple[str, ...] = ()
     provenance_refs: tuple[ProvenanceRef, ...] = ()
 
@@ -52,6 +54,7 @@ class BaselineEffortAllocation(BaseModel):
     subtask_id: str = Field(min_length=1)
     effort: EffortQuantity | None = None
     weight_ratio: Decimal | None = Field(default=None, ge=0)
+    allocation_source: Literal["estimated", "host"] = "host"
     provenance_refs: tuple[ProvenanceRef, ...] = ()
 
     @model_validator(mode="after")
@@ -207,7 +210,7 @@ __all__ = [
     "OperationalSubtask",
     "RetainRemoveClassification",
     "StagedDecompositionResult",
-    "TaskReference",
     "TaskDecomposition",
+    "TaskReference",
     "TransformationDecompositionResult",
 ]

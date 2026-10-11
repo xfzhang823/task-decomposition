@@ -60,7 +60,9 @@ def decompose_task(
             "provider does not implement the TaskDecompositionProvider capability"
         )
     provider_name = provider_id(provider)
-    tracer = getattr(provider, "tracer", None) or TraceLogger.from_env()
+    tracer = (
+        current_tracer() or getattr(provider, "tracer", None) or TraceLogger.from_env()
+    )
     with tracer.session(request.request_id):
         response = call_stage(
             provider_name,
@@ -92,6 +94,10 @@ def _validate_or_repair_operational(
 ):
     tracer = current_tracer() or getattr(provider, "tracer", TraceLogger.from_env())
     operational = validate_operational_response(response)
+    requires_relative_weights = all(
+        item.relative_effort_weight is not None
+        for item in operational.operational_subtasks
+    )
     selected = _resolve_evaluator(provider, evaluator)
     evaluation = _evaluate(selected, request, operational, tracer=tracer)
     if evaluation.decision is SemanticEvaluationDecision.ACCEPT:
@@ -131,18 +137,15 @@ def _validate_or_repair_operational(
             do_repair,
             OperationalDecompositionRequest(request=request),
         )
-        try:
-            operational = validate_operational_response(repaired)
-        except ProviderContractValidationError:
-            tracer.validation(
-                phase="structural",
-                stage=ProviderStage.OPERATIONAL_DECOMPOSITION.value,
-                result="failure",
-                attempt=attempt,
-                errors=("repaired response failed structural validation",),
-                response=repaired.payload,
+        operational = validate_operational_response(repaired, attempt=attempt)
+        if requires_relative_weights and any(
+            item.relative_effort_weight is None
+            for item in operational.operational_subtasks
+        ):
+            raise ProviderContractValidationError(
+                "repaired operational decomposition must preserve a positive "
+                "relative_effort_weight for every subtask"
             )
-            raise
         tracer.repair(
             stage=ProviderStage.OPERATIONAL_DECOMPOSITION.value,
             attempt=attempt,
@@ -287,40 +290,78 @@ def _allocate_baseline(request, operational, *, effort_allocator):
                     if by_id[subtask.subtask_id].weight_ratio is not None
                     else by_id[subtask.subtask_id].effort.value / total_effort
                 ),
+                allocation_source="host",
                 provenance_refs=by_id[subtask.subtask_id].provenance_refs,
             )
             for subtask in subtasks
         )
-    if request.effort_weights is None and request.baseline_effort is None:
+    if request.effort_weights is not None:
+        expected = {item.subtask_id for item in subtasks}
+        if set(request.effort_weights) != expected:
+            raise MissingEffortAllocationError(
+                "effort_weights must contain exactly one weight per subtask"
+            )
+        total = sum(request.effort_weights.values(), Decimal(0))
+        if total <= 0:
+            raise MissingEffortAllocationError(
+                "effort_weights must have a positive total"
+            )
+        allocated = {}
+        if request.baseline_effort is not None:
+            allocated = {
+                subtask_id: request.baseline_effort.model_copy(
+                    update={"value": request.baseline_effort.value * weight / total}
+                )
+                for subtask_id, weight in request.effort_weights.items()
+            }
+        return tuple(
+            BaselineEffortAllocation(
+                subtask_id=subtask.subtask_id,
+                effort=allocated.get(subtask.subtask_id),
+                weight_ratio=request.effort_weights[subtask.subtask_id] / total,
+                allocation_source="host",
+            )
+            for subtask in subtasks
+        )
+    raw_weights = tuple(subtask.relative_effort_weight for subtask in subtasks)
+    if any(weight is None for weight in raw_weights):
         return ()
-    if request.effort_weights is None:
-        raise MissingEffortAllocationError(
-            "baseline_effort requires explicit effort_weights or an effort_allocator"
-        )
-    expected = {item.subtask_id for item in subtasks}
-    if set(request.effort_weights) != expected:
-        raise MissingEffortAllocationError(
-            "effort_weights must contain exactly one weight per subtask"
-        )
-    total = sum(request.effort_weights.values(), Decimal(0))
+    total = sum(raw_weights, Decimal(0))
     if total <= 0:
-        raise MissingEffortAllocationError("effort_weights must have a positive total")
+        return ()
+    ratios = _normalized_ratios(raw_weights, total)
     allocated = {}
     if request.baseline_effort is not None:
         allocated = {
             subtask_id: request.baseline_effort.model_copy(
-                update={"value": request.baseline_effort.value * weight / total}
+                update={"value": request.baseline_effort.value * ratio}
             )
-            for subtask_id, weight in request.effort_weights.items()
+            for subtask_id, ratio in zip(
+                (subtask.subtask_id for subtask in subtasks), ratios
+            )
         }
     return tuple(
         BaselineEffortAllocation(
             subtask_id=subtask.subtask_id,
             effort=allocated.get(subtask.subtask_id),
-            weight_ratio=request.effort_weights[subtask.subtask_id] / total,
+            weight_ratio=ratio,
+            allocation_source="estimated",
         )
-        for subtask in subtasks
+        for subtask, ratio in zip(subtasks, ratios)
     )
+
+
+def _normalized_ratios(weights, total):
+    """Normalize positive provider weights and compensate the final ratio."""
+    ratios = tuple(weight / total for weight in weights)
+    if len(ratios) == 1:
+        return (Decimal(1),)
+    normalized = ratios[:-1] + (Decimal(1) - sum(ratios[:-1], Decimal(0)),)
+    if normalized[-1] <= 0:
+        raise MissingEffortAllocationError(
+            "estimated effort weights could not be normalized"
+        )
+    return normalized
 
 
 __all__ = ["decompose_task"]

@@ -1,7 +1,9 @@
 """Optional OpenAI adapter for the standalone decomposition provider port."""
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import Any
 
 from task_decomposition.contracts.provenance import ProviderProvenance, ProviderStage
@@ -31,7 +33,12 @@ from task_decomposition.providers._semantic import (
     parse_semantic_evaluation,
     semantic_payload,
 )
-from task_decomposition.providers._shared import request_metadata, stage_payload
+from task_decomposition.providers._shared import (
+    request_metadata,
+    stage_output_tokens,
+    stage_payload,
+    validate_stage_output_tokens,
+)
 from task_decomposition.providers.prompts import (
     ADDED_WORK_PROMPT,
     OPERATIONAL_DECOMPOSITION_PROMPT,
@@ -44,6 +51,62 @@ from task_decomposition.tracing import TraceLogger
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
 
+def _strict_text_format(schema):
+    """Build the Responses API format using the installed SDK conversion."""
+    from openai.lib._pydantic import to_strict_json_schema
+
+    return {
+        "type": "json_schema",
+        "name": schema.__name__,
+        "strict": True,
+        "schema": to_strict_json_schema(schema),
+    }
+
+
+def _provider_text_format(stage, schema):
+    """Use a numeric OpenAI schema for the Decimal effort-weight field."""
+    text_format = _strict_text_format(schema)
+    if schema is not OperationalDecomposition:
+        return text_format
+    subtask = text_format["schema"]["$defs"]["OperationalSubtask"]
+    subtask["properties"]["relative_effort_weight"] = {
+        "anyOf": [
+            {"exclusiveMinimum": 0, "type": "number"},
+            {"type": "null"},
+        ]
+    }
+    return text_format
+
+
+def _canonicalize_operational_weights(payload):
+    """Convert provider numeric weights to the canonical Decimal representation."""
+    if not isinstance(payload, dict):
+        return payload
+    for subtask in payload.get("operational_subtasks", ()):
+        if not isinstance(subtask, dict):
+            continue
+        weight = subtask.get("relative_effort_weight")
+        if weight is not None:
+            subtask["relative_effort_weight"] = Decimal(str(weight))
+    return payload
+
+
+def _response_detail(value, key):
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        return value.get(key)
+    return getattr(value, key, None)
+
+
+def _response_refusal(response):
+    for output in getattr(response, "output", ()) or ():
+        for content in getattr(output, "content", ()) or ():
+            if getattr(content, "type", None) == "refusal":
+                return getattr(content, "refusal", None) or "provider refusal"
+    return None
+
+
 @dataclass(frozen=True)
 class OpenAIProviderConfig:
     """Non-secret OpenAI adapter settings plus optional injected credentials."""
@@ -54,6 +117,15 @@ class OpenAIProviderConfig:
     base_url: str | None = None
     timeout: float | None = None
     max_output_tokens: int | None = 2000
+    stage_output_tokens: Mapping[str | ProviderStage, int] | None = None
+
+    def __post_init__(self):
+        validate_stage_output_tokens(self.stage_output_tokens)
+
+    def output_tokens_for(self, stage: str) -> int | None:
+        return stage_output_tokens(
+            self.stage_output_tokens, stage, self.max_output_tokens
+        )
 
 
 class OpenAIDecompositionProvider:
@@ -89,8 +161,9 @@ class OpenAIDecompositionProvider:
             "input": messages,
             "text_format": SemanticEvaluation,
         }
-        if self.config.max_output_tokens is not None:
-            kwargs["max_output_tokens"] = self.config.max_output_tokens
+        output_tokens = self.config.output_tokens_for(SEMANTIC_EVALUATION_STAGE)
+        if output_tokens is not None:
+            kwargs["max_output_tokens"] = output_tokens
         invocation = self.tracer.invocation(
             provider=self.provider_id,
             stage=SEMANTIC_EVALUATION_STAGE,
@@ -149,12 +222,6 @@ class OpenAIDecompositionProvider:
                 response=parsed,
             )
             raise
-        self.tracer.validation(
-            phase="evaluation",
-            stage=SEMANTIC_EVALUATION_STAGE,
-            result="success",
-            response=evaluation,
-        )
         return evaluation
 
     def generate_operational_decomposition(
@@ -256,8 +323,9 @@ class OpenAIDecompositionProvider:
             "input": messages,
             "text_format": schema,
         }
-        if self.config.max_output_tokens is not None:
-            kwargs["max_output_tokens"] = self.config.max_output_tokens
+        output_tokens = self.config.output_tokens_for(stage.value)
+        if output_tokens is not None:
+            kwargs["max_output_tokens"] = output_tokens
         invocation = self.tracer.invocation(
             provider=self.provider_id,
             stage=stage.value,
@@ -274,7 +342,16 @@ class OpenAIDecompositionProvider:
             else "generation",
         )
         try:
-            response = self._client.responses.parse(**kwargs)
+            response = self._client.responses.create(
+                model=kwargs["model"],
+                input=kwargs["input"],
+                text={"format": _provider_text_format(stage, schema)},
+                **{
+                    key: value
+                    for key, value in kwargs.items()
+                    if key not in {"model", "input", "text_format"}
+                },
+            )
         except Exception as exc:  # noqa: BLE001 - normalize vendor SDK failures
             self.tracer.exception(invocation, exc)
             self.tracer.validation(
@@ -287,10 +364,58 @@ class OpenAIDecompositionProvider:
         self.tracer.response(
             invocation,
             raw=response,
-            parsed=getattr(response, "output_parsed", None),
         )
-        parsed = getattr(response, "output_parsed", None)
-        if parsed is None:
+        status = getattr(response, "status", None)
+        incomplete_details = getattr(response, "incomplete_details", None)
+        if status == "incomplete" or incomplete_details is not None:
+            reason = _response_detail(incomplete_details, "reason")
+            self.tracer.validation(
+                phase="structural",
+                stage=stage.value,
+                result="failure",
+                errors=(
+                    f"incomplete structured output for {stage.value}"
+                    + (f": {reason}" if reason else ""),
+                ),
+            )
+            raise ProviderOutputError(
+                f"OpenAI returned incomplete structured output for {stage.value}"
+                + (f" ({reason})" if reason else "")
+            )
+        response_error = _response_detail(getattr(response, "error", None), "message")
+        if response_error:
+            self.tracer.validation(
+                phase="structural",
+                stage=stage.value,
+                result="failure",
+                errors=(f"OpenAI response error: {response_error}",),
+            )
+            raise ProviderExecutionError(
+                f"OpenAI request failed during {stage.value}: {response_error}"
+            )
+        if status not in (None, "completed", "incomplete"):
+            self.tracer.validation(
+                phase="structural",
+                stage=stage.value,
+                result="failure",
+                errors=(f"unexpected response status for {stage.value}: {status}",),
+            )
+            raise ProviderOutputError(
+                f"OpenAI returned status {status!r} for {stage.value}"
+            )
+        refusal = _response_refusal(response)
+        if refusal:
+            self.tracer.validation(
+                phase="structural",
+                stage=stage.value,
+                result="failure",
+                errors=(f"structured output refused: {refusal}",),
+            )
+            raise ProviderOutputError(
+                f"OpenAI refused structured output for {stage.value}: {refusal}"
+            )
+        raw_output = getattr(response, "output_text", None)
+        if raw_output is None or raw_output == "":
             self.tracer.validation(
                 phase="structural",
                 stage=stage.value,
@@ -301,7 +426,29 @@ class OpenAIDecompositionProvider:
                 f"OpenAI returned no structured output for {stage.value}"
             )
         try:
+            parsed = json.loads(raw_output)
+        except (TypeError, json.JSONDecodeError) as exc:
+            self.tracer.validation(
+                phase="structural",
+                stage=stage.value,
+                result="failure",
+                errors=(f"malformed JSON for {stage.value}: {exc}",),
+                response=raw_output,
+            )
+            raise ProviderOutputError(
+                f"OpenAI returned malformed JSON for {stage.value}"
+            ) from exc
+        try:
+            if schema is OperationalDecomposition:
+                parsed = _canonicalize_operational_weights(parsed)
             mapped = schema.model_validate(parsed)
+            self.tracer.emit(
+                "llm.parsed",
+                provider=self.provider_id,
+                stage=stage.value,
+                correlation_id=invocation.correlation_id,
+                data={"parsed_response": mapped},
+            )
             self.tracer.validation(
                 phase="structural",
                 stage=stage.value,
@@ -318,7 +465,7 @@ class OpenAIDecompositionProvider:
                 response=parsed,
             )
             raise ProviderOutputError(
-                f"OpenAI structured output failed contract mapping for {stage.value}"
+                f"OpenAI structured output failed schema validation for {stage.value}"
             ) from exc
 
     def _build_client(self):

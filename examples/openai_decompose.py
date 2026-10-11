@@ -40,10 +40,12 @@ from task_decomposition import (
     decompose_task,
     decompose_transformation,
 )
-
+from task_decomposition.contracts.provenance import ProviderStage
 from task_decomposition.providers.openai import (
     OpenAIDecompositionProvider,
+    OpenAIProviderConfig,
 )
+
 
 def _load_dotenv() -> None:
     """Load simple KEY=VALUE entries from the repository's .env file."""
@@ -65,6 +67,7 @@ def _load_dotenv() -> None:
 
 
 _load_dotenv()
+
 
 def _parse_args() -> argparse.Namespace:
     """Parse task details supplied on the command line."""
@@ -89,7 +92,14 @@ def main() -> None:
     args = _parse_args()
     unit = EffortUnit.EFFORT
     period = TimeBasis.PER_OPERATION
-    provider = OpenAIDecompositionProvider()
+    provider = OpenAIDecompositionProvider(
+        OpenAIProviderConfig(
+            stage_output_tokens={
+                ProviderStage.OPERATIONAL_DECOMPOSITION: 4000,
+                ProviderStage.RETAIN_REMOVE_CLASSIFICATION: 4000,
+            }
+        )
+    )
 
     def effort(value):
         return EffortQuantity(value=value, unit=unit, time_basis=period)
@@ -112,31 +122,43 @@ def main() -> None:
         baseline_effort=None,
     )
 
-    # Task decomposition can be run and inspected independently.
-    baseline = decompose_task(
-        request,
-        provider,
-    )
+    # Keep the independently callable stages in one end-to-end trace.
+    tracer = provider.tracer
+    with tracer.session(request.request_id):
+        baseline = decompose_task(request, provider)
+        allocations = {
+            item.subtask_id: item for item in baseline.baseline_effort_allocations
+        }
+        print("Baseline operational decomposition:")
+        for subtask in baseline.operational_decomposition.operational_subtasks:
+            allocation = allocations.get(subtask.subtask_id)
+            share = (
+                f"{allocation.weight_ratio * 100:.2f}%"
+                if allocation is not None and allocation.weight_ratio is not None
+                else "unallocated"
+            )
+            dependencies = ", ".join(subtask.depends_on) or "none"
+            print(f"- {subtask.subtask_name}: {share} (depends on: {dependencies})")
 
-    accounting_input = AbsoluteEffortInput(
-        baseline_human_effort=effort(100),
-        retained_human_work=effort(60),
-        gross_removed_work=effort(40),
-        support_work=SupportWorkInputs(
-            governance=support(4),
-            operational_support=support(8),
-            lifecycle_support=support(2),
-        ),
-    )
+        accounting_input = AbsoluteEffortInput(
+            baseline_human_effort=effort(100),
+            retained_human_work=effort(60),
+            gross_removed_work=effort(40),
+            support_work=SupportWorkInputs(
+                governance=support(4),
+                operational_support=support(8),
+                lifecycle_support=support(2),
+            ),
+        )
 
-    # Transformation decomposition consumes the existing baseline.
-    result = decompose_transformation(
-        TransformationDecompositionRequest(
-            task_decomposition=baseline,
-            accounting_input=accounting_input,
-        ),
-        provider,
-    )
+        # Transformation decomposition consumes the existing baseline.
+        result = decompose_transformation(
+            TransformationDecompositionRequest(
+                task_decomposition=baseline,
+                accounting_input=accounting_input,
+            ),
+            provider,
+        )
 
     print(result.accounting.model_dump(mode="json"))
 

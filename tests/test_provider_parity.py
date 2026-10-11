@@ -15,11 +15,24 @@ class OpenAIResponses:
     def parse(self, **kwargs):
         return SimpleNamespace(
             output_parsed={
-                "OperationalDecomposition": make_operational(),
-                "RetainRemoveClassification": make_classification(),
-                "AddedWorkClassification": make_added(),
-                "SemanticEvaluation": {"decision": "accept", "rubric_version": "1.0"},
+                "SemanticEvaluation": {
+                    "decision": "accept",
+                    "rubric_version": "1.0",
+                }
             }[kwargs["text_format"].__name__]
+        )
+
+    def create(self, **kwargs):
+        values = {
+            "OperationalDecomposition": make_operational(),
+            "RetainRemoveClassification": make_classification(),
+            "AddedWorkClassification": make_added(),
+        }
+        value = values[kwargs["text"]["format"]["name"]]
+        return SimpleNamespace(
+            status="completed",
+            output_text=value.model_dump_json(),
+            output=(),
         )
 
 

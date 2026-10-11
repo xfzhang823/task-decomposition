@@ -15,8 +15,11 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-_CURRENT_TRACE: ContextVar[tuple[TraceLogger, str] | None] = ContextVar(
+_CURRENT_TRACE: ContextVar[tuple[TraceLogger, str, Path] | None] = ContextVar(
     "task_decomposition_trace", default=None
+)
+_CURRENT_STAGE: ContextVar[str | None] = ContextVar(
+    "task_decomposition_trace_stage", default=None
 )
 _SENSITIVE_KEY = re.compile(
     r"(api[_-]?key|authorization|credential|password|secret|token)", re.IGNORECASE
@@ -25,6 +28,17 @@ _SENSITIVE_VALUE = re.compile(
     r"(?i)(bearer\s+)[A-Za-z0-9._~+/=-]+|"
     r"\b(?:sk|rk)-[A-Za-z0-9_-]{12,}\b|"
     r"\bAIza[0-9A-Za-z_-]{20,}\b"
+)
+_DIAGNOSTIC_TOKEN_KEYS = frozenset(
+    {
+        "max_output_tokens",
+        "max_tokens",
+        "input_tokens",
+        "output_tokens",
+        "total_tokens",
+        "prompt_tokens",
+        "completion_tokens",
+    }
 )
 _MISSING = object()
 
@@ -52,7 +66,7 @@ def _env_bool(name: str, default: bool) -> bool:
 
 
 def _safe(value: Any, *, key: str | None = None) -> Any:
-    if key and _SENSITIVE_KEY.search(key):
+    if key and _SENSITIVE_KEY.search(key) and key not in _DIAGNOSTIC_TOKEN_KEYS:
         return "[REDACTED]"
     if value is None or isinstance(value, (bool, int, float, str)):
         return (
@@ -63,7 +77,7 @@ def _safe(value: Any, *, key: str | None = None) -> Any:
     if isinstance(value, Path):
         return str(value)
     if isinstance(value, dict):
-        return {str(k): _safe(v, key=str(k)) for k, v in value.items()}
+        return {str(k): _safe(v, key=str(k)) for k, v in value.items() if v is not None}
     if isinstance(value, (list, tuple, set, frozenset)):
         return [_safe(item) for item in value]
     if hasattr(value, "model_dump"):
@@ -79,8 +93,8 @@ def _safe(value: Any, *, key: str | None = None) -> Any:
 class TraceInvocation:
     """Identity and timing for one provider SDK invocation."""
 
-    invocation_id: str
     correlation_id: str
+    stage: str
     started_at: float
 
 
@@ -98,7 +112,6 @@ class TraceLogger:
         self.directory = resolve_trace_directory(directory)
         self.console = console
         self._trace_file: Path | None = None
-        self._last_stage: str | None = None
 
     @classmethod
     def from_env(cls) -> TraceLogger:
@@ -122,18 +135,20 @@ class TraceLogger:
             yield current[1]
             return
         correlation_id = request_id or f"td-{uuid4().hex}"
-        token = _CURRENT_TRACE.set((self, correlation_id))
+        trace_file = self._reserve_trace_file()
+        token = _CURRENT_TRACE.set((self, correlation_id, trace_file))
+        stage_token = _CURRENT_STAGE.set(None)
         try:
             self.emit(
                 "trace.session",
                 correlation_id=correlation_id,
-                data={"request_id": request_id},
+                data={"request_id": request_id} if request_id else None,
             )
             yield correlation_id
         except BaseException as exc:
             self.summary(
                 result="failure",
-                stage=self._last_stage,
+                stage=_CURRENT_STAGE.get(),
                 error={
                     "exception_type": type(exc).__name__,
                     "message": str(exc),
@@ -142,8 +157,9 @@ class TraceLogger:
             )
             raise
         else:
-            self.summary(result="success", stage=self._last_stage)
+            self.summary(result="success", stage=_CURRENT_STAGE.get())
         finally:
+            _CURRENT_STAGE.reset(stage_token)
             _CURRENT_TRACE.reset(token)
 
     def invocation(
@@ -160,13 +176,12 @@ class TraceLogger:
         request_id: str | None = None,
     ) -> TraceInvocation:
         correlation_id = self.current_correlation_id(request_id)
-        invocation = TraceInvocation(uuid4().hex, correlation_id, time.perf_counter())
+        invocation = TraceInvocation(correlation_id, stage, time.perf_counter())
         self.emit(
             "llm.request",
             provider=provider,
             stage=stage,
             correlation_id=correlation_id,
-            invocation_id=invocation.invocation_id,
             attempt=attempt,
             data={
                 "kind": kind,
@@ -191,6 +206,7 @@ class TraceLogger:
         raw_output: Any = _MISSING,
         stage: str | None = None,
     ):
+        stage = stage or invocation.stage
         if raw_output is _MISSING:
             raw_output = _extract_raw_output(raw)
         if raw_output is _MISSING:
@@ -206,7 +222,6 @@ class TraceLogger:
             "llm.response",
             stage=stage,
             correlation_id=invocation.correlation_id,
-            invocation_id=invocation.invocation_id,
             data={
                 "latency_ms": round(
                     (time.perf_counter() - invocation.started_at) * 1000, 3
@@ -226,7 +241,6 @@ class TraceLogger:
                 "llm.parsed",
                 stage=stage,
                 correlation_id=invocation.correlation_id,
-                invocation_id=invocation.invocation_id,
                 data={"parsed_response": parsed},
             )
 
@@ -240,8 +254,8 @@ class TraceLogger:
         )
         self.emit(
             "llm.exception",
+            stage=invocation.stage,
             correlation_id=invocation.correlation_id,
-            invocation_id=invocation.invocation_id,
             data={
                 "result": "failure",
                 "exception_type": type(exc).__name__,
@@ -300,27 +314,31 @@ class TraceLogger:
         provider: str | None = None,
         stage: str | None = None,
         correlation_id: str | None = None,
-        invocation_id: str | None = None,
         attempt: int | None = None,
         data: dict[str, Any] | None = None,
     ):
         if not self.enabled:
             return
         if stage:
-            self._last_stage = stage
+            _CURRENT_STAGE.set(stage)
         correlation_id = correlation_id or self.current_correlation_id()
         event_data = _safe(data or {})
+        result = event_data.pop("result", None)
         record = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "event": event,
-            "correlation_id": correlation_id,
-            "invocation_id": invocation_id,
-            "provider": provider,
-            "stage": stage,
-            "attempt": attempt,
-            "result": event_data.get("result"),
-            "data": event_data,
         }
+        for key, value in (
+            ("stage", stage),
+            ("provider", provider),
+            ("attempt", attempt),
+            ("result", result),
+            ("correlation_id", correlation_id),
+        ):
+            if value is not None:
+                record[key] = value
+        if event_data:
+            record["data"] = event_data
         try:
             self._write(record)
         except OSError:
@@ -332,7 +350,7 @@ class TraceLogger:
                 model = event_data.get("model") or event_data.get(
                     "response_metadata", {}
                 ).get("model", "-")
-                status = record["result"] or "-"
+                status = record.get("result") or "-"
                 details = [
                     f"[task-decomposition trace] {event}",
                     f"provider={provider or '-'}",
@@ -368,11 +386,37 @@ class TraceLogger:
         return current[1] if current else (request_id or f"td-{uuid4().hex}")
 
     def _write(self, record: dict[str, Any]):
-        if self._trace_file is None:
-            self.directory.mkdir(parents=True, exist_ok=True)
-            self._trace_file = self.directory / "task_decomposition.jsonl"
-        with self._trace_file.open("a", encoding="utf-8") as handle:
+        current = _CURRENT_TRACE.get()
+        if current is not None and current[0] is self:
+            trace_file = current[2]
+        else:
+            if self._trace_file is None:
+                self._trace_file = self._reserve_trace_file()
+            trace_file = self._trace_file
+        with trace_file.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(record, ensure_ascii=False, default=repr) + "\n")
+
+    def _reserve_trace_file(self) -> Path:
+        """Reserve one timestamped file for this tracing execution."""
+        self.directory.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().astimezone().strftime("%Y-%m-%d_%H%M%S")
+        base = self.directory / f"task_decomposition_{timestamp}.jsonl"
+        candidates = (base,)
+        for candidate in candidates:
+            try:
+                candidate.open("x", encoding="utf-8").close()
+                return candidate
+            except FileExistsError:
+                break
+        while True:
+            candidate = self.directory / (
+                f"task_decomposition_{timestamp}_{uuid4().hex[:8]}.jsonl"
+            )
+            try:
+                candidate.open("x", encoding="utf-8").close()
+                return candidate
+            except FileExistsError:
+                continue
 
 
 def _response_usage(raw: Any) -> Any:

@@ -1,6 +1,7 @@
 """Optional Google Gemini adapter for the standalone provider port."""
 
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -31,8 +32,10 @@ from task_decomposition.providers._shared import (
     parse_model_payload,
     raise_provider_failure,
     request_metadata,
+    stage_output_tokens,
     stage_payload,
     stage_text,
+    validate_stage_output_tokens,
 )
 from task_decomposition.providers.prompts import (
     ADDED_WORK_PROMPT,
@@ -53,6 +56,15 @@ class GeminiProviderConfig:
     model: str = DEFAULT_GEMINI_MODEL
     api_key: str | None = field(default=None, repr=False)
     max_output_tokens: int | None = 2000
+    stage_output_tokens: Mapping[str | ProviderStage, int] | None = None
+
+    def __post_init__(self):
+        validate_stage_output_tokens(self.stage_output_tokens)
+
+    def output_tokens_for(self, stage: str) -> int | None:
+        return stage_output_tokens(
+            self.stage_output_tokens, stage, self.max_output_tokens
+        )
 
 
 class GeminiDecompositionProvider:
@@ -77,8 +89,9 @@ class GeminiDecompositionProvider:
                 "response_mime_type": "application/json",
                 "response_schema": SemanticEvaluation,
             }
-            if self.config.max_output_tokens is not None:
-                config["max_output_tokens"] = self.config.max_output_tokens
+            output_tokens = self.config.output_tokens_for(SEMANTIC_EVALUATION_STAGE)
+            if output_tokens is not None:
+                config["max_output_tokens"] = output_tokens
             invocation = self.tracer.invocation(
                 provider=self.provider_id,
                 stage=SEMANTIC_EVALUATION_STAGE,
@@ -147,12 +160,6 @@ class GeminiDecompositionProvider:
                     response=parsed,
                 )
                 raise
-            self.tracer.validation(
-                phase="evaluation",
-                stage=SEMANTIC_EVALUATION_STAGE,
-                result="success",
-                response=evaluation,
-            )
             return evaluation
 
     def generate_operational_decomposition(
@@ -217,8 +224,9 @@ class GeminiDecompositionProvider:
             "response_mime_type": "application/json",
             "response_schema": schema,
         }
-        if self.config.max_output_tokens is not None:
-            config["max_output_tokens"] = self.config.max_output_tokens
+        output_tokens = self.config.output_tokens_for(stage.value)
+        if output_tokens is not None:
+            config["max_output_tokens"] = output_tokens
         request_id, references = request_metadata(request)
         invocation = self.tracer.invocation(
             provider=self.provider_id,

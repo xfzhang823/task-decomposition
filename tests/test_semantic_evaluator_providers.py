@@ -178,6 +178,15 @@ def test_evaluator_request_contains_context_and_complete_decomposition(provider_
     assert payload["task_context"] == {"department": "accounts payable"}
     assert len(payload["operational_decomposition"]["operational_subtasks"]) == 2
     assert payload["rubric_version"] == SEMANTIC_EVALUATION_RUBRIC_VERSION
+    assert "request_id" not in payload
+    assert "correlation_id" not in payload
+
+
+def test_semantic_prompt_requires_concise_actionable_findings():
+    from task_decomposition.providers.prompts import SEMANTIC_EVALUATION_PROMPT
+
+    assert "short message" in SEMANTIC_EVALUATION_PROMPT
+    assert "evidence only when it clarifies" in SEMANTIC_EVALUATION_PROMPT
 
 
 @pytest.mark.parametrize("provider_name", ["openai", "deepseek", "gemini"])
@@ -256,12 +265,11 @@ def test_evaluator_tracing_has_distinct_stage_and_correlation(tmp_path, provider
     )
     request = evaluation_request()
     provider.evaluate(request)
-    records = [
-        json.loads(line)
-        for line in (tmp_path / "task_decomposition.jsonl").read_text().splitlines()
-    ]
+    trace_files = sorted(tmp_path.glob("task_decomposition_*.jsonl"))
+    assert len(trace_files) == 1
+    records = [json.loads(line) for line in trace_files[0].read_text().splitlines()]
     evaluator_records = [
-        record for record in records if record["stage"] == "semantic_evaluation"
+        record for record in records if record.get("stage") == "semantic_evaluation"
     ]
     assert evaluator_records
     assert {record["correlation_id"] for record in evaluator_records} == {
@@ -271,5 +279,4 @@ def test_evaluator_tracing_has_distinct_stage_and_correlation(tmp_path, provider
         "llm.request",
         "llm.response",
         "llm.parsed",
-        "validation.evaluation",
     }

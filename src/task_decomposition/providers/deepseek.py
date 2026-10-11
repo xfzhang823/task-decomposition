@@ -2,6 +2,7 @@
 
 import json
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from task_decomposition.contracts.provenance import ProviderStage
@@ -31,8 +32,10 @@ from task_decomposition.providers._shared import (
     parse_model_payload,
     raise_provider_failure,
     request_metadata,
+    stage_output_tokens,
     stage_payload,
     stage_text,
+    validate_stage_output_tokens,
 )
 from task_decomposition.providers.prompts import (
     ADDED_WORK_PROMPT,
@@ -56,6 +59,13 @@ class DeepSeekProviderConfig:
     base_url: str = DEFAULT_DEEPSEEK_BASE_URL
     timeout: float | None = None
     max_tokens: int | None = 2000
+    stage_output_tokens: Mapping[str | ProviderStage, int] | None = None
+
+    def __post_init__(self):
+        validate_stage_output_tokens(self.stage_output_tokens)
+
+    def output_tokens_for(self, stage: str) -> int | None:
+        return stage_output_tokens(self.stage_output_tokens, stage, self.max_tokens)
 
 
 class DeepSeekDecompositionProvider:
@@ -87,8 +97,9 @@ class DeepSeekDecompositionProvider:
                 "messages": messages,
                 "response_format": {"type": "json_object"},
             }
-            if self.config.max_tokens is not None:
-                kwargs["max_tokens"] = self.config.max_tokens
+            output_tokens = self.config.output_tokens_for(SEMANTIC_EVALUATION_STAGE)
+            if output_tokens is not None:
+                kwargs["max_tokens"] = output_tokens
             invocation = self.tracer.invocation(
                 provider=self.provider_id,
                 stage=SEMANTIC_EVALUATION_STAGE,
@@ -157,18 +168,11 @@ class DeepSeekDecompositionProvider:
                     response=parsed,
                 )
                 raise
-            self.tracer.validation(
-                phase="evaluation",
-                stage=SEMANTIC_EVALUATION_STAGE,
-                result="success",
-                response=evaluation,
-            )
             self.tracer.emit(
                 "llm.parsed",
                 provider=self.provider_id,
                 stage=SEMANTIC_EVALUATION_STAGE,
                 correlation_id=invocation.correlation_id,
-                invocation_id=invocation.invocation_id,
                 data={"parsed_response": evaluation},
             )
             return evaluation
@@ -242,8 +246,9 @@ class DeepSeekDecompositionProvider:
             "messages": messages,
             "response_format": {"type": "json_object"},
         }
-        if self.config.max_tokens is not None:
-            kwargs["max_tokens"] = self.config.max_tokens
+        output_tokens = self.config.output_tokens_for(stage.value)
+        if output_tokens is not None:
+            kwargs["max_tokens"] = output_tokens
         request_id, references = request_metadata(request)
         invocation = self.tracer.invocation(
             provider=self.provider_id,
@@ -313,7 +318,6 @@ class DeepSeekDecompositionProvider:
             provider=self.provider_id,
             stage=stage.value,
             correlation_id=invocation.correlation_id,
-            invocation_id=invocation.invocation_id,
             data={"parsed_response": payload},
         )
         return make_stage_response(

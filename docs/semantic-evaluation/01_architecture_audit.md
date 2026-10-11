@@ -90,7 +90,7 @@ The provider protocol currently requires only `provider_id` and `generate_operat
 
 OpenAI uses `responses.parse()` in its structured-stage implementation (`src/task_decomposition/providers/openai.py`). DeepSeek uses an OpenAI-compatible chat-completions call and JSON parsing; Gemini uses `generate_content` with a JSON schema. Their adapters have provider-specific transport code but share application-stage and tracing conventions.
 
-`TraceLogger` is the shared tracing abstraction (`src/task_decomposition/tracing.py`). It emits JSONL request, response, parsed-output, validation, repair, exception, and execution-summary events. Traces are disabled by default, use `logs/llm/task_decomposition.jsonl` by default when enabled, and carry correlation and invocation IDs. Provider SDK limitations can prevent OpenAI's raw response from being available when `responses.parse()` raises during internal Pydantic parsing; the tracer records raw-response availability separately from parsed-output state.
+`TraceLogger` is the shared tracing abstraction (`src/task_decomposition/tracing.py`). It emits JSONL request, response, parsed-output, validation, repair, exception, and execution-summary events. Traces are disabled by default, use timestamped files under `logs/llm/` when enabled, and carry one execution correlation ID. Provider SDK limitations can prevent OpenAI's raw response from being available when `responses.parse()` raises during internal Pydantic parsing; the tracer records raw-response availability separately from parsed-output state.
 
 ## 3. File and function ownership map
 

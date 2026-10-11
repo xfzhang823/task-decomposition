@@ -25,8 +25,6 @@ def semantic_payload(request: SemanticEvaluationRequest) -> dict[str, Any]:
             mode="json"
         ),
         "rubric_version": request.rubric_version,
-        "request_id": request.request_id,
-        "correlation_id": request.correlation_id,
     }
 
 

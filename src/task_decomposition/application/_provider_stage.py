@@ -67,7 +67,7 @@ def call_stage(provider_name, expected_stage, operation, stage_request):
     return response
 
 
-def validate_operational_response(response):
+def validate_operational_response(response, *, attempt=None):
     try:
         result = validate_operational_decomposition(response.payload)
         tracer = current_tracer()
@@ -76,6 +76,7 @@ def validate_operational_response(response):
                 phase="structural",
                 stage="operational_decomposition",
                 result="success",
+                attempt=attempt,
                 response=result,
             )
         return result
@@ -85,6 +86,7 @@ def validate_operational_response(response):
                 phase="structural",
                 stage="operational_decomposition",
                 result="failure",
+                attempt=attempt,
                 errors=(str(exc),),
                 response=response.payload,
             )

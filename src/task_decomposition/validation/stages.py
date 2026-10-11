@@ -34,6 +34,13 @@ def validate_operational_decomposition(
         raise CardinalityError(
             "operational sequence indexes must be 1-based and contiguous"
         )
+    weights = tuple(item.relative_effort_weight for item in output.operational_subtasks)
+    if any(weight is not None for weight in weights) and any(
+        weight is None for weight in weights
+    ):
+        raise StageValidationError(
+            "relative effort weights must be provided for every operational subtask"
+        )
     subtask_ids = {item.subtask_id for item in output.operational_subtasks}
     positions = {
         item.subtask_id: item.sequence_index for item in output.operational_subtasks

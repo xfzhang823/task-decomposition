@@ -63,8 +63,16 @@ Flow: check the provider implements `TaskDecompositionProvider` → `call_stage(
 `_allocate_baseline` decides the baseline effort, in three cases:
 
 - **Allocator given** — requires explicit `baseline_effort`; the allocator must return exactly one allocation per subtask with a positive total. A missing `weight_ratio` is derived as effort / total.
-- **Neither weights nor baseline effort** — returns no allocations (operational decomposition only).
+- **Neither weights nor baseline effort and no provider estimates** — returns no allocations (operational decomposition only).
 - **Weights given** — `effort_weights` must hold exactly one weight per subtask with a positive total; a `baseline_effort` without weights or an allocator is an error.
+
+Built-in provider outputs may also include positive, unnormalized
+`relative_effort_weight` values on each operational subtask. When host weights
+and an allocator are absent, the application normalizes those provider
+estimates into `BaselineEffortAllocation.weight_ratio` values that sum to one;
+supplied baseline effort is distributed using the same ratios. These rows are
+marked with `allocation_source="estimated"`, while host-supplied allocations
+remain marked `allocation_source="host"`.
 
 So baseline effort is optional, and the optional `EffortAllocator` port is the plug for host-supplied allocation.
 

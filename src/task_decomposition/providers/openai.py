@@ -64,17 +64,32 @@ def _strict_text_format(schema):
 
 
 def _provider_text_format(stage, schema):
-    """Use a numeric OpenAI schema for the Decimal effort-weight field."""
+    """Use numeric OpenAI schemas for Decimal fields rejected by the API."""
     text_format = _strict_text_format(schema)
-    if schema is not OperationalDecomposition:
-        return text_format
-    subtask = text_format["schema"]["$defs"]["OperationalSubtask"]
-    subtask["properties"]["relative_effort_weight"] = {
-        "anyOf": [
-            {"exclusiveMinimum": 0, "type": "number"},
-            {"type": "null"},
-        ]
-    }
+    definitions = text_format["schema"]["$defs"]
+    if stage is ProviderStage.OPERATIONAL_DECOMPOSITION:
+        definitions["OperationalSubtask"]["properties"]["relative_effort_weight"] = {
+            "anyOf": [
+                {"exclusiveMinimum": 0, "type": "number"},
+                {"type": "null"},
+            ]
+        }
+    elif stage is ProviderStage.RETAIN_REMOVE_CLASSIFICATION:
+        definitions["ClassifiedSubtask"]["properties"]["baseline_effort_ratio"] = {
+            "anyOf": [
+                {"minimum": 0, "type": "number"},
+                {"type": "null"},
+            ]
+        }
+        definitions["EffortQuantity"]["properties"]["value"] = {
+            "minimum": 0,
+            "type": "number",
+        }
+    elif stage is ProviderStage.ADDED_WORK_CLASSIFICATION:
+        definitions["SupportWorkInput"]["properties"]["value"] = {
+            "minimum": 0,
+            "type": "number",
+        }
     return text_format
 
 
@@ -88,6 +103,30 @@ def _canonicalize_operational_weights(payload):
         weight = subtask.get("relative_effort_weight")
         if weight is not None:
             subtask["relative_effort_weight"] = Decimal(str(weight))
+    return payload
+
+
+def _canonicalize_transformation_values(stage, payload):
+    """Convert stage-boundary numeric values to canonical Decimal values."""
+    if not isinstance(payload, dict):
+        return payload
+    if stage is ProviderStage.RETAIN_REMOVE_CLASSIFICATION:
+        for subtask in payload.get("classified_subtasks", ()):
+            if not isinstance(subtask, dict):
+                continue
+            ratio = subtask.get("baseline_effort_ratio")
+            if ratio is not None:
+                subtask["baseline_effort_ratio"] = Decimal(str(ratio))
+            effort = subtask.get("effort")
+            if isinstance(effort, dict) and effort.get("value") is not None:
+                effort["value"] = Decimal(str(effort["value"]))
+    elif stage is ProviderStage.ADDED_WORK_CLASSIFICATION:
+        for row in payload.get("added_work_rows", ()):
+            if not isinstance(row, dict):
+                continue
+            amount = row.get("amount")
+            if isinstance(amount, dict) and amount.get("value") is not None:
+                amount["value"] = Decimal(str(amount["value"]))
     return payload
 
 
@@ -441,6 +480,7 @@ class OpenAIDecompositionProvider:
         try:
             if schema is OperationalDecomposition:
                 parsed = _canonicalize_operational_weights(parsed)
+            _canonicalize_transformation_values(stage, parsed)
             mapped = schema.model_validate(parsed)
             self.tracer.emit(
                 "llm.parsed",

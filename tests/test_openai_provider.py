@@ -199,6 +199,34 @@ def test_openai_operational_provider_schema_uses_numeric_effort_weight():
     }
 
 
+def test_openai_transformation_provider_schemas_use_numeric_decimal_fields():
+    retain_schema = _provider_text_format(
+        ProviderStage.RETAIN_REMOVE_CLASSIFICATION,
+        type(make_classification()),
+    )["schema"]["$defs"]
+    assert retain_schema["ClassifiedSubtask"]["properties"][
+        "baseline_effort_ratio"
+    ] == {
+        "anyOf": [
+            {"minimum": 0, "type": "number"},
+            {"type": "null"},
+        ]
+    }
+    assert retain_schema["EffortQuantity"]["properties"]["value"] == {
+        "minimum": 0,
+        "type": "number",
+    }
+
+    added_schema = _provider_text_format(
+        ProviderStage.ADDED_WORK_CLASSIFICATION,
+        type(make_added()),
+    )["schema"]["$defs"]
+    assert added_schema["SupportWorkInput"]["properties"]["value"] == {
+        "minimum": 0,
+        "type": "number",
+    }
+
+
 def test_openai_converts_numeric_effort_weight_to_decimal():
     operational = make_operational().model_dump(mode="json")
     for index, subtask in enumerate(operational["operational_subtasks"], start=1):
@@ -213,6 +241,80 @@ def test_openai_converts_numeric_effort_weight_to_decimal():
         type(subtask.relative_effort_weight)
         for subtask in result.payload.operational_subtasks
     ] == [Decimal, Decimal, Decimal]
+
+
+def test_openai_converts_transformation_numeric_values_to_decimal():
+    classification = make_classification().model_dump(mode="json")
+    classification["classified_subtasks"][0]["effort"] = None
+    classification["classified_subtasks"][0]["baseline_effort_ratio"] = 0.125
+    classification["classified_subtasks"][1]["effort"]["value"] = 12.5
+    added = make_added().model_dump(mode="json")
+    added["added_work_rows"][0]["amount"]["value"] = 2.75
+    provider = OpenAIDecompositionProvider(
+        client=FakeClient(
+            outputs={
+                type(make_classification()): classification,
+                type(make_added()): added,
+            }
+        )
+    )
+
+    retain_result = provider.classify_retain_remove(stage_requests()[1])
+    added_result = provider.classify_added_work(stage_requests()[2])
+
+    ratio = retain_result.payload.classified_subtasks[0].baseline_effort_ratio
+    assert ratio == Decimal("0.125")
+    assert retain_result.payload.classified_subtasks[1].effort.value == Decimal("12.5")
+    assert added_result.payload.added_work_rows[0].amount.value == Decimal("2.75")
+
+
+@pytest.mark.parametrize(
+    ("stage", "schema_factory", "field_path", "invalid_value"),
+    [
+        (
+            ProviderStage.RETAIN_REMOVE_CLASSIFICATION,
+            make_classification,
+            ("classified_subtasks", 0, "baseline_effort_ratio"),
+            -0.1,
+        ),
+        (
+            ProviderStage.RETAIN_REMOVE_CLASSIFICATION,
+            make_classification,
+            ("classified_subtasks", 1, "effort", "value"),
+            -1,
+        ),
+        (
+            ProviderStage.ADDED_WORK_CLASSIFICATION,
+            make_added,
+            ("added_work_rows", 0, "amount", "value"),
+            -1,
+        ),
+    ],
+)
+def test_openai_rejects_invalid_transformation_numeric_values(
+    stage, schema_factory, field_path, invalid_value
+):
+    payload = schema_factory().model_dump(mode="json")
+    target = payload
+    for key in field_path[:-1]:
+        target = target[key]
+    target[field_path[-1]] = invalid_value
+    provider = OpenAIDecompositionProvider(
+        client=FakeClient(outputs={type(schema_factory()): payload})
+    )
+
+    operation = (
+        provider.classify_retain_remove
+        if stage is ProviderStage.RETAIN_REMOVE_CLASSIFICATION
+        else provider.classify_added_work
+    )
+    request_value = (
+        stage_requests()[1]
+        if stage is ProviderStage.RETAIN_REMOVE_CLASSIFICATION
+        else stage_requests()[2]
+    )
+    with pytest.raises(ProviderOutputError, match="schema validation"):
+        operation(request_value)
 
 
 def test_provider_prompts_request_compact_optional_fields():

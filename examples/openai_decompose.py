@@ -83,7 +83,7 @@ def _parse_args() -> argparse.Namespace:
         "--task-description",
         default="Receive, verify, apply, and communicate a customer account change.",
     )
-    parser.add_argument("--domain", default="customer_support")
+    parser.add_argument("--domain", default="production_scheduling")
     return parser.parse_args()
 
 
@@ -145,9 +145,8 @@ def main() -> None:
             retained_human_work=effort(60),
             gross_removed_work=effort(40),
             support_work=SupportWorkInputs(
-                governance=support(4),
-                operational_support=support(8),
-                lifecycle_support=support(2),
+                ai_interaction=support(8),
+                ai_verification=support(6),
             ),
         )
 

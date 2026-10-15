@@ -59,9 +59,8 @@ def accounting(*, retained=60, removed=40):
         retained_human_work=EffortQuantity(value=retained, unit=UNIT, time_basis=TIME),
         gross_removed_work=EffortQuantity(value=removed, unit=UNIT, time_basis=TIME),
         support_work=SupportWorkInputs(
-            governance=amount(4),
-            operational_support=amount(8),
-            lifecycle_support=amount(2),
+            ai_interaction=amount(8),
+            ai_verification=amount(6),
         ),
     )
 
@@ -101,21 +100,21 @@ def added_work():
             AddedWorkItem(
                 work_id="work-governance",
                 workload_name="Review account changes",
-                category=AddedWorkCategory.GOVERNANCE,
+                category=AddedWorkCategory.AI_VERIFICATION,
                 amount=amount(4),
                 sequence_index=1,
             ),
             AddedWorkItem(
                 work_id="work-support",
                 workload_name="Handle exceptions",
-                category=AddedWorkCategory.OPERATIONAL_SUPPORT,
+                category=AddedWorkCategory.AI_INTERACTION,
                 amount=amount(8),
                 sequence_index=2,
             ),
             AddedWorkItem(
                 work_id="work-lifecycle",
                 workload_name="Maintain update rules",
-                category=AddedWorkCategory.LIFECYCLE_SUPPORT,
+                category=AddedWorkCategory.AI_VERIFICATION,
                 amount=amount(2),
                 sequence_index=3,
             ),

@@ -36,18 +36,13 @@ def support(value: int | float | str, basis: RatioBasis, *, absolute: bool = Fal
     return SupportWorkInput(**kwargs)
 
 
-def supports(
-    governance, operational, lifecycle, basis=RatioBasis.NORMALIZED_CONTRIBUTION
-):
+def supports(interaction, verification, basis=RatioBasis.NORMALIZED_CONTRIBUTION):
     return SupportWorkInputs(
-        governance=support(
-            governance, basis, absolute=basis is RatioBasis.ABSOLUTE_EFFORT
+        ai_interaction=support(
+            interaction, basis, absolute=basis is RatioBasis.ABSOLUTE_EFFORT
         ),
-        operational_support=support(
-            operational, basis, absolute=basis is RatioBasis.ABSOLUTE_EFFORT
-        ),
-        lifecycle_support=support(
-            lifecycle, basis, absolute=basis is RatioBasis.ABSOLUTE_EFFORT
+        ai_verification=support(
+            verification, basis, absolute=basis is RatioBasis.ABSOLUTE_EFFORT
         ),
     )
 
@@ -56,7 +51,7 @@ def absolute_input(
     w0=100,
     retained=60,
     removed=40,
-    support_values=(4, 8, 2),
+    support_values=(8, 6),
     basis=RatioBasis.ABSOLUTE_EFFORT,
 ):
     return AbsoluteEffortInput(
@@ -76,7 +71,7 @@ def absolute_input(
 def normalized_input(
     retained=Decimal("0.60"),
     removed=Decimal("0.40"),
-    values=("0.04", "0.08", "0.02"),
+    values=("0.08", "0.06"),
     basis=RatioBasis.NORMALIZED_CONTRIBUTION,
 ):
     return NormalizedAccountingInput(
@@ -126,20 +121,18 @@ def test_normalized_reference_is_semantically_equivalent_to_absolute():
 def test_effect_classes(retained, removed, expected):
     if expected is EffectClassification.DEGRADATION:
         result = account_normalized(
-            normalized_input(
-                retained="1.0", removed="0.0", values=("0.10", "0.10", "0.05")
-            )
+            normalized_input(retained="1.0", removed="0.0", values=("0.10", "0.05"))
         )
     else:
         result = account_normalized(
-            normalized_input(retained=retained, removed=removed, values=("0", "0", "0"))
+            normalized_input(retained=retained, removed=removed, values=("0", "0"))
         )
     assert result.effect is expected
 
 
 def test_degradation_is_unclamped():
     result = account_absolute(
-        absolute_input(w0=100, retained=100, removed=0, support_values=(10, 10, 5))
+        absolute_input(w0=100, retained=100, removed=0, support_values=(10, 15))
     )
     assert result.w1 == Decimal("125")
     assert result.net_remaining_work_ratio == Decimal("1.25")
@@ -150,7 +143,7 @@ def test_degradation_is_unclamped():
 
 def test_zero_removed_and_zero_added_are_valid_when_w1_is_positive():
     result = account_normalized(
-        normalized_input(retained="1", removed="0", values=("0", "0", "0"))
+        normalized_input(retained="1", removed="0", values=("0", "0"))
     )
     assert result.gross_removed_work_ratio == 0
     assert result.added_human_work_ratio == 0
@@ -159,7 +152,7 @@ def test_zero_removed_and_zero_added_are_valid_when_w1_is_positive():
 
 def test_all_baseline_work_can_be_gross_removed():
     result = account_normalized(
-        normalized_input(retained="0", removed="1", values=("0.1", "0", "0"))
+        normalized_input(retained="0", removed="1", values=("0.1", "0"))
     )
     assert result.gross_removed_work_ratio == 1
     assert result.w1 == Decimal("0.1")
@@ -169,7 +162,7 @@ def test_all_baseline_work_can_be_gross_removed():
 def test_removed_work_ratio_support_is_converted_once():
     result = account_normalized(
         normalized_input(
-            values=("0.1", "0.2", "0.05"),
+            values=("0.2", "0.15"),
             basis=RatioBasis.RATIO_OF_GROSS_REMOVED_WORK,
         )
     )
@@ -180,7 +173,7 @@ def test_removed_work_ratio_support_is_converted_once():
 def test_absolute_support_can_be_supplied_as_ratio_of_baseline():
     result = account_absolute(
         absolute_input(
-            support_values=("0.04", "0.08", "0.02"),
+            support_values=("0.08", "0.06"),
             basis=RatioBasis.RATIO_OF_BASELINE_WORK,
         )
     )
@@ -203,7 +196,7 @@ def test_zero_baseline_and_zero_net_are_explicit_errors():
     with pytest.raises(ZeroBaselineError):
         account_absolute(absolute_input(w0=0, retained=0, removed=0))
     with pytest.raises(InvalidDenominatorError):
-        account_normalized(normalized_input(retained=0, removed=1, values=(0, 0, 0)))
+        account_normalized(normalized_input(retained=0, removed=1, values=(0, 0)))
 
 
 def test_ratio_basis_is_required_and_absolute_metadata_is_required():
@@ -213,7 +206,7 @@ def test_ratio_basis_is_required_and_absolute_metadata_is_required():
         SupportWorkInput(value=1, basis=RatioBasis.ABSOLUTE_EFFORT)
     with pytest.raises(RatioBasisError):
         account_normalized(
-            normalized_input(values=(1, 0, 0), basis=RatioBasis.ABSOLUTE_EFFORT)
+            normalized_input(values=(1, 0), basis=RatioBasis.ABSOLUTE_EFFORT)
         )
 
 

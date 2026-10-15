@@ -51,13 +51,12 @@ def absolute_amount(value: Decimal | int | str) -> SupportWorkInput:
 
 
 def support_inputs(
-    values: tuple[Decimal | int | str, Decimal | int | str, Decimal | int | str],
+    values: tuple[Decimal | int | str, Decimal | int | str],
     basis: RatioBasis,
 ) -> SupportWorkInputs:
     return SupportWorkInputs(
-        governance=support(values[0], basis),
-        operational_support=support(values[1], basis),
-        lifecycle_support=support(values[2], basis),
+        ai_interaction=support(values[0], basis),
+        ai_verification=support(values[1], basis),
     )
 
 
@@ -65,7 +64,7 @@ def absolute_input(
     baseline: Decimal | int | str,
     retained: Decimal | int | str,
     removed: Decimal | int | str,
-    added: tuple[Decimal | int | str, Decimal | int | str, Decimal | int | str],
+    added: tuple[Decimal | int | str, Decimal | int | str],
 ) -> AbsoluteEffortInput:
     return AbsoluteEffortInput(
         baseline_human_effort=effort(baseline),
@@ -124,9 +123,7 @@ def normalized_input(
 def test_known_answer_matrix(
     retained, removed, added, w1, substitution, multiplier, effect
 ):
-    result = account_absolute(
-        absolute_input("100", retained, removed, (added, "0", "0"))
-    )
+    result = account_absolute(absolute_input("100", retained, removed, (added, "0")))
 
     assert result.w0 == Decimal("100")
     assert result.w1 == Decimal(w1)
@@ -140,9 +137,9 @@ def test_known_answer_matrix(
 
 def test_full_removal_requires_positive_net_work_for_augmentation():
     with pytest.raises(InvalidDenominatorError):
-        account_absolute(absolute_input("100", "0", "100", ("0", "0", "0")))
+        account_absolute(absolute_input("100", "0", "100", ("0", "0")))
 
-    result = account_absolute(absolute_input("100", "0", "100", ("20", "0", "0")))
+    result = account_absolute(absolute_input("100", "0", "100", ("20", "0")))
     assert result.w1 == Decimal("20")
     assert result.net_remaining_work_ratio == Decimal("0.2")
     assert result.net_substitution_ratio == Decimal("0.8")
@@ -151,7 +148,7 @@ def test_full_removal_requires_positive_net_work_for_augmentation():
 
 def test_very_small_positive_w1_remains_finite_and_unclamped():
     result = account_normalized(
-        normalized_input("0.000000001", "0.999999999", ("0", "0", "0"))
+        normalized_input("0.000000001", "0.999999999", ("0", "0"))
     )
 
     assert result.w1 == Decimal("0.000000001")
@@ -169,14 +166,11 @@ def test_absolute_and_normalized_inputs_are_scale_equivalent(scale):
             scale * Decimal("0.25"),
             (
                 scale * Decimal("0.04"),
-                scale * Decimal("0.03"),
-                scale * Decimal("0.03"),
+                scale * Decimal("0.06"),
             ),
         )
     )
-    normalized = account_normalized(
-        normalized_input("0.75", "0.25", ("0.04", "0.03", "0.03"))
-    )
+    normalized = account_normalized(normalized_input("0.75", "0.25", ("0.04", "0.06")))
 
     for field in (
         "gross_removed_work_ratio",
@@ -201,7 +195,7 @@ def test_algebraic_invariants(retained, removed, added):
     retained = Decimal(retained)
     removed = Decimal(removed)
     added = Decimal(added)
-    result = account_normalized(normalized_input(retained, removed, (added, "0", "0")))
+    result = account_normalized(normalized_input(retained, removed, (added, "0")))
 
     assert result.w0 == retained + removed
     assert result.w1 == retained + added
@@ -212,10 +206,8 @@ def test_algebraic_invariants(retained, removed, added):
 
 
 def test_added_work_zero_equals_gross_removal_and_increasing_support_is_monotonic():
-    baseline = account_normalized(normalized_input("0.6", "0.4", ("0", "0", "0")))
-    increased = account_normalized(
-        normalized_input("0.6", "0.4", ("0.1", "0.2", "0.3"))
-    )
+    baseline = account_normalized(normalized_input("0.6", "0.4", ("0", "0")))
+    increased = account_normalized(normalized_input("0.6", "0.4", ("0.1", "0.5")))
 
     assert baseline.net_substitution_ratio == baseline.gross_removed_work_ratio
     assert increased.w1 >= baseline.w1
@@ -257,7 +249,7 @@ def test_allocation_to_accounting_consistency():
         ),
     ]
     retained, removed = aggregate_baseline_rows(rows)
-    result = account_absolute(absolute_input(100, retained, removed, (0, 0, 0)))
+    result = account_absolute(absolute_input(100, retained, removed, (0, 0)))
 
     assert retained == Decimal("70")
     assert removed == Decimal("30")
@@ -330,7 +322,7 @@ def test_staged_pipeline_matches_direct_accounting_for_absolute_and_normalized_i
         make_added(),
         make_absolute_accounting(),
     ).accounting
-    absolute_direct = account_absolute(absolute_input("100", "60", "40", (4, 8, 2)))
+    absolute_direct = account_absolute(absolute_input("100", "60", "40", (8, 6)))
     normalized_staged = run_staged_pipeline(
         make_operational(),
         make_classification(with_effort=False),
@@ -338,7 +330,7 @@ def test_staged_pipeline_matches_direct_accounting_for_absolute_and_normalized_i
         make_normalized_accounting(),
     ).accounting
     normalized_direct = account_normalized(
-        normalized_input("0.60", "0.40", ("0.04", "0.08", "0.02"))
+        normalized_input("0.60", "0.40", ("0.08", "0.06"))
     )
 
     for staged, direct in (
@@ -369,7 +361,7 @@ def test_multiple_added_work_items_aggregate_by_category_without_double_counting
                 AddedWorkItem(
                     work_id="work-gov-2",
                     workload_name="Review additional samples",
-                    category=AddedWorkCategory.GOVERNANCE,
+                    category=AddedWorkCategory.AI_VERIFICATION,
                     amount=absolute_amount(1),
                     sequence_index=2,
                 ),
@@ -382,7 +374,8 @@ def test_multiple_added_work_items_aggregate_by_category_without_double_counting
         make_operational(), make_classification(), added, make_absolute_accounting()
     ).accounting
 
-    assert result.governance_work.value == Decimal("5")
+    assert result.ai_interaction_work.value == Decimal("8")
+    assert result.ai_verification_work.value == Decimal("7")
     assert result.added_human_work.value == Decimal("15")
     assert result.w1 == Decimal("75")
 
@@ -394,7 +387,7 @@ def test_invalid_finite_and_accounting_inputs_are_rejected():
         NormalizedAccountingInput(
             retained_work_ratio=-1,
             gross_removed_work_ratio=2,
-            support_work=support_inputs((0, 0, 0), RatioBasis.NORMALIZED_CONTRIBUTION),
+            support_work=support_inputs((0, 0), RatioBasis.NORMALIZED_CONTRIBUTION),
         )
     with pytest.raises(ValidationError):
         EffortQuantity(value="NaN", unit=UNIT, time_basis=PER_OPERATION)
@@ -403,12 +396,12 @@ def test_invalid_finite_and_accounting_inputs_are_rejected():
     with pytest.raises(ValidationError, match="finite"):
         SupportWorkInput(value="NaN", basis=RatioBasis.NORMALIZED_CONTRIBUTION)
     with pytest.raises(ZeroBaselineError):
-        account_absolute(absolute_input(0, 0, 0, (0, 0, 0)))
+        account_absolute(absolute_input(0, 0, 0, (0, 0)))
     with pytest.raises(AccountingInvariantError):
-        account_normalized(normalized_input("0.8", "0.3", (0, 0, 0)))
+        account_normalized(normalized_input("0.8", "0.3", (0, 0)))
     with pytest.raises(IncompatibleEffortUnitError):
         account_absolute(
-            absolute_input("100", "60", "40", (4, 8, 2)).model_copy(
+            absolute_input("100", "60", "40", (8, 6)).model_copy(
                 update={
                     "gross_removed_work": EffortQuantity(
                         value=40, unit=EffortUnit.HOURS, time_basis=PER_OPERATION

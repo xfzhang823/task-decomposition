@@ -115,13 +115,12 @@ def account_normalized(
             mode=AccountingMode.NORMALIZED,
         )
         for support in (
-            accounting.support_work.governance,
-            accounting.support_work.operational_support,
-            accounting.support_work.lifecycle_support,
+            accounting.support_work.ai_interaction,
+            accounting.support_work.ai_verification,
         )
     ]
-    governance, operational, lifecycle = support_values
-    added = governance + operational + lifecycle
+    ai_interaction, ai_verification = support_values
+    added = ai_interaction + ai_verification
     w1 = retained + added
     if w1 == 0:
         raise InvalidDenominatorError(
@@ -132,9 +131,8 @@ def account_normalized(
         baseline_human_effort=None,
         retained_human_work=None,
         gross_removed_work=None,
-        governance_work=None,
-        operational_support_work=None,
-        lifecycle_support_work=None,
+        ai_interaction_work=None,
+        ai_verification_work=None,
         added_human_work=None,
         net_human_effort=None,
         w0=w0,
@@ -168,9 +166,8 @@ def account_absolute(
             "retained and gross-removed effort must reconcile to W0"
         )
     supports = (
-        accounting.support_work.governance,
-        accounting.support_work.operational_support,
-        accounting.support_work.lifecycle_support,
+        accounting.support_work.ai_interaction,
+        accounting.support_work.ai_verification,
     )
     for support in supports:
         if support.basis is RatioBasis.ABSOLUTE_EFFORT:
@@ -181,11 +178,11 @@ def account_absolute(
                 raise IncompatibleEffortUnitError(
                     "absolute support effort must match W0 unit/time basis"
                 )
-    governance, operational, lifecycle = (
+    ai_interaction, ai_verification = (
         _support_to_absolute(support, w0=w0, gross_removed=removed)
         for support in supports
     )
-    added = governance + operational + lifecycle
+    added = ai_interaction + ai_verification
     w1 = retained + added
     if w1 == 0:
         raise InvalidDenominatorError(
@@ -202,9 +199,8 @@ def account_absolute(
         baseline_human_effort=baseline,
         retained_human_work=retained_quantity,
         gross_removed_work=removed_quantity,
-        governance_work=quantity(governance),
-        operational_support_work=quantity(operational),
-        lifecycle_support_work=quantity(lifecycle),
+        ai_interaction_work=quantity(ai_interaction),
+        ai_verification_work=quantity(ai_verification),
         added_human_work=quantity(added),
         net_human_effort=quantity(w1),
         w0=w0,

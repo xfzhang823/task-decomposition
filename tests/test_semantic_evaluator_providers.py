@@ -187,6 +187,11 @@ def test_semantic_prompt_requires_concise_actionable_findings():
 
     assert "short message" in SEMANTIC_EVALUATION_PROMPT
     assert "evidence only when it clarifies" in SEMANTIC_EVALUATION_PROMPT
+    assert (
+        "optional wording or specificity improvements are suggestions only"
+        in SEMANTIC_EVALUATION_PROMPT
+    )
+    assert "Use reject whenever any finding is blocking" in SEMANTIC_EVALUATION_PROMPT
 
 
 @pytest.mark.parametrize("provider_name", ["openai", "deepseek", "gemini"])

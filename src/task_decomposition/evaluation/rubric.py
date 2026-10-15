@@ -25,23 +25,28 @@ Consider the decomposition as a whole:
 4. Internal decomposition, meta-analysis, rationale-generation, or evaluator
    activities are not business work unless the original task explicitly makes
    that activity the business task.
-5. Distinguish material defects from optional improvements. Use suggestions
-   for nonblocking clarity improvements.
+5. Distinguish material execution defects from optional improvements. Wording,
+   specificity, and presentation improvements are suggestions and must not
+   prevent acceptance.
 
 Decision guidance:
 
-- accept: operationally acceptable; suggestions are permitted.
-- repair: a material, actionable defect can be corrected while preserving the
-  useful decomposition; include at least one repairable finding.
-- reject: a blocking defect makes the decomposition fundamentally unsuitable;
+- accept: the decomposition is operationally complete and executable;
+  suggestions are permitted.
+- repair: a material, actionable defect prevents reliable execution but can be
+  corrected while preserving the useful decomposition; include repairable
+  findings and no blocking findings.
+- reject: a fundamental blocking defect makes the decomposition unsuitable;
   include at least one blocking finding.
+
+Severity precedence is mandatory: suggestions alone produce accept; one or
+more repairable findings without blocking findings produce repair; any
+blocking finding produces reject. Do not use repair for optional wording,
+specificity, or presentation improvements, and do not require additional
+decomposition merely to improve them.
 
 Examples:
 
-- Production scheduling: developing or drafting a production schedule can be
-  legitimate planning and deliverable-creation work. Judge whether the work
-  is meaningful and appropriately scoped for the task; do not reject it just
-  because it could be split into planning and recording steps.
 - Invoice review: reviewing an invoice against a purchase order, determining
   whether it meets approval criteria, recording the decision, and notifying a
   requester can each be legitimate work when relevant to the task.

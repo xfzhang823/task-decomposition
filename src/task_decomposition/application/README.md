@@ -39,7 +39,7 @@ Flow:
 The four private helpers:
 
 - `_validate_effort_handoff` — the heaviest (~100 of 269 lines). *Absolute*: per-subtask effort is all-present or all-absent; if present, units must match and RETAIN/REMOVE sums must equal `retained_human_work` / `gross_removed_work`. *Normalized*: baseline ratios (or normalized per-row totals) must equal `retained_work_ratio` / `gross_removed_work_ratio`. Any mismatch raises `MissingAccountingInputError`.
-- `_support_inputs` — groups added-work rows into the three canonical categories (governance, operational support, lifecycle support); every row must carry an explicit amount/basis.
+- `_support_inputs` — groups added-work rows into `ai_interaction` and `ai_verification`; every row must carry an explicit amount/basis.
 - `_sum_support_values` — enforces one basis per category (and, for absolute values, one unit and time basis); empty group yields a zero input with a mode-appropriate basis.
 - `_require_matching_units` — all classified efforts must share one unit and time basis.
 

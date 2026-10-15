@@ -137,11 +137,10 @@ class RetainRemoveClassification(BaseModel):
 
 
 class AddedWorkCategory(str, Enum):
-    """Canonical category names for work introduced by the transformation."""
+    """Execution-level categories for new human work introduced by AI."""
 
-    GOVERNANCE = "GOVERNANCE"
-    OPERATIONAL_SUPPORT = "OPERATIONAL_SUPPORT"
-    LIFECYCLE_SUPPORT = "LIFECYCLE_SUPPORT"
+    AI_INTERACTION = "AI_INTERACTION"
+    AI_VERIFICATION = "AI_VERIFICATION"
 
 
 class AddedWorkItem(BaseModel):

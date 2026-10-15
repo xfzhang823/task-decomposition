@@ -103,9 +103,8 @@ def account_input():
     return accounting_input.model_copy(
         update={
             "support_work": SupportWorkInputs(
-                governance=absolute_amount(4),
-                operational_support=absolute_amount(8),
-                lifecycle_support=absolute_amount(2),
+                ai_interaction=absolute_amount(8),
+                ai_verification=absolute_amount(6),
             )
         }
     )
@@ -145,9 +144,8 @@ def test_provider_driven_normalized_case_uses_same_staged_semantics():
     normalized_accounting = make_normalized_accounting().model_copy(
         update={
             "support_work": SupportWorkInputs(
-                governance=normalized_amount("0.04"),
-                operational_support=normalized_amount("0.08"),
-                lifecycle_support=normalized_amount("0.02"),
+                ai_interaction=normalized_amount("0.08"),
+                ai_verification=normalized_amount("0.06"),
             )
         }
     )
@@ -188,9 +186,8 @@ def test_provider_driven_degradation_remains_unclamped():
                 update={"value": 0}
             ),
             "support_work": SupportWorkInputs(
-                governance=amount(10),
-                operational_support=amount(10),
-                lifecycle_support=amount(5),
+                ai_interaction=amount(10),
+                ai_verification=amount(15),
             ),
         }
     )

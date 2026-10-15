@@ -55,9 +55,8 @@ def test_live_openai_three_stage_decomposition():
             retained_human_work=effort(60),
             gross_removed_work=effort(40),
             support_work=SupportWorkInputs(
-                governance=support(4),
-                operational_support=support(8),
-                lifecycle_support=support(2),
+                ai_interaction=support(8),
+                ai_verification=support(2),
             ),
         ),
     )

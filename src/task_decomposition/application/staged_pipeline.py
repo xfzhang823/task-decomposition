@@ -201,23 +201,21 @@ def _support_inputs(
         if isinstance(accounting_input, AbsoluteEffortInput)
         else AccountingMode.NORMALIZED
     )
-    category_values = {
-        category: _sum_support_values(
-            groups.get(category, []),
-            category=category,
+    interaction = groups.get(AddedWorkCategory.AI_INTERACTION, [])
+    verification = groups.get(AddedWorkCategory.AI_VERIFICATION, [])
+    return SupportWorkInputs(
+        ai_interaction=_sum_support_values(
+            interaction,
+            category=AddedWorkCategory.AI_INTERACTION,
             mode=mode,
             accounting_input=accounting_input,
-        )
-        for category in (
-            AddedWorkCategory.GOVERNANCE,
-            AddedWorkCategory.OPERATIONAL_SUPPORT,
-            AddedWorkCategory.LIFECYCLE_SUPPORT,
-        )
-    }
-    return SupportWorkInputs(
-        governance=category_values[AddedWorkCategory.GOVERNANCE],
-        operational_support=category_values[AddedWorkCategory.OPERATIONAL_SUPPORT],
-        lifecycle_support=category_values[AddedWorkCategory.LIFECYCLE_SUPPORT],
+        ),
+        ai_verification=_sum_support_values(
+            verification,
+            category=AddedWorkCategory.AI_VERIFICATION,
+            mode=mode,
+            accounting_input=accounting_input,
+        ),
     )
 
 

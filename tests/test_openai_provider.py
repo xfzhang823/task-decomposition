@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 from test_provider_application import account_input, request
+from test_semantic_evaluator_providers import evaluation_request
 from test_staged_pipeline import make_added, make_classification, make_operational
 
 from task_decomposition import (
@@ -34,6 +35,7 @@ from task_decomposition.providers.prompts import (
     OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT,
     RETAIN_REMOVE_PROMPT,
 )
+from task_decomposition.tracing import TraceLogger
 
 
 class FakeResponses:
@@ -379,6 +381,81 @@ def test_missing_structured_response_is_rejected():
     provider = OpenAIDecompositionProvider(client=FakeClient())
     with pytest.raises(ProviderOutputError, match="no structured output"):
         provider.generate_operational_decomposition(stage_requests()[0])
+
+
+def test_semantic_parse_failure_traces_decision_and_severities(tmp_path):
+    class ValidationError(Exception):
+        def errors(self):
+            return [
+                {
+                    "input": {
+                        "decision": "repair",
+                        "findings": [
+                            {"severity": "repairable"},
+                            {"severity": "blocking"},
+                        ],
+                    }
+                }
+            ]
+
+    tracer = TraceLogger(enabled=True, directory=tmp_path, console=False)
+    provider = OpenAIDecompositionProvider(
+        client=FakeClient(error=ValidationError("invalid semantic evaluation")),
+        tracer=tracer,
+    )
+    with pytest.raises(ProviderOutputError, match="structured output failed"):
+        provider.evaluate(evaluation_request())
+
+    events = [
+        json.loads(line)
+        for line in next(tmp_path.glob("*.jsonl")).read_text().splitlines()
+    ]
+    failure = next(event for event in events if event["event"] == "llm.exception")
+    assert failure["data"]["diagnostics"] == {
+        "exception_type": "ValidationError",
+        "decisions": ["repair"],
+        "finding_severities": ["blocking", "repairable"],
+    }
+    assert failure["data"]["raw_response_available"] is False
+
+
+def test_semantic_parse_failure_traces_sanitized_provider_details(tmp_path):
+    class ValidationError(Exception):
+        def __init__(self, message):
+            super().__init__(message)
+            self.body = {
+                "status": "error",
+                "code": "invalid_response",
+                "message": "provider response unavailable",
+                "api_key": "sk-never-write-this",
+            }
+
+        def errors(self):
+            return [{"input": {"decision": "repair", "findings": []}}]
+
+    tracer = TraceLogger(enabled=True, directory=tmp_path, console=False)
+    provider = OpenAIDecompositionProvider(
+        client=FakeClient(error=ValidationError("invalid semantic evaluation")),
+        tracer=tracer,
+    )
+    with pytest.raises(ProviderOutputError):
+        provider.evaluate(evaluation_request())
+
+    trace_path = next(tmp_path.glob("*.jsonl"))
+    text = trace_path.read_text()
+    assert "sk-never-write-this" not in text
+    failure = next(
+        json.loads(line)
+        for line in trace_path.read_text().splitlines()
+        if json.loads(line)["event"] == "llm.exception"
+    )
+    assert failure["data"]["diagnostics"]["provider_details"] == {
+        "body": {
+            "status": "error",
+            "code": "invalid_response",
+            "message": "provider response unavailable",
+        }
+    }
 
 
 @pytest.mark.parametrize(

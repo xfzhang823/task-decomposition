@@ -181,7 +181,6 @@ def test_finding_codes_and_categories_are_stable_enums():
 def test_rubric_is_versioned_and_contains_representative_guidance():
     assert SEMANTIC_EVALUATION_RUBRIC_VERSION == "1.0"
     for phrase in (
-        "Production scheduling",
         "Invoice review",
         "Customer onboarding",
         "Pure outcome",
@@ -189,6 +188,8 @@ def test_rubric_is_versioned_and_contains_representative_guidance():
         "overlapping",
         "missing work",
         "Do not use keyword matching",
+        "Wording,\n   specificity, and presentation improvements are suggestions",
+        "Severity precedence is mandatory",
     ):
         assert phrase in SEMANTIC_EVALUATION_RUBRIC
 

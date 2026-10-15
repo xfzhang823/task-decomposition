@@ -138,7 +138,7 @@ def fixture_result() -> TransformationDecompositionResult:
             AddedWorkItem(
                 work_id="governance-review",
                 workload_name="Review model responses",
-                category=AddedWorkCategory.GOVERNANCE,
+                category=AddedWorkCategory.AI_VERIFICATION,
                 description="Review a sample of model-assisted responses.",
                 amount=support(4),
             ),
@@ -150,9 +150,8 @@ def fixture_result() -> TransformationDecompositionResult:
             retained_human_work=effort(70),
             gross_removed_work=effort(30),
             support_work=SupportWorkInputs(
-                governance=support(4),
-                operational_support=support(0),
-                lifecycle_support=support(0),
+                ai_interaction=support(4),
+                ai_verification=support(0),
             ),
         )
     )

@@ -244,7 +244,13 @@ class TraceLogger:
                 data={"parsed_response": parsed},
             )
 
-    def exception(self, invocation: TraceInvocation, exc: BaseException):
+    def exception(
+        self,
+        invocation: TraceInvocation,
+        exc: BaseException,
+        *,
+        diagnostics: dict[str, Any] | None = None,
+    ):
         attached = {}
         for name in ("response", "body", "raw_response", "request", "status_code"):
             if hasattr(exc, name):
@@ -266,6 +272,7 @@ class TraceLogger:
                 "attached_provider_data": attached,
                 "raw_response_available": raw_attached,
                 "raw_output_state": "available" if raw_attached else "unavailable",
+                "diagnostics": diagnostics,
             },
         )
 

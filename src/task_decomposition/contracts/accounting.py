@@ -29,9 +29,8 @@ class CanonicalTransformationImpact(BaseModel):
     baseline_human_effort: EffortQuantity | None
     retained_human_work: EffortQuantity | None
     gross_removed_work: EffortQuantity | None
-    governance_work: EffortQuantity | None
-    operational_support_work: EffortQuantity | None
-    lifecycle_support_work: EffortQuantity | None
+    ai_interaction_work: EffortQuantity | None
+    ai_verification_work: EffortQuantity | None
     added_human_work: EffortQuantity | None
     net_human_effort: EffortQuantity | None
     w0: Decimal

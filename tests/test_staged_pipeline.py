@@ -121,21 +121,21 @@ def make_added(*, normalized=False):
             AddedWorkItem(
                 work_id="work-gov",
                 workload_name="Review sampled account changes",
-                category=AddedWorkCategory.GOVERNANCE,
+                category=AddedWorkCategory.AI_VERIFICATION,
                 amount=amount("0.04" if normalized else 4),
                 sequence_index=1,
             ),
             AddedWorkItem(
                 work_id="work-ops",
                 workload_name="Handle low-confidence exceptions",
-                category=AddedWorkCategory.OPERATIONAL_SUPPORT,
+                category=AddedWorkCategory.AI_INTERACTION,
                 amount=amount("0.08" if normalized else 8),
                 sequence_index=2,
             ),
             AddedWorkItem(
                 work_id="work-life",
                 workload_name="Maintain account update rules",
-                category=AddedWorkCategory.LIFECYCLE_SUPPORT,
+                category=AddedWorkCategory.AI_VERIFICATION,
                 amount=amount("0.02" if normalized else 2),
                 sequence_index=3,
             ),
@@ -155,9 +155,8 @@ def make_absolute_accounting():
             value=40, unit=UNIT, time_basis=PER_OPERATION
         ),
         support_work=SupportWorkInputs(
-            governance=absolute_amount(0),
-            operational_support=absolute_amount(0),
-            lifecycle_support=absolute_amount(0),
+            ai_interaction=absolute_amount(0),
+            ai_verification=absolute_amount(0),
         ),
     )
 
@@ -167,9 +166,8 @@ def make_normalized_accounting():
         retained_work_ratio=Decimal("0.60"),
         gross_removed_work_ratio=Decimal("0.40"),
         support_work=SupportWorkInputs(
-            governance=normalized_amount(0),
-            operational_support=normalized_amount(0),
-            lifecycle_support=normalized_amount(0),
+            ai_interaction=normalized_amount(0),
+            ai_verification=normalized_amount(0),
         ),
     )
 

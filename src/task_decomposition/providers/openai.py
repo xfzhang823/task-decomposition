@@ -51,6 +51,63 @@ from task_decomposition.tracing import TraceLogger
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
 
+def _semantic_parse_diagnostics(exc: BaseException) -> dict[str, Any]:
+    """Extract safe decision/severity clues from a structured-output failure."""
+    diagnostics: dict[str, Any] = {"exception_type": type(exc).__name__}
+    decisions: set[str] = set()
+    severities: set[str] = set()
+
+    def inspect(value: Any) -> None:
+        if isinstance(value, Mapping):
+            decision = value.get("decision")
+            if isinstance(decision, str):
+                decisions.add(decision)
+            severity = value.get("severity")
+            if isinstance(severity, str):
+                severities.add(severity)
+            findings = value.get("findings")
+            if isinstance(findings, (list, tuple)):
+                for finding in findings:
+                    inspect(finding)
+            for key in ("input", "ctx", "error"):
+                if key in value:
+                    inspect(value[key])
+        elif isinstance(value, (list, tuple)):
+            for item in value:
+                inspect(item)
+
+    errors = getattr(exc, "errors", None)
+    if callable(errors):
+        try:
+            inspect(errors())
+        except Exception as diagnostic_error:  # noqa: BLE001
+            diagnostics["diagnostic_error_type"] = type(diagnostic_error).__name__
+    if decisions:
+        diagnostics["decisions"] = sorted(decisions)
+    if severities:
+        diagnostics["finding_severities"] = sorted(severities)
+
+    provider_details = {}
+    for name in ("status_code", "body", "response", "raw_response"):
+        value = getattr(exc, name, None)
+        if value is None:
+            continue
+        if name == "status_code" and isinstance(value, (int, str)):
+            provider_details[name] = value
+            continue
+        if isinstance(value, Mapping):
+            safe = {
+                key: value[key]
+                for key in ("status", "code", "type", "message", "detail")
+                if key in value and isinstance(value[key], (bool, int, float, str))
+            }
+            if safe:
+                provider_details[name] = safe
+    if provider_details:
+        diagnostics["provider_details"] = provider_details
+    return diagnostics
+
+
 def _strict_text_format(schema):
     """Build the Responses API format using the installed SDK conversion."""
     from openai.lib._pydantic import to_strict_json_schema
@@ -220,7 +277,9 @@ class OpenAIDecompositionProvider:
         try:
             response = self._client.responses.parse(**kwargs)
         except Exception as exc:  # noqa: BLE001 - normalize vendor SDK failures
-            self.tracer.exception(invocation, exc)
+            self.tracer.exception(
+                invocation, exc, diagnostics=_semantic_parse_diagnostics(exc)
+            )
             self.tracer.validation(
                 phase="evaluation",
                 stage=SEMANTIC_EVALUATION_STAGE,
@@ -253,6 +312,9 @@ class OpenAIDecompositionProvider:
                 model_id=self.config.model,
             )
         except Exception as exc:
+            self.tracer.exception(
+                invocation, exc, diagnostics=_semantic_parse_diagnostics(exc)
+            )
             self.tracer.validation(
                 phase="evaluation",
                 stage=SEMANTIC_EVALUATION_STAGE,

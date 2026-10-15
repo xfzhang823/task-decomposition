@@ -37,21 +37,26 @@ Classify each validated operational subtask as RETAIN or REMOVE. Preserve all su
 """.strip()
 
 ADDED_WORK_PROMPT = """
-Identify new human work introduced by the transformed process. Return only added-work rows in a JSON object, separate from baseline RETAIN/REMOVE subtasks.
-- Valid Categories Only: GOVERNANCE (oversight, control, audit, policy, approval), OPERATIONAL_SUPPORT (monitoring, review, verification, exception, escalation, support), LIFECYCLE_SUPPORT (maintenance, updates, retraining, templates, rules, administration).
-- Subtask Rules: Provide a stable work ID and concise concrete name for each row. Do not disguise added work as RETAIN/REMOVE rows.
-- Schema & Data Rules: Leave amount unset unless caller supplies explicit accounting inputs. Set optional descriptions, dependencies, sequence_index, and provenance_refs to empty/null values unless needed for disambiguation.
+Identify only genuinely new human activities introduced by AI during transformed workflow execution. Preserve the baseline RETAIN/REMOVE distinction: do not classify existing baseline work as added merely because AI is involved, and do not invent work to populate categories.
+- Valid Categories Only: AI_INTERACTION (instructing, guiding, clarifying, intervening in, redirecting, retrying, or otherwise interacting with AI during execution); AI_VERIFICATION (inspecting, validating, correcting, or approving AI-generated outputs).
+- Exclude AI system design, implementation, deployment, documentation development, guardrail construction, ongoing system maintenance, and passive AI waiting time.
+- Subtask Rules: Provide a stable work ID and concise concrete name for each genuinely new row. Do not create a separate exception-handling or governance category, and do not disguise added work as RETAIN/REMOVE rows. `added_work_rows` may be empty.
+- Complete Response Rules: Return the complete structured object with top-level `task`, `added_work_rows`, and `provenance_refs`. Set top-level `provenance_refs` to [] when unavailable.
+- Schema & Data Rules: Leave amount unset unless caller supplies explicit accounting inputs. Set optional descriptions, dependencies, sequence_index, and row provenance_refs to empty/null values unless needed for disambiguation.
 - Prohibited: Do not calculate W0, W1, substitution, augmentation, effect, or readiness metrics.
 """.strip()
 
 SEMANTIC_EVALUATION_PROMPT = f"""
 Evaluate the complete operational decomposition in the supplied input JSON against the rubric below. Return only the structured evaluation object.
 
-Rubric Rules:
+Decision Rules:
 - Apply RUBRIC VERSION: {SEMANTIC_EVALUATION_RUBRIC_VERSION}.
 - Evaluate the decomposition holistically against the original task, description, and context.
+- Accept an operationally complete and executable decomposition; optional wording or specificity improvements are suggestions only.
+- Use repair only for a material actionable defect that prevents reliable execution and is correctable without redesigning the decomposition.
+- Use reject whenever any finding is blocking; use repairable findings only when no blocking finding exists.
 - Output Rules: No hidden reasoning, narrative outside JSON, or numerical quality scores. Set evaluator provenance to null.
-- Finding Format: Findings must be concise and actionable. Include subtask_id (if applicable), a short message, and evidence only when clarifying a defect.
+- Finding Format: Findings must be concise and actionable. Include subtask_id (if applicable), a short message, and evidence only when it clarifies a defect.
 
 RUBRIC:
 {SEMANTIC_EVALUATION_RUBRIC}

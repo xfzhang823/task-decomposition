@@ -99,9 +99,8 @@ class SupportWorkInput(BaseModel):
 class SupportWorkInputs(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    governance: SupportWorkInput
-    operational_support: SupportWorkInput
-    lifecycle_support: SupportWorkInput
+    ai_interaction: SupportWorkInput
+    ai_verification: SupportWorkInput
 
 
 class AbsoluteEffortInput(BaseModel):

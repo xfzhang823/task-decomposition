@@ -45,9 +45,8 @@ def _accounting_input() -> AbsoluteEffortInput:
         retained_human_work=quantity(60),
         gross_removed_work=quantity(40),
         support_work=SupportWorkInputs(
-            governance=support(4),
-            operational_support=support(8),
-            lifecycle_support=support(2),
+            ai_interaction=support(8),
+            ai_verification=support(2),
         ),
     )
 

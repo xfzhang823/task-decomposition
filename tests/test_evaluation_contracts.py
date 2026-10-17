@@ -190,8 +190,170 @@ def test_rubric_is_versioned_and_contains_representative_guidance():
         "Do not use keyword matching",
         "Wording,\n   specificity, and presentation improvements are suggestions",
         "Severity precedence is mandatory",
+        "Evaluate the completeness and quality of the activity decomposition",
+        "Missing exception handling, methods, criteria",
+        "Create a feasible production schedule",
+        "Identify and address conflicts",
+        "Inform production teams of the finalized production",
+        "gathering feedback from production teams is a valid",
+        "missing required operational activities",
+        "explicitly required or directly\n   implied",
+        "materially out-of-scope",
+        "task boundary",
+        "Do not infer a missing feedback",
+        "monitoring\n  schedule execution",
+        "semantic equivalence, not exact",
+        "not automatically as an internal meta-task",
+        "recording a business result",
     ):
         assert phrase in SEMANTIC_EVALUATION_RUBRIC
+
+
+def test_production_scheduling_activities_are_acceptable_without_procedures():
+    """The rubric must not turn activity-level descriptions into procedures."""
+    task = TaskReference(
+        task_name="Production Scheduling",
+        task_description=(
+            "Develop a feasible production schedule and resolve scheduling conflicts."
+        ),
+    )
+    decomposition = OperationalDecomposition(
+        task=task,
+        operational_subtasks=(
+            OperationalSubtask(
+                sequence_index=1,
+                subtask_id="schedule",
+                subtask_name="Develop Production Schedule",
+                description=(
+                    "Create a feasible production schedule based on reviewed orders, "
+                    "inventory, machine capacity, and workforce availability."
+                ),
+            ),
+            OperationalSubtask(
+                sequence_index=2,
+                subtask_id="conflicts",
+                subtask_name="Resolve Scheduling Conflicts",
+                description="Identify and address conflicts in the proposed schedule.",
+                depends_on=("schedule",),
+            ),
+        ),
+    )
+    result = SemanticEvaluation(
+        decision=SemanticEvaluationDecision.ACCEPT,
+        rubric_version=SEMANTIC_EVALUATION_RUBRIC_VERSION,
+    )
+    request = SemanticEvaluationRequest(
+        task=task,
+        operational_decomposition=decomposition,
+        rubric_version=SEMANTIC_EVALUATION_RUBRIC_VERSION,
+    )
+    assert result.decision is SemanticEvaluationDecision.ACCEPT
+    assert request.operational_decomposition == decomposition
+
+
+def test_production_scheduling_scope_does_not_require_feedback_or_criteria():
+    """Core activities remain valid without optional implementation detail."""
+    assert (
+        "do not repair it solely to add progress reporting"
+        in SEMANTIC_EVALUATION_RUBRIC
+    )
+    assert "adjustment criteria" in SEMANTIC_EVALUATION_RUBRIC
+    assert "additional feedback, monitoring, follow-up" in SEMANTIC_EVALUATION_RUBRIC
+
+
+def test_production_scheduling_scope_preserves_out_of_scope_detection():
+    """Monitoring or reporting is not silently treated as required work."""
+    assert (
+        'a separate "monitor execution" activity is out of'
+        in SEMANTIC_EVALUATION_RUBRIC
+    )
+    assert (
+        "scope; do not invent it as a missing requirement"
+        in SEMANTIC_EVALUATION_RUBRIC
+    )
+    assert "materially unsupported responsibility" in SEMANTIC_EVALUATION_RUBRIC
+    assert "must be rejected" in SEMANTIC_EVALUATION_RUBRIC
+
+
+@pytest.mark.parametrize(
+    ("description", "activity_wording"),
+    [
+        (
+            "Plan and coordinate manufacturing production within constraints.",
+            "Tell stakeholders the finalized production plan",
+        ),
+        (
+            "Review orders, capacity, and inventory; create and distribute the final schedule.",
+            "Communicate the completed schedule to relevant teams",
+        ),
+    ],
+)
+def test_semantic_coverage_accepts_equivalent_activity_wording(
+    description, activity_wording
+):
+    task = TaskReference(
+        task_name="Production Scheduling",
+        task_description=description,
+    )
+    decomposition = OperationalDecomposition(
+        task=task,
+        operational_subtasks=(
+            OperationalSubtask(
+                sequence_index=1,
+                subtask_id="communicate",
+                subtask_name=activity_wording,
+                description=activity_wording + ".",
+            ),
+        ),
+    )
+    request = SemanticEvaluationRequest(
+        task=task,
+        operational_decomposition=decomposition,
+        rubric_version=SEMANTIC_EVALUATION_RUBRIC_VERSION,
+    )
+    assert request.operational_decomposition.operational_subtasks[0].description
+
+
+def test_rubric_preserves_blocking_for_missing_required_activity():
+    assert (
+        "if a task explicitly requires communicating the" in SEMANTIC_EVALUATION_RUBRIC
+    )
+    assert "that missing activity" in SEMANTIC_EVALUATION_RUBRIC
+    assert "is blocking" in SEMANTIC_EVALUATION_RUBRIC
+
+
+def test_scope_regression_cases_preserve_acceptance_and_blocking_boundaries():
+    accepted = SemanticEvaluation(
+        decision=SemanticEvaluationDecision.ACCEPT,
+        rubric_version=SEMANTIC_EVALUATION_RUBRIC_VERSION,
+    )
+    assert accepted.decision is SemanticEvaluationDecision.ACCEPT
+
+    out_of_scope = SemanticEvaluation(
+        decision=SemanticEvaluationDecision.REJECT,
+        findings=(
+            finding(
+                code=SemanticFindingCode.INCOMPLETE_COVERAGE,
+                category=SemanticFindingCategory.POLICY,
+                severity=SemanticFindingSeverity.BLOCKING,
+                subtask_id=None,
+            ),
+        ),
+        rubric_version=SEMANTIC_EVALUATION_RUBRIC_VERSION,
+    )
+    missing_required = SemanticEvaluation(
+        decision=SemanticEvaluationDecision.REJECT,
+        findings=(
+            finding(
+                code=SemanticFindingCode.INCOMPLETE_COVERAGE,
+                category=SemanticFindingCategory.COMPLETENESS,
+                severity=SemanticFindingSeverity.BLOCKING,
+            ),
+        ),
+        rubric_version=SEMANTIC_EVALUATION_RUBRIC_VERSION,
+    )
+    assert out_of_scope.findings[0].category is SemanticFindingCategory.POLICY
+    assert missing_required.findings[0].severity is SemanticFindingSeverity.BLOCKING
 
 
 def test_provider_failure_is_not_encoded_as_semantic_rejection():

@@ -192,6 +192,37 @@ def test_semantic_prompt_requires_concise_actionable_findings():
         in SEMANTIC_EVALUATION_PROMPT
     )
     assert "Use reject whenever any finding is blocking" in SEMANTIC_EVALUATION_PROMPT
+    assert (
+        "Blocking findings are limited to missing required operational activities"
+        in SEMANTIC_EVALUATION_PROMPT
+    )
+    assert "Do not treat missing exception handling" in SEMANTIC_EVALUATION_PROMPT
+    assert "without specifying a resolution algorithm" in SEMANTIC_EVALUATION_PROMPT
+    assert "Count a required activity as covered" in SEMANTIC_EVALUATION_PROMPT
+    assert "semantic equivalence, not exact wording" in SEMANTIC_EVALUATION_PROMPT
+    assert "Before reporting a missing activity" in SEMANTIC_EVALUATION_PROMPT
+    assert "not automatically as an internal meta-task" in SEMANTIC_EVALUATION_PROMPT
+    assert (
+        "Judge completeness against activities explicitly required"
+        in SEMANTIC_EVALUATION_PROMPT
+    )
+    assert (
+        "Do not require additional feedback, monitoring, follow-up"
+        in SEMANTIC_EVALUATION_PROMPT
+    )
+    assert "materially unsupported responsibility" in SEMANTIC_EVALUATION_PROMPT
+    assert "Do not infer missing feedback" in SEMANTIC_EVALUATION_PROMPT
+    assert (
+        "informing production teams of the finalized schedule"
+        in SEMANTIC_EVALUATION_PROMPT
+    )
+    assert (
+        "Gathering feedback from production teams is also a valid distinct activity"
+        in SEMANTIC_EVALUATION_PROMPT
+    )
+    assert (
+        "a separate monitoring activity is out of scope" in SEMANTIC_EVALUATION_PROMPT
+    )
 
 
 @pytest.mark.parametrize("provider_name", ["openai", "deepseek", "gemini"])

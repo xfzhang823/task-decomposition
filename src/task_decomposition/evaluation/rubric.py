@@ -25,9 +25,53 @@ Consider the decomposition as a whole:
 4. Internal decomposition, meta-analysis, rationale-generation, or evaluator
    activities are not business work unless the original task explicitly makes
    that activity the business task.
-5. Distinguish material execution defects from optional improvements. Wording,
+5. Evaluate the completeness and quality of the activity decomposition, not
+   whether each activity contains an executable procedure. Do not require
+   exception handling, procedural methods, decision criteria, prioritization
+   rules, algorithms, or other optional specificity unless the original task
+   explicitly requires them as distinct activities.
+6. Distinguish material decomposition defects from optional improvements.
+   Wording,
    specificity, and presentation improvements are suggestions and must not
-   prevent acceptance.
+   prevent acceptance. Procedural detail is also optional unless explicitly
+   required by the original task.
+7. Judge completeness against activities explicitly required or directly
+   implied by the supplied task, not against generic domain expectations.
+   A subtask covers a requirement when its core operational action and object
+   are identifiable.
+   Before reporting a missing activity, check every existing subtask for the
+   same operational action and object using semantic equivalence, not exact
+   wording or a predefined workflow.
+8. Do not require additional feedback, monitoring, follow-up, exception
+   handling, or procedural activities unless the supplied task requires them.
+   Treat a materially unsupported responsibility as a blocking scope defect,
+   not automatically as an internal meta-task. Operational documentation is
+   legitimate when the supplied task requires recording a business result,
+   decision, or record; documentation of methodologies or work merely for
+   future reference is out of scope unless explicitly required.
+   Do not issue a repair finding merely to add progress reporting, feedback,
+   adjustment criteria, or procedural detail when the core operational action
+   and object are already identifiable.
+
+Severity boundary:
+- Blocking findings are limited to missing required operational activities,
+  non-operational subtasks, materially ambiguous activity boundaries, or
+  overlapping/fragmented activities that prevent meaningful independent
+  automation assessment. A materially out-of-scope responsibility that
+  expands the supplied task boundary is also blocking and must be rejected.
+- Missing exception handling, methods, criteria, prioritization rules,
+  algorithms, or edge-case procedures is non-blocking unless the original
+  task explicitly identifies that work as a required distinct activity.
+- Count a required activity as covered when a subtask names its core action
+  and object. Do not report an activity as missing merely because the subtask
+  omits stakeholder lists, qualifiers, communication channels, or downstream
+  decision consequences.
+- Before reporting a missing activity, check whether an existing subtask
+  already performs that action on that object, even if it uses different
+  wording or combines the action with an adjacent operational phrase.
+- Do not infer a missing feedback, monitoring, follow-up, or issue-resolution
+  activity from a communication, scheduling, or execution activity unless the
+  original task requires that additional responsibility.
 
 Decision guidance:
 
@@ -61,6 +105,29 @@ Examples:
 - Overlap: two subtasks that perform the same review should be identified as
   overlapping; missing work should be identified when the decomposition does
   not cover a material part of the original task.
+- Production scheduling: "Create a feasible production schedule based on
+  reviewed orders, inventory, machine capacity, and workforce availability"
+  is a sufficient activity description without specifying shortage procedures.
+- Production scheduling: "Identify and address conflicts in the proposed
+  production schedule" is a sufficient activity description without naming a
+  resolution algorithm or decision criteria.
+- Production scheduling: "Inform production teams of the finalized production
+  schedule" covers the required communication activity; do not report it as
+  missing because the row does not enumerate every stakeholder.
+- Production scheduling: gathering feedback from production teams is a valid
+  distinct activity; do not require the decomposition to state how that
+  feedback changes later scheduling decisions.
+- Production scheduling: if the supplied task does not mention monitoring
+  schedule execution, a separate "monitor execution" activity is out of
+  scope; do not invent it as a missing requirement or demand its procedures.
+- Production scheduling: an existing activity to monitor production, adjust a
+  schedule, or communicate a schedule is sufficient at the activity level;
+  do not repair it solely to add progress reporting, feedback, adjustment
+  criteria, or execution procedures.
+- Genuine blocking omission: if a task explicitly requires communicating the
+  finalized schedule and no communication activity appears, that missing activity
+  is blocking; the existing scheduling activities do not need to enumerate
+  communication procedures.
 
 Do not use keyword matching, an operational-verb allowlist, a numerical
 quality score, or a requirement that every subtask produce a physical or

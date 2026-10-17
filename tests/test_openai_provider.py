@@ -16,6 +16,7 @@ from task_decomposition import (
     TaskDecomposition,
     decompose,
 )
+from task_decomposition.contracts.decomposition import TransformationClassification
 from task_decomposition.contracts.provider import (
     AddedWorkClassificationRequest,
     OperationalDecompositionRequest,
@@ -328,6 +329,90 @@ def test_provider_prompts_request_compact_optional_fields():
         "Keep names and descriptions concise" in OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT
     )
     assert "Set optional descriptions, dependencies" in ADDED_WORK_PROMPT
+
+
+def test_retain_remove_prompt_assesses_current_ai_potential_without_context():
+    request = stage_requests()[1]
+    request = request.model_copy(
+        update={
+            "request": request.request.model_copy(update={"transformation_context": {}})
+        }
+    )
+    provider = OpenAIDecompositionProvider(
+        client=FakeClient(outputs={type(make_classification()): make_classification()})
+    )
+
+    provider.classify_retain_remove(request)
+
+    call = provider._client.responses.calls[0]
+    payload = json.loads(call["input"][1]["content"])
+    assert payload["transformation_context"] == {}
+    assert "automation potential using current AI-enabled technology" in RETAIN_REMOVE_PROMPT
+    assert "execute most of the core operational activity" in RETAIN_REMOVE_PROMPT
+    assert "limited recurring human execution" in RETAIN_REMOVE_PROMPT
+    assert "not deployment, industry adoption, or authorization" in RETAIN_REMOVE_PROMPT
+    assert "Empty transformation context does not imply RETAIN" in RETAIN_REMOVE_PROMPT
+    assert "oversight, approval, accountability" in RETAIN_REMOVE_PROMPT
+    assert "separately from substantial recurring execution" in RETAIN_REMOVE_PROMPT
+    assert "Classify each subtask independently" in RETAIN_REMOVE_PROMPT
+    assert "identify the core operational activity" in RETAIN_REMOVE_PROMPT
+    assert "execute most of the core operational activity" in RETAIN_REMOVE_PROMPT
+    assert "Do not classify RETAIN merely because" in RETAIN_REMOVE_PROMPT
+    assert "realistic conditions" in RETAIN_REMOVE_PROMPT
+    assert "Do not assign percentages or additional categories" in RETAIN_REMOVE_PROMPT
+
+
+def test_operational_prompt_preserves_supplied_task_scope():
+    assert "only activities necessary or reasonably implied" in OPERATIONAL_DECOMPOSITION_PROMPT
+    assert "Do not add documentation, monitoring, feedback, or follow-up" in OPERATIONAL_DECOMPOSITION_PROMPT
+
+
+@pytest.mark.parametrize(
+    ("activity", "classification"),
+    [
+        (
+            "Evaluate standardized cases using rules and a model with human approval",
+            "remove",
+        ),
+        ("Optimize a recurring allocation from structured constraints with exception review", "remove"),
+        ("Coordinate routine handoffs through workflow automation with escalation", "remove"),
+        ("Perform an ongoing hands-on inspection requiring physical judgment", "retain"),
+        ("Resolve a novel case through sustained negotiation with multiple stakeholders", "retain"),
+    ],
+)
+def test_retain_remove_examples_preserve_binary_identity_contract(
+    activity, classification
+):
+    """Capability examples remain representable through the binary contract."""
+    operational = make_operational().model_copy(
+        update={
+            "operational_subtasks": (
+                make_operational()
+                .operational_subtasks[0]
+                .model_copy(update={"subtask_name": activity}),
+            )
+        }
+    )
+    output = make_classification().model_copy(
+        update={
+            "task": operational.task,
+            "classified_subtasks": (
+                make_classification()
+                .classified_subtasks[0]
+                .model_copy(
+                    update={
+                        "subtask_id": operational.operational_subtasks[0].subtask_id,
+                        "classification": TransformationClassification(classification),
+                    }
+                ),
+            ),
+        }
+    )
+    validated = output
+    assert [row.subtask_id for row in validated.classified_subtasks] == [
+        operational.operational_subtasks[0].subtask_id
+    ]
+    assert validated.classified_subtasks[0].classification.value == classification
 
 
 def test_openai_strict_schemas_require_nested_and_optional_fields():

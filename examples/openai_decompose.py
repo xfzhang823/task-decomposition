@@ -15,12 +15,19 @@ python examples/openai_decompose.py \
   --task-name "Production Scheduling" \
   --task-description "Review production orders, inventory availability, machine capacity, and workforce availability. Develop a feasible production schedule, assign production orders to machines and shifts, resolve scheduling conflicts, and communicate the finalized schedule to production teams."
 
+TASK_DECOMPOSITION_TRACE_ENABLED=true \
+TASK_DECOMPOSITION_TRACE_CONSOLE=true \
+python examples/openai_decompose.py \
+  --task-name "Production Scheduling" \
+  --task-description "Plan and coordinate manufacturing production to fulfill customer orders within available resources, operational constraints, and delivery deadlines."
+
 Use ``--help`` to see all available options.
 """
 
 import argparse
 import os
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -37,10 +44,23 @@ from task_decomposition import (
     TaskReference,
     TimeBasis,
     TransformationDecompositionRequest,
+    allocate_effort,
     decompose_task,
     decompose_transformation,
 )
+from task_decomposition.application._provider_stage import (
+    call_stage,
+    provider_id,
+    validate_classification_response,
+)
+from task_decomposition.contracts.decomposition import TransformationClassification
 from task_decomposition.contracts.provenance import ProviderStage
+from task_decomposition.contracts.provider import RetainRemoveClassificationRequest
+from task_decomposition.domain import DEFAULT_TOLERANCE
+from task_decomposition.errors import (
+    MissingAccountingInputError,
+    MissingEffortAllocationError,
+)
 from task_decomposition.providers.openai import (
     OpenAIDecompositionProvider,
     OpenAIProviderConfig,
@@ -85,6 +105,118 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--domain", default="production_scheduling")
     return parser.parse_args()
+
+
+class _CachedClassificationProvider:
+    """Reuse the classification used to derive the example accounting input."""
+
+    def __init__(self, provider, classification_response):
+        self._provider = provider
+        self._classification_response = classification_response
+        self.provider_id = provider.provider_id
+        self.tracer = provider.tracer
+
+    def classify_retain_remove(self, request):
+        return self._classification_response
+
+    def classify_added_work(self, request):
+        return self._provider.classify_added_work(request)
+
+
+def _derive_accounting_input(
+    baseline,
+    classification,
+    *,
+    baseline_human_effort,
+    support_work,
+):
+    """Build absolute accounting from normalized baseline weights and labels."""
+    subtasks = baseline.operational_decomposition.operational_subtasks
+    weights = {
+        subtask.subtask_id: subtask.relative_effort_weight for subtask in subtasks
+    }
+    if not weights or any(weight is None for weight in weights.values()):
+        raise MissingEffortAllocationError(
+            "every baseline subtask requires a relative_effort_weight"
+        )
+    allocation = allocate_effort(baseline_human_effort, weights)
+    rows = {row.subtask_id: row for row in classification.classified_subtasks}
+    if set(rows) != set(weights):
+        raise MissingAccountingInputError(
+            "classification must cover every weighted baseline subtask exactly once"
+        )
+    retained = sum(
+        (
+            allocation[subtask_id].value
+            for subtask_id, row in rows.items()
+            if row.classification is TransformationClassification.RETAIN
+        ),
+        Decimal(0),
+    )
+    removed = sum(
+        (
+            allocation[subtask_id].value
+            for subtask_id, row in rows.items()
+            if row.classification is TransformationClassification.REMOVE
+        ),
+        Decimal(0),
+    )
+    if abs(retained + removed - baseline_human_effort.value) > DEFAULT_TOLERANCE:
+        raise MissingAccountingInputError(
+            "classified retained and removed effort does not reconcile to baseline"
+        )
+    return AbsoluteEffortInput(
+        baseline_human_effort=baseline_human_effort,
+        retained_human_work=baseline_human_effort.model_copy(
+            update={"value": retained}
+        ),
+        gross_removed_work=baseline_human_effort.model_copy(update={"value": removed}),
+        support_work=support_work,
+    )
+
+
+def _classify_once(provider, baseline, transformation_context):
+    """Probe classification once so accounting and final output use one result."""
+    effort = EffortQuantity(
+        value=100, unit=EffortUnit.EFFORT, time_basis=TimeBasis.PER_OPERATION
+    )
+    zero_support = SupportWorkInputs(
+        ai_interaction=SupportWorkInput(
+            value=0,
+            basis=RatioBasis.ABSOLUTE_EFFORT,
+            unit=effort.unit,
+            time_basis=effort.time_basis,
+        ),
+        ai_verification=SupportWorkInput(
+            value=0,
+            basis=RatioBasis.ABSOLUTE_EFFORT,
+            unit=effort.unit,
+            time_basis=effort.time_basis,
+        ),
+    )
+    probe_request = TransformationDecompositionRequest(
+        task_decomposition=baseline,
+        transformation_context=transformation_context,
+        accounting_input=AbsoluteEffortInput(
+            baseline_human_effort=effort,
+            retained_human_work=effort,
+            gross_removed_work=effort.model_copy(update={"value": 0}),
+            support_work=zero_support,
+        ),
+    )
+    response = call_stage(
+        provider_id(provider),
+        ProviderStage.RETAIN_REMOVE_CLASSIFICATION,
+        provider.classify_retain_remove,
+        RetainRemoveClassificationRequest(
+            request=probe_request,
+            operational_decomposition=baseline.operational_decomposition,
+        ),
+    )
+    classification = validate_classification_response(
+        baseline.operational_decomposition, response
+    )
+    return response, classification
 
 
 def main() -> None:
@@ -140,13 +272,17 @@ def main() -> None:
             dependencies = ", ".join(subtask.depends_on) or "none"
             print(f"- {subtask.subtask_name}: {share} (depends on: {dependencies})")
 
-        accounting_input = AbsoluteEffortInput(
+        transformation_context = {}
+        classification_response, classification = _classify_once(
+            provider, baseline, transformation_context
+        )
+        accounting_input = _derive_accounting_input(
+            baseline,
+            classification,
             baseline_human_effort=effort(100),
-            retained_human_work=effort(60),
-            gross_removed_work=effort(40),
             support_work=SupportWorkInputs(
-                ai_interaction=support(8),
-                ai_verification=support(6),
+                ai_interaction=support(0),
+                ai_verification=support(0),
             ),
         )
 
@@ -154,9 +290,10 @@ def main() -> None:
         result = decompose_transformation(
             TransformationDecompositionRequest(
                 task_decomposition=baseline,
+                transformation_context=transformation_context,
                 accounting_input=accounting_input,
             ),
-            provider,
+            _CachedClassificationProvider(provider, classification_response),
         )
 
     print(result.accounting.model_dump(mode="json"))

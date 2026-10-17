@@ -6,12 +6,14 @@ from decimal import Decimal
 from task_decomposition.contracts.effort import EffortQuantity
 from task_decomposition.errors import AccountingInvariantError
 
+DEFAULT_TOLERANCE = Decimal("0.000000001")
+
 
 def allocate_effort(
     parent_effort: EffortQuantity,
     weights: Mapping[str, Decimal | int | float | str],
     *,
-    tolerance: Decimal = Decimal("0.000000001"),
+    tolerance: Decimal = DEFAULT_TOLERANCE,
 ) -> dict[str, EffortQuantity]:
     """Allocate a parent effort quantity by normalized, non-negative weights."""
     if not weights:

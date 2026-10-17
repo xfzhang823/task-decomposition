@@ -19,6 +19,7 @@ from task_decomposition.contracts.effort import (
     RatioBasis,
     SupportWorkInput,
 )
+from task_decomposition.domain.allocation import DEFAULT_TOLERANCE
 from task_decomposition.errors import (
     AccountingInvariantError,
     IncompatibleEffortUnitError,
@@ -26,8 +27,6 @@ from task_decomposition.errors import (
     RatioBasisError,
     ZeroBaselineError,
 )
-
-DEFAULT_TOLERANCE = Decimal("0.000000001")
 
 
 def _close(left: Decimal, right: Decimal, tolerance: Decimal) -> bool:

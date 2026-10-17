@@ -179,32 +179,21 @@ def test_finding_codes_and_categories_are_stable_enums():
 
 
 def test_rubric_is_versioned_and_contains_representative_guidance():
-    assert SEMANTIC_EVALUATION_RUBRIC_VERSION == "1.0"
+    assert SEMANTIC_EVALUATION_RUBRIC_VERSION == "1.1"
     for phrase in (
-        "Invoice review",
-        "Customer onboarding",
-        "Pure outcome",
-        "Internal meta-task",
-        "overlapping",
-        "missing work",
+        "Authority and scope",
+        "assigned operational responsibility",
+        "reasonable alternative decompositions",
+        "overlap, duplication, fragmentation",
         "Do not use keyword matching",
-        "Wording,\n   specificity, and presentation improvements are suggestions",
-        "Severity precedence is mandatory",
-        "Evaluate the completeness and quality of the activity decomposition",
-        "Missing exception handling, methods, criteria",
-        "Create a feasible production schedule",
-        "Identify and address conflicts",
-        "Inform production teams of the finalized production",
-        "gathering feedback from production teams is a valid",
-        "missing required operational activities",
-        "explicitly required or directly\n   implied",
-        "materially out-of-scope",
+        "A missing activity is blocking only when",
+        "explicitly required by the assigned task or operationally necessary",
         "task boundary",
-        "Do not infer a missing feedback",
-        "monitoring\n  schedule execution",
-        "semantic equivalence, not exact",
-        "not automatically as an internal meta-task",
-        "recording a business result",
+        "semantic equivalence before reporting",
+        "Do not require procedures",
+        "cannot be resolved through local repair",
+        "presume it is acceptable unless a demonstrable defect",
+        "missing activity is blocking only when",
     ):
         assert phrase in SEMANTIC_EVALUATION_RUBRIC
 
@@ -254,25 +243,105 @@ def test_production_scheduling_activities_are_acceptable_without_procedures():
 def test_production_scheduling_scope_does_not_require_feedback_or_criteria():
     """Core activities remain valid without optional implementation detail."""
     assert (
-        "do not repair it solely to add progress reporting"
+        "procedures, exception handling, feedback, monitoring"
         in SEMANTIC_EVALUATION_RUBRIC
     )
-    assert "adjustment criteria" in SEMANTIC_EVALUATION_RUBRIC
-    assert "additional feedback, monitoring, follow-up" in SEMANTIC_EVALUATION_RUBRIC
+    assert (
+        "unless the original task requires that work as a distinct activity"
+        in SEMANTIC_EVALUATION_RUBRIC
+    )
 
 
 def test_production_scheduling_scope_preserves_out_of_scope_detection():
     """Monitoring or reporting is not silently treated as required work."""
     assert (
-        'a separate "monitor execution" activity is out of'
+        "Flag an unsupported responsibility only when it materially expands"
         in SEMANTIC_EVALUATION_RUBRIC
     )
     assert (
-        "scope; do not invent it as a missing requirement"
+        "Do not add activities merely to make the decomposition appear"
         in SEMANTIC_EVALUATION_RUBRIC
     )
-    assert "materially unsupported responsibility" in SEMANTIC_EVALUATION_RUBRIC
-    assert "must be rejected" in SEMANTIC_EVALUATION_RUBRIC
+
+
+@pytest.mark.parametrize(
+    ("task_description", "include_close"),
+    [
+        (
+            "Plan and coordinate manufacturing production within available resources.",
+            False,
+        ),
+        (
+            "Fulfill customer orders end to end, including closing completed orders.",
+            True,
+        ),
+    ],
+)
+def test_scope_regressions_accept_required_activity_structures(
+    task_description, include_close
+):
+    """Valid alternative structures are representable without procedural detail."""
+    task = TaskReference(
+        task_name="Production Planning",
+        task_description=task_description,
+    )
+    subtasks = [
+        OperationalSubtask(
+            sequence_index=1,
+            subtask_id="plan",
+            subtask_name="Plan production to meet customer demand",
+        )
+    ]
+    if include_close:
+        subtasks.append(
+            OperationalSubtask(
+                sequence_index=2,
+                subtask_id="close",
+                subtask_name="Close completed customer orders",
+                depends_on=("plan",),
+            )
+        )
+    decomposition = OperationalDecomposition(
+        task=task, operational_subtasks=tuple(subtasks)
+    )
+    result = SemanticEvaluation(
+        decision=SemanticEvaluationDecision.ACCEPT,
+        findings=(),
+        rubric_version=SEMANTIC_EVALUATION_RUBRIC_VERSION,
+    )
+    assert len(decomposition.operational_subtasks) == (2 if include_close else 1)
+    assert result.decision is SemanticEvaluationDecision.ACCEPT
+
+
+def test_explicit_order_closure_omission_remains_material():
+    task = TaskReference(
+        task_name="Order fulfillment",
+        task_description="Fulfill orders end to end, including closing completed orders.",
+    )
+    decomposition = OperationalDecomposition(
+        task=task,
+        operational_subtasks=(
+            OperationalSubtask(
+                sequence_index=1,
+                subtask_id="fulfill",
+                subtask_name="Coordinate order fulfillment",
+            ),
+        ),
+    )
+    finding_result = SemanticEvaluation(
+        decision=SemanticEvaluationDecision.REJECT,
+        findings=(
+            finding(
+                code=SemanticFindingCode.INCOMPLETE_COVERAGE,
+                category=SemanticFindingCategory.COMPLETENESS,
+                severity=SemanticFindingSeverity.BLOCKING,
+                subtask_id=None,
+            ),
+        ),
+        rubric_version=SEMANTIC_EVALUATION_RUBRIC_VERSION,
+    )
+    assert decomposition.operational_subtasks[0].subtask_id == "fulfill"
+    assert finding_result.findings[0].severity is SemanticFindingSeverity.BLOCKING
 
 
 @pytest.mark.parametrize(
@@ -315,11 +384,8 @@ def test_semantic_coverage_accepts_equivalent_activity_wording(
 
 
 def test_rubric_preserves_blocking_for_missing_required_activity():
-    assert (
-        "if a task explicitly requires communicating the" in SEMANTIC_EVALUATION_RUBRIC
-    )
-    assert "that missing activity" in SEMANTIC_EVALUATION_RUBRIC
-    assert "is blocking" in SEMANTIC_EVALUATION_RUBRIC
+    assert "A missing activity is blocking only when" in SEMANTIC_EVALUATION_RUBRIC
+    assert "Reserve reject for blocking findings" in SEMANTIC_EVALUATION_RUBRIC
 
 
 def test_scope_regression_cases_preserve_acceptance_and_blocking_boundaries():

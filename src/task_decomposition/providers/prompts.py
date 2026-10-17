@@ -82,23 +82,8 @@ Evaluate the complete operational decomposition in the supplied input JSON again
 
 Decision Rules:
 - Apply RUBRIC VERSION: {SEMANTIC_EVALUATION_RUBRIC_VERSION}.
-- Evaluate the decomposition holistically against the original task, description, and context.
-- Accept an operationally complete and executable decomposition; optional wording or specificity improvements are suggestions only.
-- Use repair only for a material actionable defect that prevents reliable execution and is correctable without redesigning the decomposition.
-- Use reject whenever any finding is blocking; use repairable findings only when no blocking finding exists.
-- Blocking findings are limited to missing required operational activities, non-operational subtasks, materially ambiguous activity boundaries, or overlapping/fragmented activities that prevent meaningful independent automation assessment.
-- Do not treat missing exception handling, procedural methods, decision criteria, prioritization rules, algorithms, or optional specificity as blocking unless the original task explicitly requires them as distinct activities.
-- Evaluate the completeness and quality of the activity decomposition, not whether each activity contains executable procedures.
-- Judge completeness against activities explicitly required or directly implied by the supplied task, not generic domain expectations.
-- Count a required activity as covered when a subtask names its core action and object. Do not report an activity as missing merely because the subtask omits stakeholder lists, qualifiers, communication channels, or downstream decision consequences.
-- Before reporting a missing activity, check all existing subtasks for the same operational action and object using semantic equivalence, not exact wording or a predefined workflow.
-- Do not require additional feedback, monitoring, follow-up, exception handling, or procedural activities unless the supplied task requires them.
-- Treat a materially unsupported responsibility as a blocking scope defect, not automatically as an internal meta-task. Operational documentation is legitimate when the supplied task requires recording a business result, decision, or record; documentation of methodologies or work merely for future reference is out of scope unless explicitly required.
-- Do not infer missing feedback, monitoring, follow-up, or issue-resolution activities from communication, scheduling, or execution activities unless the original task requires that additional responsibility.
-- Do not issue a repair finding merely to add progress reporting, feedback, adjustment criteria, or procedural detail when the core operational action and object are already identifiable.
-- For example, a production-scheduling activity may create a feasible schedule without specifying material-shortage procedures, a conflict-resolution activity may identify and address conflicts without specifying a resolution algorithm, and informing production teams of the finalized schedule covers the communication activity without enumerating every stakeholder; these remain acceptable activities.
-- Gathering feedback from production teams is also a valid distinct activity without requiring the decomposition to state how that feedback changes later scheduling decisions.
-- If the supplied task does not mention monitoring schedule execution, a separate monitoring activity is out of scope; do not invent it as a missing requirement or demand its procedures.
+- Treat the rubric as the authority for scope, coverage, severity, and decision criteria.
+- Apply the rubric's accept, repair, and reject guidance exactly; do not add stricter domain expectations or procedural requirements.
 - Output Rules: No hidden reasoning, narrative outside JSON, or numerical quality scores. Set evaluator provenance to null.
 - Finding Format: Findings must be concise and actionable. Include subtask_id (if applicable), a short message, and evidence only when it clarifies a defect.
 

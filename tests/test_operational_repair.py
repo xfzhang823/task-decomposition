@@ -17,6 +17,7 @@ from task_decomposition import (
     decompose_task,
     validate_operational_decomposition,
 )
+from task_decomposition.evaluation.rubric import SEMANTIC_EVALUATION_RUBRIC_VERSION
 
 
 def response(provider, payload):
@@ -75,7 +76,9 @@ class RepairProvider(FakeProvider):
             )
         )
         return SemanticEvaluation(
-            decision=decision, findings=findings, rubric_version="1.0"
+            decision=decision,
+            findings=findings,
+            rubric_version=SEMANTIC_EVALUATION_RUBRIC_VERSION,
         )
 
     def repair_operational_decomposition(

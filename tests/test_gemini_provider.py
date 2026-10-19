@@ -21,6 +21,7 @@ from task_decomposition.contracts.provider import (
     RetainRemoveClassificationRequest,
     TransformationDecompositionRequest,
 )
+from task_decomposition.evaluation.rubric import SEMANTIC_EVALUATION_RUBRIC_VERSION
 from task_decomposition.providers.gemini import (
     DEFAULT_GEMINI_MODEL,
     GeminiDecompositionProvider,
@@ -78,7 +79,10 @@ def provider():
             type(make_operational()): make_operational(),
             type(make_classification()): make_classification(),
             type(make_added()): make_added(),
-            SemanticEvaluation: {"decision": "accept", "rubric_version": "1.0"},
+            SemanticEvaluation: {
+                "decision": "accept",
+                "rubric_version": SEMANTIC_EVALUATION_RUBRIC_VERSION,
+            },
         }
     )
     return GeminiDecompositionProvider(

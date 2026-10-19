@@ -4,17 +4,17 @@ import pytest
 from pydantic import ValidationError
 
 from task_decomposition import (
-    EffortUnit,
-    SupportWorkInput,
-    SupportWorkInputs,
-    TimeBasis,
     AddedWorkCategory,
     AddedWorkClassification,
     AddedWorkItem,
+    EffortUnit,
     OperationalDecomposition,
     OperationalSubtask,
     RetainRemoveClassification,
+    SupportWorkInput,
+    SupportWorkInputs,
     TaskReference,
+    TimeBasis,
     TransformationClassification,
     validate_added_work_classification,
 )
@@ -141,7 +141,7 @@ def test_prompt_defines_interaction_verification_and_exclusions():
     assert "retrying" in ADDED_WORK_PROMPT
     assert "approving AI-generated outputs" in ADDED_WORK_PROMPT
     assert "implementation" in ADDED_WORK_PROMPT
-    assert "ongoing system maintenance" in ADDED_WORK_PROMPT
+    assert "infrastructure or model maintenance" in ADDED_WORK_PROMPT
     assert "passive AI waiting time" in ADDED_WORK_PROMPT
     assert (
         "top-level `task`, `added_work_rows`, and `provenance_refs`"

@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -20,6 +21,7 @@ from task_decomposition.contracts.provider import (
     RetainRemoveClassificationRequest,
     TransformationDecompositionRequest,
 )
+from task_decomposition.evaluation.rubric import SEMANTIC_EVALUATION_RUBRIC_VERSION
 from task_decomposition.providers.deepseek import (
     DEFAULT_DEEPSEEK_BASE_URL,
     DEFAULT_DEEPSEEK_MODEL,
@@ -38,8 +40,15 @@ class FakeCompletions:
         self.calls.append(kwargs)
         if self.error is not None:
             raise self.error
-        if "semantic evaluation" in kwargs["messages"][0]["content"].lower():
-            content = '{"decision":"accept","rubric_version":"1.0"}'
+        request_payload = json.loads(
+            kwargs["messages"][0]["content"].split("INPUT JSON:\n", 1)[1]
+        )
+        if "rubric_version" in request_payload:
+            content = (
+                '{"decision":"accept","rubric_version":"'
+                + SEMANTIC_EVALUATION_RUBRIC_VERSION
+                + '"}'
+            )
         else:
             content = self.outputs.pop(0)
         return SimpleNamespace(

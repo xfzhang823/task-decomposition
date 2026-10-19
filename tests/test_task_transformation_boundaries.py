@@ -29,6 +29,7 @@ from task_decomposition import (
     decompose_task,
     decompose_transformation,
 )
+from task_decomposition.evaluation.rubric import SEMANTIC_EVALUATION_RUBRIC_VERSION
 from task_decomposition.ports import (
     DecompositionProvider,
     TaskDecompositionProvider,
@@ -166,7 +167,7 @@ class BoundaryProvider:
     def evaluate(self, request):
         return SemanticEvaluation(
             decision=SemanticEvaluationDecision.ACCEPT,
-            rubric_version="1.0",
+            rubric_version=SEMANTIC_EVALUATION_RUBRIC_VERSION,
         )
 
     def generate_operational_decomposition(self, request):

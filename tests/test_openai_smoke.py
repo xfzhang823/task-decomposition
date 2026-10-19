@@ -21,8 +21,8 @@ from task_decomposition.providers.openai import OpenAIDecompositionProvider
 
 @pytest.mark.integration
 def test_live_openai_three_stage_decomposition():
-    if not os.getenv("OPENAI_API_KEY"):
-        pytest.skip("OPENAI_API_KEY is not configured")
+    if os.getenv("RUN_LIVE_PROVIDER_TESTS") != "1" or not os.getenv("OPENAI_API_KEY"):
+        pytest.skip("set RUN_LIVE_PROVIDER_TESTS=1 and OPENAI_API_KEY to run")
 
     unit = EffortUnit.EFFORT
     period = TimeBasis.PER_OPERATION

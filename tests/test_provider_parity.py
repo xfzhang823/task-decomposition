@@ -6,9 +6,22 @@ from test_provider_application import account_input, request
 from test_staged_pipeline import make_added, make_classification, make_operational
 
 from task_decomposition import decompose
+from task_decomposition.evaluation.rubric import SEMANTIC_EVALUATION_RUBRIC_VERSION
 from task_decomposition.providers.deepseek import DeepSeekDecompositionProvider
 from task_decomposition.providers.gemini import GeminiDecompositionProvider
 from task_decomposition.providers.openai import OpenAIDecompositionProvider
+
+
+def classification_with_rationales():
+    classification = make_classification()
+    return classification.model_copy(
+        update={
+            "classified_subtasks": tuple(
+                row.model_copy(update={"rationale": f"Reason for {row.subtask_id}."})
+                for row in classification.classified_subtasks
+            )
+        }
+    )
 
 
 class OpenAIResponses:
@@ -17,7 +30,7 @@ class OpenAIResponses:
             output_parsed={
                 "SemanticEvaluation": {
                     "decision": "accept",
-                    "rubric_version": "1.0",
+                    "rubric_version": SEMANTIC_EVALUATION_RUBRIC_VERSION,
                 }
             }[kwargs["text_format"].__name__]
         )
@@ -25,7 +38,7 @@ class OpenAIResponses:
     def create(self, **kwargs):
         values = {
             "OperationalDecomposition": make_operational(),
-            "RetainRemoveClassification": make_classification(),
+            "RetainRemoveClassification": classification_with_rationales(),
             "AddedWorkClassification": make_added(),
         }
         value = values[kwargs["text"]["format"]["name"]]
@@ -45,9 +58,12 @@ class GeminiModels:
         return SimpleNamespace(
             parsed={
                 "OperationalDecomposition": make_operational(),
-                "RetainRemoveClassification": make_classification(),
+                "RetainRemoveClassification": classification_with_rationales(),
                 "AddedWorkClassification": make_added(),
-                "SemanticEvaluation": {"decision": "accept", "rubric_version": "1.0"},
+                "SemanticEvaluation": {
+                    "decision": "accept",
+                    "rubric_version": SEMANTIC_EVALUATION_RUBRIC_VERSION,
+                },
             }[kwargs["config"]["response_schema"].__name__]
         )
 
@@ -60,13 +76,22 @@ class DeepSeekCompletions:
     def __init__(self):
         self.outputs = [
             make_operational().model_dump_json(),
-            make_classification().model_dump_json(),
+            classification_with_rationales().model_dump_json(),
             make_added().model_dump_json(),
         ]
 
     def create(self, **kwargs):
-        if "semantic evaluation" in kwargs["messages"][0]["content"].lower():
-            content = '{"decision":"accept","rubric_version":"1.0"}'
+        import json
+
+        request_payload = json.loads(
+            kwargs["messages"][0]["content"].split("INPUT JSON:\n", 1)[1]
+        )
+        if "rubric_version" in request_payload:
+            content = (
+                '{"decision":"accept","rubric_version":"'
+                + SEMANTIC_EVALUATION_RUBRIC_VERSION
+                + '"}'
+            )
         else:
             content = self.outputs.pop(0)
         return SimpleNamespace(
@@ -104,3 +129,10 @@ def test_equivalent_provider_outputs_have_identical_canonical_accounting(provide
     assert accounting.net_substitution_ratio == Decimal("0.26")
     assert accounting.net_augmentation_multiplier == Decimal(100) / Decimal(74)
     assert accounting.effect.value == "gain"
+    assert [
+        row.classification
+        for row in result.retain_remove_classification.classified_subtasks
+    ] == [row.classification for row in make_classification().classified_subtasks]
+    assert [
+        row.rationale for row in result.retain_remove_classification.classified_subtasks
+    ] == ["Reason for sub-1.", "Reason for sub-2.", "Reason for sub-3."]

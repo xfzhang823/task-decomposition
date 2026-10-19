@@ -23,6 +23,7 @@ from task_decomposition.contracts.provider import (
     RetainRemoveClassificationRequest,
     TransformationDecompositionRequest,
 )
+from task_decomposition.evaluation.rubric import SEMANTIC_EVALUATION_RUBRIC_VERSION
 from task_decomposition.providers.openai import (
     DEFAULT_OPENAI_MODEL,
     OpenAIDecompositionProvider,
@@ -115,7 +116,10 @@ def test_each_openai_stage_uses_structured_output_and_maps_provenance():
             type(make_operational()): make_operational(),
             type(make_classification()): make_classification(),
             type(make_added()): make_added(),
-            SemanticEvaluation: {"decision": "accept", "rubric_version": "1.0"},
+            SemanticEvaluation: {
+                "decision": "accept",
+                "rubric_version": SEMANTIC_EVALUATION_RUBRIC_VERSION,
+            },
         }
     )
     provider = OpenAIDecompositionProvider(
@@ -321,10 +325,8 @@ def test_openai_rejects_invalid_transformation_numeric_values(
 
 
 def test_provider_prompts_request_compact_optional_fields():
-    assert (
-        "Keep each subtask name and description concise"
-        in OPERATIONAL_DECOMPOSITION_PROMPT
-    )
+    assert "names and descriptions" in OPERATIONAL_DECOMPOSITION_PROMPT
+    assert "concise" in OPERATIONAL_DECOMPOSITION_PROMPT
     assert (
         "Keep names and descriptions concise" in OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT
     )
@@ -347,7 +349,10 @@ def test_retain_remove_prompt_assesses_current_ai_potential_without_context():
     call = provider._client.responses.calls[0]
     payload = json.loads(call["input"][1]["content"])
     assert payload["transformation_context"] == {}
-    assert "automation potential using current AI-enabled technology" in RETAIN_REMOVE_PROMPT
+    assert (
+        "automation potential using current AI-enabled technology"
+        in RETAIN_REMOVE_PROMPT
+    )
     assert "execute most of the core operational activity" in RETAIN_REMOVE_PROMPT
     assert "limited recurring human execution" in RETAIN_REMOVE_PROMPT
     assert "not deployment, industry adoption, or authorization" in RETAIN_REMOVE_PROMPT
@@ -360,11 +365,57 @@ def test_retain_remove_prompt_assesses_current_ai_potential_without_context():
     assert "Do not classify RETAIN merely because" in RETAIN_REMOVE_PROMPT
     assert "realistic conditions" in RETAIN_REMOVE_PROMPT
     assert "Do not assign percentages or additional categories" in RETAIN_REMOVE_PROMPT
+    assert "subtask_id, classification, and rationale" in RETAIN_REMOVE_PROMPT
+    assert "one concise sentence" in RETAIN_REMOVE_PROMPT
+
+
+def test_retain_remove_rationale_is_public_and_traced_without_changing_labels(
+    tmp_path,
+):
+    classification = make_classification().model_copy(
+        update={
+            "classified_subtasks": tuple(
+                row.model_copy(
+                    update={
+                        "rationale": (
+                            "Automation handles the routine activity; human execution "
+                            "is limited to approval."
+                        )
+                    }
+                )
+                for row in make_classification().classified_subtasks
+            )
+        }
+    )
+    tracer = TraceLogger(enabled=True, directory=tmp_path, console=False)
+    provider = OpenAIDecompositionProvider(
+        client=FakeClient(outputs={type(classification): classification}),
+        tracer=tracer,
+    )
+
+    response = provider.classify_retain_remove(stage_requests()[1])
+
+    assert [row.classification for row in response.payload.classified_subtasks] == [
+        row.classification for row in make_classification().classified_subtasks
+    ]
+    assert all(row.rationale for row in response.payload.classified_subtasks)
+    records = [
+        json.loads(line)
+        for line in next(tmp_path.glob("*.jsonl")).read_text().splitlines()
+    ]
+    parsed = next(record for record in records if record["event"] == "llm.parsed")
+    assert parsed["data"]["parsed_response"]["classified_subtasks"][0]["rationale"]
 
 
 def test_operational_prompt_preserves_supplied_task_scope():
-    assert "only activities necessary or reasonably implied" in OPERATIONAL_DECOMPOSITION_PROMPT
-    assert "Do not add documentation, monitoring, feedback, or follow-up" in OPERATIONAL_DECOMPOSITION_PROMPT
+    assert (
+        "only activities necessary or reasonably implied"
+        in OPERATIONAL_DECOMPOSITION_PROMPT
+    )
+    assert (
+        "Do not add documentation, monitoring, feedback, or follow-up"
+        in OPERATIONAL_DECOMPOSITION_PROMPT
+    )
 
 
 @pytest.mark.parametrize(
@@ -374,10 +425,22 @@ def test_operational_prompt_preserves_supplied_task_scope():
             "Evaluate standardized cases using rules and a model with human approval",
             "remove",
         ),
-        ("Optimize a recurring allocation from structured constraints with exception review", "remove"),
-        ("Coordinate routine handoffs through workflow automation with escalation", "remove"),
-        ("Perform an ongoing hands-on inspection requiring physical judgment", "retain"),
-        ("Resolve a novel case through sustained negotiation with multiple stakeholders", "retain"),
+        (
+            "Optimize a recurring allocation from structured constraints with exception review",
+            "remove",
+        ),
+        (
+            "Coordinate routine handoffs through workflow automation with escalation",
+            "remove",
+        ),
+        (
+            "Perform an ongoing hands-on inspection requiring physical judgment",
+            "retain",
+        ),
+        (
+            "Resolve a novel case through sustained negotiation with multiple stakeholders",
+            "retain",
+        ),
     ],
 )
 def test_retain_remove_examples_preserve_binary_identity_contract(
@@ -446,7 +509,10 @@ def test_openai_adapter_runs_full_validated_application():
             type(make_operational()): make_operational(),
             type(make_classification()): make_classification(),
             type(make_added()): make_added(),
-            SemanticEvaluation: {"decision": "accept", "rubric_version": "1.0"},
+            SemanticEvaluation: {
+                "decision": "accept",
+                "rubric_version": SEMANTIC_EVALUATION_RUBRIC_VERSION,
+            },
         }
     )
     result = decompose(

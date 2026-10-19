@@ -60,8 +60,9 @@ Classification Rules:
 - Classify each subtask independently. Use transformation context when relevant. Do not assign percentages or additional categories.
 
 JSON Output Rules:
-- Include only subtask_id and classification for each row.
-- Set subtask_name, sequence_index, effort, baseline_effort_ratio, rationale, and optional task fields to null.
+- Include only subtask_id, classification, and rationale for each row.
+- Set rationale to one concise sentence grounded in the core activity and recurring human execution; do not include hidden reasoning or calculations.
+- Set subtask_name, sequence_index, effort, baseline_effort_ratio, and optional task fields to null.
 - Set provenance_refs to [].
 
 Return only the requested JSON. No explanations, calculations, or fabricated effort data.

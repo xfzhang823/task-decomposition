@@ -36,6 +36,7 @@ from task_decomposition import (
     decompose_task,
 )
 from task_decomposition.errors import ProviderOutputError
+from task_decomposition.evaluation.rubric import SEMANTIC_EVALUATION_RUBRIC_VERSION
 
 
 class FakeProvider:
@@ -68,7 +69,7 @@ class FakeProvider:
     def evaluate(self, request):
         return SemanticEvaluation(
             decision=SemanticEvaluationDecision.ACCEPT,
-            rubric_version="1.0",
+            rubric_version=SEMANTIC_EVALUATION_RUBRIC_VERSION,
         )
 
     def classify_retain_remove(self, request: RetainRemoveClassificationRequest):
@@ -293,7 +294,7 @@ def test_provider_semantic_failure_is_distinguished():
         def evaluate(self, request):
             return {
                 "decision": "reject",
-                "rubric_version": "1.0",
+                "rubric_version": SEMANTIC_EVALUATION_RUBRIC_VERSION,
                 "findings": [
                     {
                         "code": "outcome_not_work",

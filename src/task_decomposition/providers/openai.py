@@ -147,6 +147,22 @@ def _provider_text_format(stage, schema):
             "minimum": 0,
             "type": "number",
         }
+        item = definitions["AddedWorkItem"]
+        compact_item_fields = {
+            "description",
+            "amount",
+            "depends_on_subtask_ids",
+            "sequence_index",
+            "provenance_refs",
+        }
+        for field in compact_item_fields:
+            item["properties"].pop(field, None)
+        item["required"] = [
+            field for field in item["required"] if field not in compact_item_fields
+        ]
+        estimate = definitions["AddedWorkEstimate"]
+        estimate["properties"].pop("provenance_refs", None)
+        estimate["required"].remove("provenance_refs")
     return text_format
 
 

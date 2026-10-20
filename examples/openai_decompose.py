@@ -229,6 +229,7 @@ def main() -> None:
             stage_output_tokens={
                 ProviderStage.OPERATIONAL_DECOMPOSITION: 4000,
                 ProviderStage.RETAIN_REMOVE_CLASSIFICATION: 4000,
+                ProviderStage.ADDED_WORK_CLASSIFICATION: 8000,
             }
         )
     )

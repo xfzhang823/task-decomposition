@@ -18,7 +18,7 @@ The production-scheduling evidence is `logs/llm/task_decomposition_2026-10-17_01
 | 02 | [Classification design decisions](02-classification-design-decisions.md) | Complete — rationale capture implemented; mixed-activity handling deferred |
 | 03 | [RETAIN/REMOVE implementation verification](03-retain-remove-verification.md) | Complete — core implementation verified; no immediate changes recommended |
 | 04 | [Added-work verification](04-added-work-verification.md) | Complete — taxonomy and accounting handoff verified; no implementation changes |
-| 05 | [End-to-end verification](05-end-to-end-verification.md) | Planned |
+| 05 | End-to-end verification | Planned — document not yet created |
 | 06 | [Accounting-input origin audit](06-accounting-input-origin-audit.md) | Complete — host input sources and override risks documented; no implementation changes |
 
 This README is the authoritative epic status. Subsequent phases must update it when completed. Phase 02 implementation is documented in the design-decision document, Phase 03 verifies the existing RETAIN/REMOVE implementation, Phase 04 verifies the added-work/accounting handoff, and Phase 06 audits the origin and precedence of host accounting inputs. Rationale capture reuses the existing optional public field and trace path; mixed-activity handling remains deferred pending concrete evidence and explicit approval. The Phase 05 end-to-end document remains reserved and uncreated.

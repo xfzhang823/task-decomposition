@@ -4,6 +4,7 @@ from collections.abc import Iterable
 
 from pydantic import ValidationError
 
+from task_decomposition.contracts.decomposition import TransformationClassification
 from task_decomposition.contracts.stages import (
     AddedWorkClassification,
     OperationalDecomposition,
@@ -121,16 +122,54 @@ def validate_added_work_classification(
     operational: OperationalDecomposition,
     classification: RetainRemoveClassification,
     value: AddedWorkClassification | dict,
+    *,
+    compatibility: str = "legacy",
 ) -> AddedWorkClassification:
     output = _validate_model(value, AddedWorkClassification)
     _require_same_task(operational.task, output.task)
     _require_unique((row.work_id for row in output.added_work_rows), "added-work IDs")
     known_subtasks = {item.subtask_id for item in operational.operational_subtasks}
+    classified = {
+        item.subtask_id: item.classification
+        for item in classification.classified_subtasks
+    }
     for row in output.added_work_rows:
         unknown = set(row.depends_on_subtask_ids) - known_subtasks
         if unknown:
             raise UnknownReferenceError(
                 f"added-work row {row.work_id!r} has unknown subtasks: {sorted(unknown)}"
+            )
+        if compatibility == "strict" and not row.source_removed_subtask_ids:
+            raise StageValidationError(
+                f"added-work row {row.work_id!r} requires causal removed subtasks"
+            )
+        if len(row.source_removed_subtask_ids) != len(
+            set(row.source_removed_subtask_ids)
+        ):
+            raise CardinalityError(
+                f"added-work row {row.work_id!r} has duplicate causal subtasks"
+            )
+        sources = set(row.source_removed_subtask_ids)
+        unknown_sources = sources - known_subtasks
+        if unknown_sources:
+            raise UnknownReferenceError(
+                f"added-work row {row.work_id!r} has unknown causal subtasks: "
+                f"{sorted(unknown_sources)}"
+            )
+        if any(
+            classified[subtask_id] is not TransformationClassification.REMOVE
+            for subtask_id in sources
+        ):
+            raise StageValidationError(
+                f"added-work row {row.work_id!r} causal sources must be REMOVE subtasks"
+            )
+        if (
+            row.estimate
+            and row.estimate.reference_subtask_id is not None
+            and row.estimate.reference_subtask_id not in known_subtasks
+        ):
+            raise UnknownReferenceError(
+                f"added-work row {row.work_id!r} has an unknown estimate reference"
             )
     _validate_optional_sequence_indexes(output.added_work_rows, label="added-work")
     return output

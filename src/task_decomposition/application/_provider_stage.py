@@ -117,10 +117,12 @@ def validate_classification_response(operational, response):
         raise ProviderContractValidationError(str(exc)) from exc
 
 
-def validate_added_response(operational, classification, response):
+def validate_added_response(
+    operational, classification, response, *, compatibility="legacy"
+):
     try:
         result = validate_added_work_classification(
-            operational, classification, response.payload
+            operational, classification, response.payload, compatibility=compatibility
         )
         tracer = current_tracer()
         if tracer:

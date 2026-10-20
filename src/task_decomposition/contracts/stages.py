@@ -8,7 +8,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from task_decomposition.contracts.accounting import CanonicalTransformationImpact
 from task_decomposition.contracts.decomposition import TransformationClassification
-from task_decomposition.contracts.effort import EffortQuantity, SupportWorkInput
+from task_decomposition.contracts.effort import (
+    EffortQuantity,
+    SupportWorkInput,
+    SupportWorkInputs,
+)
 from task_decomposition.contracts.provenance import ProvenanceRef, ProviderProvenance
 
 
@@ -143,6 +147,68 @@ class AddedWorkCategory(str, Enum):
     AI_VERIFICATION = "AI_VERIFICATION"
 
 
+class EstimateRange(BaseModel):
+    """Ordered, finite low/typical/high estimate."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    low: Decimal = Field(ge=0)
+    typical: Decimal = Field(ge=0)
+    high: Decimal = Field(ge=0)
+
+    @field_validator("low", "typical", "high", mode="before")
+    @classmethod
+    def finite_decimal(cls, value):
+        result = Decimal(str(value))
+        if not result.is_finite():
+            raise ValueError("estimate values must be finite")
+        return result
+
+    @model_validator(mode="after")
+    def ordered(self) -> "EstimateRange":
+        if not self.low <= self.typical <= self.high:
+            raise ValueError("estimate range must satisfy low <= typical <= high")
+        return self
+
+
+class ExternalReference(BaseModel):
+    """An analogous workflow and optional per-occurrence effort anchor."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    activity: str = Field(min_length=1)
+    effort_per_occurrence: EffortQuantity | SupportWorkInput | None = None
+
+
+class AddedWorkEstimate(BaseModel):
+    """Reference-class metadata; Python, not the provider, computes effort."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    occurrences_per_parent_execution: EstimateRange
+    reference_occurrences_per_parent_execution: EstimateRange | None = None
+    relative_effort_per_occurrence: EstimateRange
+    reference_subtask_id: str | None = None
+    external_reference: ExternalReference | None = None
+    rationale: str = Field(min_length=1)
+    estimate_basis: Literal["measured", "documented", "assumed"]
+    provenance_refs: tuple[ProvenanceRef, ...] = ()
+
+    @model_validator(mode="after")
+    def exactly_one_reference(self) -> "AddedWorkEstimate":
+        if (self.reference_subtask_id is None) == (self.external_reference is None):
+            raise ValueError(
+                "estimate requires exactly one reference_subtask_id or external_reference"
+            )
+        if self.reference_subtask_id is not None and (
+            self.reference_occurrences_per_parent_execution is None
+        ):
+            raise ValueError(
+                "baseline references require reference occurrence estimates"
+            )
+        return self
+
+
 class AddedWorkItem(BaseModel):
     """One added-human-work row, distinct from baseline RETAIN/REMOVE rows."""
 
@@ -151,8 +217,10 @@ class AddedWorkItem(BaseModel):
     work_id: str = Field(min_length=1)
     workload_name: str = Field(min_length=1)
     category: AddedWorkCategory
+    source_removed_subtask_ids: tuple[str, ...] = ()
     description: str | None = None
     amount: SupportWorkInput | None = None
+    estimate: AddedWorkEstimate | None = None
     depends_on_subtask_ids: tuple[str, ...] = ()
     sequence_index: int | None = Field(default=None, ge=1)
     provenance_refs: tuple[ProvenanceRef, ...] = ()
@@ -173,6 +241,24 @@ class AddedWorkClassification(BaseModel):
     provenance_refs: tuple[ProvenanceRef, ...] = ()
 
 
+class SupportWorkMode(str, Enum):
+    HOST = "host"
+    ESTIMATE = "estimate"
+    AUTO = "auto"
+
+
+class SupportWorkResolution(BaseModel):
+    """Diagnostic record for host-versus-estimate support selection."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    mode: SupportWorkMode
+    source_by_category: dict[AddedWorkCategory, Literal["host", "estimate"]]
+    host_support_work: SupportWorkInputs | None = None
+    estimated_support_work: SupportWorkInputs | None = None
+    reconciliation: Literal["not_applicable", "match", "difference"]
+
+
 class StagedDecompositionResult(BaseModel):
     """Validated staged inputs plus the authoritative Wave 1 accounting result."""
 
@@ -184,6 +270,7 @@ class StagedDecompositionResult(BaseModel):
     accounting: CanonicalTransformationImpact
     provenance_refs: tuple[ProvenanceRef, ...] = ()
     provider_provenance: tuple[ProviderProvenance, ...] = ()
+    support_work_resolution: SupportWorkResolution | None = None
 
 
 class TransformationDecompositionResult(BaseModel):
@@ -197,18 +284,24 @@ class TransformationDecompositionResult(BaseModel):
     accounting: CanonicalTransformationImpact
     provenance_refs: tuple[ProvenanceRef, ...] = ()
     provider_provenance: tuple[ProviderProvenance, ...] = ()
+    support_work_resolution: SupportWorkResolution | None = None
 
 
 __all__ = [
     "AddedWorkCategory",
     "AddedWorkClassification",
+    "AddedWorkEstimate",
     "AddedWorkItem",
     "BaselineEffortAllocation",
     "ClassifiedSubtask",
+    "EstimateRange",
+    "ExternalReference",
     "OperationalDecomposition",
     "OperationalSubtask",
     "RetainRemoveClassification",
     "StagedDecompositionResult",
+    "SupportWorkMode",
+    "SupportWorkResolution",
     "TaskDecomposition",
     "TaskReference",
     "TransformationDecompositionResult",

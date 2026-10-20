@@ -218,6 +218,17 @@ class TraceLogger:
         else:
             raw_output_state = "available"
             raw_output_available = True
+        response_metadata = _response_metadata(raw)
+        response_status = response_metadata.get("status")
+        incomplete_reason = response_metadata.get("incomplete_reason")
+        completion_result = (
+            "failure"
+            if response_status == "incomplete" or incomplete_reason
+            else "success"
+        )
+        structured_content_produced = (
+            completion_result == "success" and raw_output_state == "available"
+        )
         self.emit(
             "llm.response",
             stage=stage,
@@ -226,14 +237,17 @@ class TraceLogger:
                 "latency_ms": round(
                     (time.perf_counter() - invocation.started_at) * 1000, 3
                 ),
-                "result": "success",
+                "result": completion_result,
                 "raw_response": raw,
                 "raw_response_available": raw is not None,
                 "raw_output": raw_output if raw_output is not _MISSING else None,
                 "raw_output_available": raw_output_available,
                 "raw_output_state": raw_output_state,
                 "usage": _safe(_response_usage(raw)),
-                "response_metadata": _response_metadata(raw),
+                "response_metadata": response_metadata,
+                "completion_status": response_status,
+                "incomplete_reason": incomplete_reason,
+                "structured_content_produced": structured_content_produced,
             },
         )
         if parsed is not None:
@@ -371,6 +385,28 @@ class TraceLogger:
                     details.append(
                         f"error={event_data.get('exception_type')}:"
                         f"{event_data.get('message')}"
+                    )
+                elif event == "llm.request":
+                    if "max_output_tokens" in event_data.get("parameters", {}):
+                        details.append(
+                            "max_output_tokens="
+                            f"{event_data['parameters']['max_output_tokens']}"
+                        )
+                elif event == "llm.response":
+                    usage = event_data.get("usage") or {}
+                    if "output_tokens" in usage:
+                        details.append(f"output_tokens={usage['output_tokens']}")
+                    if event_data.get("completion_status"):
+                        details.append(
+                            f"completion_status={event_data['completion_status']}"
+                        )
+                    if event_data.get("incomplete_reason"):
+                        details.append(
+                            f"incomplete_reason={event_data['incomplete_reason']}"
+                        )
+                    details.append(
+                        "structured_content_produced="
+                        f"{event_data.get('structured_content_produced', False)}"
                     )
                 elif event.startswith("validation.") and event_data.get("errors"):
                     details.append(f"error={event_data['errors']}")

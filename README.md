@@ -22,6 +22,8 @@ Transformation decomposition answers “What happens to that work under the spec
 
 `decompose(...)` is a convenience operation that composes these two capabilities. It is not a separate architecture and does not own duplicate decomposition or accounting logic.
 
+Added-work estimation supports `AI_INTERACTION` and `AI_VERIFICATION` rows with explicit causal REMOVE-subtask references and reference-class estimates. Baseline references are normalized by their estimated occurrences per parent execution; external references require a compatible quantitative per-occurrence anchor. Support selection defaults to host inputs and can be switched to `estimate` or `auto` through `SupportWorkMode`; canonical accounting remains deterministic and provider-independent.
+
 ## Repository ownership
 
 This repository owns operational task decomposition, baseline effort allocation, transformation-specific RETAIN/REMOVE classification, added/support-work classification, deterministic transformation accounting, and provider adapters for decomposition.
@@ -182,6 +184,7 @@ raw response as unavailable; it cannot reconstruct bytes the SDK discarded.
 
 ## Further documentation
 
-- [`docs/DECOMPOSITION_MODEL.md`](docs/DECOMPOSITION_MODEL.md) explains the two capabilities and their contracts.
-- [`docs/ACCOUNTING_MODEL.md`](docs/ACCOUNTING_MODEL.md) explains quantities, equations, modes, units, ranges, and edge behavior.
+- [`docs/DECOMPOSITION_MODEL.md`](docs/reference/DECOMPOSITION_MODEL.md) explains the two capabilities and their contracts.
+- [`docs/ACCOUNTING_MODEL.md`](docs/reference/ACCOUNTING_MODEL.md) explains quantities, equations, modes, units, ranges, and edge behavior.
+- [`docs/README.md`](docs/README.md) indexes current reference, active topic, historical, and verification documentation.
 - [`AGENTS.md`](AGENTS.md) gives concise maintenance rules for coding agents.

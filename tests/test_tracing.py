@@ -175,6 +175,10 @@ def test_openai_trace_keeps_budget_usage_and_incomplete_reason(tmp_path):
     assert response_event["data"]["response_metadata"]["incomplete_reason"] == (
         "max_output_tokens"
     )
+    assert response_event["result"] == "failure"
+    assert response_event["data"]["completion_status"] == "incomplete"
+    assert response_event["data"]["incomplete_reason"] == "max_output_tokens"
+    assert response_event["data"]["structured_content_produced"] is False
     response = [event for event in events if event["event"] == "llm.response"][-1]
     assert response["data"]["raw_response_available"] is True
     assert response["data"]["raw_output_state"] == "empty"

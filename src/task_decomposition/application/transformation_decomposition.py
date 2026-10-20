@@ -6,6 +6,7 @@ from task_decomposition.application._provider_stage import (
     validate_added_response,
     validate_classification_response,
 )
+from task_decomposition.application.added_work_estimation import resolve_support_work
 from task_decomposition.application.staged_pipeline import run_staged_pipeline
 from task_decomposition.contracts.accounting import AccountingMode
 from task_decomposition.contracts.effort import AbsoluteEffortInput
@@ -16,6 +17,7 @@ from task_decomposition.contracts.provider import (
     TransformationDecompositionRequest,
 )
 from task_decomposition.contracts.stages import (
+    SupportWorkMode,
     TransformationDecompositionResult,
 )
 from task_decomposition.errors import ProviderOutputError
@@ -63,13 +65,31 @@ def _decompose_transformation(request, provider, provider_name):
             retain_remove_classification=classification,
         ),
     )
-    added = validate_added_response(baseline, classification, added_response)
+    added = validate_added_response(
+        baseline,
+        classification,
+        added_response,
+        compatibility=(
+            "strict"
+            if request.support_work_mode is not SupportWorkMode.HOST
+            else "legacy"
+        ),
+    )
+    support_work, support_resolution = resolve_support_work(
+        added,
+        classification,
+        request.accounting_input,
+        mode=request.support_work_mode,
+    )
+    accounting_input = request.accounting_input.model_copy(
+        update={"support_work": support_work}
+    )
     staged = run_staged_pipeline(
         baseline,
         classification,
         added,
-        request.accounting_input,
-        support_work_override=request.accounting_input.support_work,
+        accounting_input,
+        support_work_override=support_work,
     )
     provider_provenance = (
         *request.task_decomposition.provider_provenance,
@@ -90,6 +110,7 @@ def _decompose_transformation(request, provider, provider_name):
             *portable_refs,
         ),
         provider_provenance=provider_provenance,
+        support_work_resolution=support_resolution,
     )
 
 

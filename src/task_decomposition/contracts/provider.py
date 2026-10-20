@@ -11,13 +11,14 @@ from task_decomposition.contracts.effort import (
     NormalizedAccountingInput,
 )
 from task_decomposition.contracts.provenance import (
+    ProvenanceRef,
     ProviderProvenance,
     ProviderStage,
-    ProvenanceRef,
 )
 from task_decomposition.contracts.stages import (
     OperationalDecomposition,
     RetainRemoveClassification,
+    SupportWorkMode,
     TaskDecomposition,
     TaskReference,
 )
@@ -44,6 +45,7 @@ class TransformationDecompositionRequest(BaseModel):
     task_decomposition: TaskDecomposition
     transformation_context: dict[str, str] = Field(default_factory=dict)
     accounting_input: AbsoluteEffortInput | NormalizedAccountingInput
+    support_work_mode: SupportWorkMode = SupportWorkMode.HOST
     request_id: str | None = None
     provenance_refs: tuple[ProvenanceRef, ...] = ()
 

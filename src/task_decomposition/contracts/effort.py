@@ -111,7 +111,7 @@ class AbsoluteEffortInput(BaseModel):
     baseline_human_effort: EffortQuantity
     retained_human_work: EffortQuantity
     gross_removed_work: EffortQuantity
-    support_work: SupportWorkInputs
+    support_work: SupportWorkInputs | None = None
 
 
 class NormalizedAccountingInput(BaseModel):
@@ -121,7 +121,7 @@ class NormalizedAccountingInput(BaseModel):
 
     retained_work_ratio: Decimal = Field(ge=0)
     gross_removed_work_ratio: Decimal = Field(ge=0)
-    support_work: SupportWorkInputs
+    support_work: SupportWorkInputs | None = None
 
     @field_validator("retained_work_ratio", "gross_removed_work_ratio", mode="before")
     @classmethod

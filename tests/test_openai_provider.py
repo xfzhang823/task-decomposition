@@ -8,6 +8,9 @@ from test_semantic_evaluator_providers import evaluation_request
 from test_staged_pipeline import make_added, make_classification, make_operational
 
 from task_decomposition import (
+    AddedWorkEstimate,
+    AddedWorkItem,
+    EstimateRange,
     ProviderAuthenticationError,
     ProviderExecutionError,
     ProviderOutputError,
@@ -156,6 +159,88 @@ def test_each_openai_stage_uses_structured_output_and_maps_provenance():
     assert RETAIN_REMOVE_PROMPT in client.responses.calls[1]["input"][0]["content"]
     assert "JSON Output Rules" in RETAIN_REMOVE_PROMPT
     assert ADDED_WORK_PROMPT in client.responses.calls[2]["input"][0]["content"]
+
+
+def test_openai_added_work_parses_expanded_estimate_schema():
+    added = make_added().model_copy(
+        update={
+            "added_work_rows": (
+                AddedWorkItem(
+                    work_id="estimated-work",
+                    workload_name="Guide AI",
+                    category="AI_INTERACTION",
+                    source_removed_subtask_ids=("sub-2",),
+                    estimate=AddedWorkEstimate(
+                        occurrences_per_parent_execution=EstimateRange(
+                            low=0, typical=1, high=2
+                        ),
+                        reference_occurrences_per_parent_execution=EstimateRange(
+                            low=1, typical=1, high=1
+                        ),
+                        relative_effort_per_occurrence=EstimateRange(
+                            low="0.1", typical="0.2", high="0.4"
+                        ),
+                        reference_subtask_id="sub-1",
+                        rationale="Comparable interaction.",
+                        estimate_basis="assumed",
+                    ),
+                ),
+            )
+        }
+    )
+    client = FakeClient(outputs={type(added): added})
+    provider = OpenAIDecompositionProvider(
+        OpenAIProviderConfig(
+            stage_output_tokens={
+                ProviderStage.ADDED_WORK_CLASSIFICATION: 4000,
+            }
+        ),
+        client=client,
+    )
+    response = provider.classify_added_work(stage_requests()[2])
+    assert (
+        provider.config.output_tokens_for(ProviderStage.ADDED_WORK_CLASSIFICATION.value)
+        == 4000
+    )
+    assert client.responses.calls[0]["max_output_tokens"] == 4000
+    assert response.payload.added_work_rows[
+        0
+    ].estimate.relative_effort_per_occurrence.typical == Decimal("0.2")
+    assert response.payload.added_work_rows[0].source_removed_subtask_ids == ("sub-2",)
+
+
+def test_openai_added_work_schema_omits_defaulted_compatibility_fields():
+    schema = _provider_text_format(
+        ProviderStage.ADDED_WORK_CLASSIFICATION, type(make_added())
+    )["schema"]
+    item = schema["$defs"]["AddedWorkItem"]
+    assert not {
+        "description",
+        "amount",
+        "depends_on_subtask_ids",
+        "sequence_index",
+        "provenance_refs",
+    } & set(item["properties"])
+    assert "provenance_refs" not in schema["$defs"]["AddedWorkEstimate"]["properties"]
+
+
+def test_openai_added_work_incomplete_output_remains_an_explicit_failure():
+    class IncompleteClient(FakeClient):
+        def __init__(self):
+            self.responses = FakeResponses()
+            self.responses.create = lambda **kwargs: (
+                self.responses.calls.append(kwargs)
+                or SimpleNamespace(
+                    status="incomplete",
+                    incomplete_details=SimpleNamespace(reason="max_output_tokens"),
+                    output_text="{",
+                    output=(),
+                )
+            )
+
+    provider = OpenAIDecompositionProvider(client=IncompleteClient())
+    with pytest.raises(ProviderOutputError, match="incomplete structured output"):
+        provider.classify_added_work(stage_requests()[2])
 
 
 def test_openai_retain_remove_stage_override_reaches_request():

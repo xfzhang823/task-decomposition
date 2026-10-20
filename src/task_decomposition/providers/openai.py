@@ -82,6 +82,7 @@ def _semantic_parse_diagnostics(exc: BaseException) -> dict[str, Any]:
     if callable(errors):
         try:
             inspect(errors())
+        # pylint: disable-next=broad-exception-caught
         except Exception as diagnostic_error:  # noqa: BLE001
             diagnostics["diagnostic_error_type"] = type(diagnostic_error).__name__
     if decisions:
@@ -110,8 +111,9 @@ def _semantic_parse_diagnostics(exc: BaseException) -> dict[str, Any]:
     return diagnostics
 
 
-def _strict_text_format(schema):
+def _strict_text_format(schema) -> dict[str, Any]:
     """Build the Responses API format using the installed SDK conversion."""
+    # pylint: disable-next=import-outside-toplevel
     from openai.lib._pydantic import to_strict_json_schema
 
     return {
@@ -122,7 +124,7 @@ def _strict_text_format(schema):
     }
 
 
-def _provider_text_format(stage, schema):
+def _provider_text_format(stage, schema) -> Any:
     """Use numeric OpenAI schemas for Decimal fields rejected by the API."""
     text_format = _strict_text_format(schema)
     definitions = text_format["schema"]["$defs"]
@@ -156,10 +158,10 @@ def _provider_text_format(stage, schema):
             "sequence_index",
             "provenance_refs",
         }
-        for field in compact_item_fields:
-            item["properties"].pop(field, None)
+        for key in compact_item_fields:
+            item["properties"].pop(key, None)
         item["required"] = [
-            field for field in item["required"] if field not in compact_item_fields
+            key for key in item["required"] if key not in compact_item_fields
         ]
         estimate = definitions["AddedWorkEstimate"]
         estimate["properties"].pop("provenance_refs", None)
@@ -264,34 +266,39 @@ class OpenAIDecompositionProvider:
     def _evaluate_inner(self, request: SemanticEvaluationRequest):
         """Run the evaluation request and normalize structured-output failures."""
         payload = semantic_payload(request)
-        messages = [
+        messages: list[Any] = [
             {"role": "system", "content": SEMANTIC_EVALUATION_PROMPT},
             {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
         ]
-        kwargs = {
-            "model": self.config.model,
-            "input": messages,
-            "text_format": SemanticEvaluation,
-        }
         output_tokens = self.config.output_tokens_for(SEMANTIC_EVALUATION_STAGE)
+        parameters: dict[str, Any] = {"model": self.config.model}
         if output_tokens is not None:
-            kwargs["max_output_tokens"] = output_tokens
+            parameters["max_output_tokens"] = output_tokens
         invocation = self.tracer.invocation(
             provider=self.provider_id,
             stage=SEMANTIC_EVALUATION_STAGE,
             model=self.config.model,
-            parameters={
-                key: value
-                for key, value in kwargs.items()
-                if key not in {"input", "text_format"}
-            },
+            parameters=parameters,
             messages=messages,
             schema=SemanticEvaluation,
             kind="evaluation",
             request_id=request.request_id,
         )
         try:
-            response = self._client.responses.parse(**kwargs)
+            if output_tokens is None:
+                response = self._client.responses.parse(
+                    model=self.config.model,
+                    input=messages,
+                    text_format=SemanticEvaluation,
+                )
+            else:
+                response = self._client.responses.parse(
+                    model=self.config.model,
+                    input=messages,
+                    text_format=SemanticEvaluation,
+                    max_output_tokens=output_tokens,
+                )
+        # pylint: disable-next=broad-exception-caught
         except Exception as exc:  # noqa: BLE001 - normalize vendor SDK failures
             self.tracer.exception(
                 invocation, exc, diagnostics=_semantic_parse_diagnostics(exc)
@@ -405,6 +412,7 @@ class OpenAIDecompositionProvider:
             schema=AddedWorkClassification,
         )
 
+    # pylint: disable-next=too-many-arguments
     def _structured_stage(
         self,
         *,
@@ -435,29 +443,22 @@ class OpenAIDecompositionProvider:
             ),
         )
 
+    # pylint: disable-next=too-many-locals,too-many-statements
     def _parse_structured(self, *, stage, prompt, payload, schema):
         """Call the Responses API, then validate status, JSON, and schema."""
-        messages = [
+        messages: list[Any] = [
             {"role": "system", "content": prompt},
             {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
         ]
-        kwargs = {
-            "model": self.config.model,
-            "input": messages,
-            "text_format": schema,
-        }
         output_tokens = self.config.output_tokens_for(stage.value)
+        parameters: dict[str, Any] = {"model": self.config.model}
         if output_tokens is not None:
-            kwargs["max_output_tokens"] = output_tokens
+            parameters["max_output_tokens"] = output_tokens
         invocation = self.tracer.invocation(
             provider=self.provider_id,
             stage=stage.value,
             model=self.config.model,
-            parameters={
-                key: value
-                for key, value in kwargs.items()
-                if key not in {"input", "text_format"}
-            },
+            parameters=parameters,
             messages=messages,
             schema=schema,
             kind="repair"
@@ -465,16 +466,21 @@ class OpenAIDecompositionProvider:
             else "generation",
         )
         try:
-            response = self._client.responses.create(
-                model=kwargs["model"],
-                input=kwargs["input"],
-                text={"format": _provider_text_format(stage, schema)},
-                **{
-                    key: value
-                    for key, value in kwargs.items()
-                    if key not in {"model", "input", "text_format"}
-                },
-            )
+            text_format = _provider_text_format(stage, schema)
+            if output_tokens is None:
+                response = self._client.responses.create(
+                    model=self.config.model,
+                    input=messages,
+                    text={"format": text_format},
+                )
+            else:
+                response = self._client.responses.create(
+                    model=self.config.model,
+                    input=messages,
+                    text={"format": text_format},
+                    max_output_tokens=output_tokens,
+                )
+        # pylint: disable-next=broad-exception-caught
         except Exception as exc:  # noqa: BLE001 - normalize vendor SDK failures
             self.tracer.exception(invocation, exc)
             self.tracer.validation(
@@ -595,6 +601,7 @@ class OpenAIDecompositionProvider:
     def _build_client(self):
         """Build the OpenAI SDK client or raise a configuration error."""
         try:
+            # pylint: disable-next=import-outside-toplevel
             from openai import OpenAI
         except ImportError as exc:
             raise ProviderConfigurationError(

@@ -7,6 +7,7 @@ from task_decomposition.application._provider_stage import (
     provider_id,
     validate_operational_response,
 )
+from task_decomposition.contracts.allocation import EffortAllocationRequest
 from task_decomposition.contracts.provenance import ProviderStage
 from task_decomposition.contracts.provider import (
     OperationalDecompositionRequest,
@@ -33,11 +34,8 @@ from task_decomposition.evaluation.contracts import (
     SemanticFinding,
 )
 from task_decomposition.evaluation.rubric import SEMANTIC_EVALUATION_RUBRIC_VERSION
-from task_decomposition.ports.effort_allocator import (
-    EffortAllocationRequest,
-    EffortAllocator,
-)
-from task_decomposition.ports.provider import TaskDecompositionProvider
+from task_decomposition.interfaces.effort_allocator import EffortAllocator
+from task_decomposition.interfaces.provider import TaskDecompositionProvider
 from task_decomposition.tracing import TraceLogger, current_tracer
 
 

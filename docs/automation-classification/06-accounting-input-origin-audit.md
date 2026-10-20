@@ -22,12 +22,10 @@ decompose_transformation()
   ├─ provider RETAIN/REMOVE proposal
   ├─ apply frozen baseline allocations when available
   ├─ provider added-work rows
-  └─ run_staged_pipeline(
-       accounting_input,
-       support_work_override=accounting_input.support_work,
-     )
+  └─ resolve_support_work()
+  └─ internal validated accounting handoff(accounting_input, support_work=resolved_support)
             ↓
-  host support override wins over provider row amounts
+  resolved host/estimate/auto support is handed to accounting
             ↓
 domain.accounting.account_absolute() or account_normalized()
             ↓
@@ -40,7 +38,7 @@ The provider receives transformation context, the operational decomposition, and
 
 `TransformationDecompositionRequest.accounting_input` is required and accepts only `AbsoluteEffortInput | NormalizedAccountingInput` (`src/task_decomposition/contracts/provider.py:35-48`). There is no default accounting input. The convenience `decompose()` rejects `None` before any provider call (`src/task_decomposition/application/provider_service.py:19-44`). The staged pipeline likewise rejects unsupported or missing accounting input (`src/task_decomposition/application/staged_pipeline.py:32-67`).
 
-`decompose_transformation()` receives the already-built request and passes `request.accounting_input` into `run_staged_pipeline()` at `src/task_decomposition/application/transformation_decomposition.py:43-72`. It also passes `request.accounting_input.support_work` as `support_work_override`. Therefore, for the canonical application path, host support values are selected before deterministic accounting and provider row amounts are not used to replace them.
+`decompose_transformation()` receives the already-built request, resolves support through `resolve_support_work()`, and passes the concrete result into its internal validated accounting handoff. That handoff has no alternate row-derived accounting path.
 
 The request's accounting values are not included in the added-work provider payload. The added-work payload contains task, transformation context, operational decomposition, and prior RETAIN/REMOVE classification (`src/task_decomposition/providers/_shared.py:65-83`). This is an intentional ownership boundary: providers propose semantic rows, while callers provide accounting facts.
 
@@ -64,7 +62,7 @@ The application can reconcile caller quantities with classified rows when comple
 
 Support quantities originate in `SupportWorkInputs.ai_interaction` and `.ai_verification`, both required fields (`src/task_decomposition/contracts/effort.py:99-104`). Each `SupportWorkInput` requires an explicit basis and, for absolute effort, unit and time basis (`src/task_decomposition/contracts/effort.py:62-96`). The values may represent absolute effort, normalized contribution, a ratio of baseline work, or a ratio of gross removed work; the accounting domain converts them according to the declared basis (`src/task_decomposition/domain/accounting.py:47-82`).
 
-The canonical transformation caller passes those two host values as `support_work_override` (`src/task_decomposition/application/transformation_decomposition.py:67-72`). The final accounting uses the override and computes added human work as interaction plus verification (`src/task_decomposition/application/staged_pipeline.py:46-63`; `src/task_decomposition/domain/accounting.py:109-144,180-212`).
+The canonical transformation caller passes the resolver-selected interaction and verification values as concrete `support_work`. The final accounting computes added human work as interaction plus verification (`src/task_decomposition/domain/accounting.py:109-144,180-212`).
 
 The example explicitly constructs both categories as zero-valued absolute support with `EffortUnit.EFFORT` per operation (`examples/openai_decompose.py:178-195`) and later passes the same zero support into the final input (`examples/openai_decompose.py:279-287`). Test fixtures use hardcoded values, commonly 8 interaction and 6 verification (`tests/test_provider_application.py:102-111`), or zero values in direct accounting fixtures (`tests/test_staged_pipeline.py:157-160,165-171`).
 
@@ -74,15 +72,15 @@ There are three distinct cases:
 
 1. **Missing accounting input:** not defaulted. The request model requires it, and `decompose()` raises `MissingAccountingInputError` when it is `None` (`src/task_decomposition/contracts/provider.py:35-48`; `src/task_decomposition/application/provider_service.py:19-27`).
 2. **Explicit host zero:** represented by a `SupportWorkInput(value=0, ...)` with a declared basis and compatible metadata. The example and tests use this form (`examples/openai_decompose.py:183-195`; `tests/test_staged_pipeline.py:157-160`).
-3. **Empty provider added-work category in the derived path:** if no support override is supplied, `_sum_support_values()` creates an explicit zero. Absolute zeros inherit the baseline unit/time basis; normalized zeros use `NORMALIZED_CONTRIBUTION` (`src/task_decomposition/application/staged_pipeline.py:222-234`).
+3. **Empty added-work category:** `resolve_support_work()` creates an explicit zero. Absolute zeros inherit the baseline unit/time basis; normalized zeros use `NORMALIZED_CONTRIBUTION`.
 
-An added-work row with `amount=None` is not an explicit zero. Direct row-derived conversion raises `MissingAccountingInputError` (`src/task_decomposition/application/staged_pipeline.py:189-198`). In the canonical transformation path, however, the explicit host support override bypasses row amount aggregation, so a row can be semantically present but quantitatively ignored in favor of host values. That is precedence, not an implicit zero default.
+An added-work row without a computable estimate is not an explicit zero. Estimate mode raises an estimation error; host mode uses the explicit host values. There is no row-level amount or staged-pipeline fallback.
 
 ## Can host values contradict LLM-added-work rows?
 
-Yes. The contradiction is representable and is not rejected by the current canonical path. The provider can return nonempty `AI_INTERACTION` or `AI_VERIFICATION` rows with amounts, while the host supplies different support values—or explicit zeros—and `decompose_transformation()` uses the host override (`src/task_decomposition/application/transformation_decomposition.py:56-72`; `src/task_decomposition/application/staged_pipeline.py:46-63`). Existing tests explicitly establish this precedence by removing provider row amounts while retaining successful explicit accounting (`tests/test_provider_application.py:265-277`).
+Host and provider semantic rows remain distinct by design. Providers return activities and optional estimates; the resolver selects host or estimate support according to `SupportWorkMode`, and the staged pipeline receives only the selected concrete values.
 
-This is not an accounting formula defect: providers are non-authoritative for metrics, and explicit host accounting is the selected source. It is a traceability/reconciliation risk because the returned result retains the provider rows but does not mark whether their amounts were overridden or compare their category totals to host support values. The current tests verify precedence, not contradiction diagnostics.
+This is not an accounting formula defect: providers are non-authoritative for metrics, and the selected support source is exposed through support-resolution diagnostics.
 
 The reverse contradiction is also possible at the semantic level: the provider may return an empty added-work array while the host supplies nonzero interaction or verification support. The accounting result will include the host support, but no added-work row explains it. The library permits this because host accounting is explicit and provider rows are semantic proposals, not authoritative accounting inputs.
 
@@ -96,7 +94,7 @@ The reverse contradiction is also possible at the semantic level: the provider m
 
 Tests construct accounting fixtures directly. `tests/test_provider_application.py:102-111` uses 100/60/40 with 8/6 support; `tests/test_staged_pipeline.py:147-171` covers absolute and normalized fixtures; `tests/test_mathematical_validation.py:42-73` builds support values for known-answer accounting; and `tests/test_provider_parity.py:117-138` reuses explicit accounting across OpenAI, Gemini, and DeepSeek fakes.
 
-Tests also intentionally exercise missing and conflicting conditions: missing row amounts fail in direct staged conversion (`tests/test_staged_pipeline.py:340-355`), mixed support bases fail (`tests/test_staged_pipeline.py:357-389`), explicit support overrides provider amounts (`tests/test_provider_application.py:265-277`), and accounting/classification effort mismatches fail when row allocations are present (`tests/test_staged_pipeline.py:392-405`).
+Tests cover resolved support handoff, host/estimate selection, empty categories, external/reference estimate failures, and accounting/classification effort mismatches.
 
 ### Production callers
 
@@ -106,7 +104,7 @@ No application frontend, workflow model, database adapter, or production service
 
 ### High — host and provider support quantities can diverge silently
 
-Explicit support inputs override provider row amounts without a reconciliation event or result flag. A nonzero provider row with host zero, or an empty provider result with host nonzero support, can produce a numerically valid result whose semantic and accounting representations disagree.
+The selected host or estimate support is recorded in support-resolution diagnostics; provider rows remain semantic evidence and do not independently contribute quantitative amounts.
 
 ### Medium — production input origin is outside this repository
 

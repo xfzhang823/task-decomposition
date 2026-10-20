@@ -5,6 +5,11 @@ from task_decomposition.contracts.accounting import (
     CanonicalTransformationImpact,
     EffectClassification,
 )
+from task_decomposition.contracts.allocation import (
+    EffortAllocation,
+    EffortAllocationRequest,
+    EffortAllocationResult,
+)
 from task_decomposition.contracts.decomposition import (
     TransformationClassification,
     TransformationRow,
@@ -44,7 +49,6 @@ from task_decomposition.contracts.stages import (
     OperationalDecomposition,
     OperationalSubtask,
     RetainRemoveClassification,
-    StagedDecompositionResult,
     SupportWorkMode,
     SupportWorkResolution,
     TaskDecomposition,
@@ -64,6 +68,9 @@ __all__ = [
     "CanonicalTransformationImpact",
     "ClassifiedSubtask",
     "EffectClassification",
+    "EffortAllocation",
+    "EffortAllocationRequest",
+    "EffortAllocationResult",
     "EffortQuantity",
     "EffortUnit",
     "EstimateRange",
@@ -79,7 +86,6 @@ __all__ = [
     "RatioBasis",
     "RetainRemoveClassification",
     "RetainRemoveClassificationRequest",
-    "StagedDecompositionResult",
     "SupportWorkInput",
     "SupportWorkInputs",
     "SupportWorkMode",

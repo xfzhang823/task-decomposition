@@ -7,7 +7,7 @@ from task_decomposition.application._provider_stage import (
     validate_classification_response,
 )
 from task_decomposition.application.added_work_estimation import resolve_support_work
-from task_decomposition.application.staged_pipeline import run_staged_pipeline
+from task_decomposition.application.staged_pipeline import _run_staged_pipeline
 from task_decomposition.contracts.accounting import AccountingMode
 from task_decomposition.contracts.effort import AbsoluteEffortInput
 from task_decomposition.contracts.provenance import ProviderStage
@@ -17,11 +17,10 @@ from task_decomposition.contracts.provider import (
     TransformationDecompositionRequest,
 )
 from task_decomposition.contracts.stages import (
-    SupportWorkMode,
     TransformationDecompositionResult,
 )
 from task_decomposition.errors import ProviderOutputError
-from task_decomposition.ports.provider import TransformationDecompositionProvider
+from task_decomposition.interfaces.provider import TransformationDecompositionProvider
 from task_decomposition.tracing import TraceLogger, current_tracer
 
 
@@ -65,16 +64,7 @@ def _decompose_transformation(request, provider, provider_name):
             retain_remove_classification=classification,
         ),
     )
-    added = validate_added_response(
-        baseline,
-        classification,
-        added_response,
-        compatibility=(
-            "strict"
-            if request.support_work_mode is not SupportWorkMode.HOST
-            else "legacy"
-        ),
-    )
+    added = validate_added_response(baseline, classification, added_response)
     support_work, support_resolution = resolve_support_work(
         added,
         classification,
@@ -84,12 +74,12 @@ def _decompose_transformation(request, provider, provider_name):
     accounting_input = request.accounting_input.model_copy(
         update={"support_work": support_work}
     )
-    staged = run_staged_pipeline(
+    accounting = _run_staged_pipeline(
         baseline,
         classification,
         added,
         accounting_input,
-        support_work_override=support_work,
+        support_work=support_work,
     )
     provider_provenance = (
         *request.task_decomposition.provider_provenance,
@@ -101,12 +91,14 @@ def _decompose_transformation(request, provider, provider_name):
     )
     return TransformationDecompositionResult(
         task_decomposition=request.task_decomposition,
-        retain_remove_classification=staged.retain_remove_classification,
-        added_work_classification=staged.added_work_classification,
-        accounting=staged.accounting,
+        retain_remove_classification=classification,
+        added_work_classification=added,
+        accounting=accounting,
         provenance_refs=(
             *request.task_decomposition.provenance_refs,
-            *staged.provenance_refs,
+            *baseline.provenance_refs,
+            *classification.provenance_refs,
+            *added.provenance_refs,
             *portable_refs,
         ),
         provider_provenance=provider_provenance,

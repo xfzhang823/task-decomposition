@@ -122,7 +122,7 @@ The current implementation has two separate authorities by design:
 
 That design explains how explicit 60/40 values can produce 40%/26% even when a provider proposes all RETAIN: accounting is deterministic from its explicit input and does not itself infer classification. This is a traceability/consistency risk, not a formula defect.
 
-The current linked handoff is stronger than the symptom suggests. `decompose_transformation()` applies `TaskDecomposition.baseline_effort_allocations` to the classification. `run_staged_pipeline()` then checks that classified retained/removed sums equal the explicit accounting values (absolute mode), or equal the normalized ratios (normalized mode). With eight all-RETAIN rows and a complete 100-unit allocation, the handoff should raise `MissingAccountingInputError` rather than return 40%/26%.
+The current linked handoff is stronger than the symptom suggests. `decompose_transformation()` applies `TaskDecomposition.baseline_effort_allocations` to the classification. Its internal accounting handoff then checks that classified retained/removed sums equal the explicit accounting values (absolute mode), or equal the normalized ratios (normalized mode). With eight all-RETAIN rows and a complete 100-unit allocation, the handoff should raise `MissingAccountingInputError` rather than return 40%/26%.
 
 The guard has known boundaries:
 

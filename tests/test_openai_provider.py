@@ -216,11 +216,11 @@ def test_openai_added_work_schema_omits_defaulted_compatibility_fields():
     item = schema["$defs"]["AddedWorkItem"]
     assert not {
         "description",
-        "amount",
         "depends_on_subtask_ids",
         "sequence_index",
         "provenance_refs",
     } & set(item["properties"])
+    assert "amount" not in item["properties"]
     assert "provenance_refs" not in schema["$defs"]["AddedWorkEstimate"]["properties"]
 
 
@@ -341,7 +341,6 @@ def test_openai_converts_transformation_numeric_values_to_decimal():
     classification["classified_subtasks"][0]["baseline_effort_ratio"] = 0.125
     classification["classified_subtasks"][1]["effort"]["value"] = 12.5
     added = make_added().model_dump(mode="json")
-    added["added_work_rows"][0]["amount"]["value"] = 2.75
     provider = OpenAIDecompositionProvider(
         client=FakeClient(
             outputs={
@@ -352,12 +351,11 @@ def test_openai_converts_transformation_numeric_values_to_decimal():
     )
 
     retain_result = provider.classify_retain_remove(stage_requests()[1])
-    added_result = provider.classify_added_work(stage_requests()[2])
+    provider.classify_added_work(stage_requests()[2])
 
     ratio = retain_result.payload.classified_subtasks[0].baseline_effort_ratio
     assert ratio == Decimal("0.125")
     assert retain_result.payload.classified_subtasks[1].effort.value == Decimal("12.5")
-    assert added_result.payload.added_work_rows[0].amount.value == Decimal("2.75")
 
 
 @pytest.mark.parametrize(
@@ -373,12 +371,6 @@ def test_openai_converts_transformation_numeric_values_to_decimal():
             ProviderStage.RETAIN_REMOVE_CLASSIFICATION,
             make_classification,
             ("classified_subtasks", 1, "effort", "value"),
-            -1,
-        ),
-        (
-            ProviderStage.ADDED_WORK_CLASSIFICATION,
-            make_added,
-            ("added_work_rows", 0, "amount", "value"),
             -1,
         ),
     ],

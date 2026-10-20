@@ -15,7 +15,6 @@ from task_decomposition import (
     validate_stage_chain,
 )
 
-
 BENCHMARK_PATH = Path(__file__).parents[1] / "benchmarks" / "processes.json"
 TOLERANCE = Decimal("0.000000001")
 
@@ -231,7 +230,7 @@ def render_review_artifact(
         ]
     )
     for item in result.added_work_classification.added_work_rows:
-        amount = "" if item.amount is None else str(item.amount.value)
+        amount = "estimated" if item.estimate is not None else ""
         lines.append(
             f"| {item.category.value} | {item.description or item.workload_name} | {amount} |"
         )

@@ -21,16 +21,15 @@ from task_decomposition import (
     TaskReference,
     TimeBasis,
     TransformationClassification,
-    run_staged_pipeline,
     validate_operational_decomposition,
     validate_stage_chain,
 )
+from task_decomposition.application.staged_pipeline import _run_staged_pipeline
 from task_decomposition.errors import (
     CardinalityError,
     IdentityMismatchError,
     MissingAccountingInputError,
     StageDependencyError,
-    SupportBasisConflictError,
     UnknownReferenceError,
 )
 
@@ -114,7 +113,6 @@ def make_classification(*, with_effort=True):
 
 
 def make_added(*, normalized=False):
-    amount = normalized_amount if normalized else absolute_amount
     return AddedWorkClassification(
         task=TASK,
         added_work_rows=(
@@ -122,21 +120,21 @@ def make_added(*, normalized=False):
                 work_id="work-gov",
                 workload_name="Review sampled account changes",
                 category=AddedWorkCategory.AI_VERIFICATION,
-                amount=amount("0.04" if normalized else 4),
+                source_removed_subtask_ids=("sub-2",),
                 sequence_index=1,
             ),
             AddedWorkItem(
                 work_id="work-ops",
                 workload_name="Handle low-confidence exceptions",
                 category=AddedWorkCategory.AI_INTERACTION,
-                amount=amount("0.08" if normalized else 8),
+                source_removed_subtask_ids=("sub-2",),
                 sequence_index=2,
             ),
             AddedWorkItem(
                 work_id="work-life",
                 workload_name="Maintain account update rules",
                 category=AddedWorkCategory.AI_VERIFICATION,
-                amount=amount("0.02" if normalized else 2),
+                source_removed_subtask_ids=("sub-2",),
                 sequence_index=3,
             ),
         ),
@@ -172,42 +170,59 @@ def make_normalized_accounting():
     )
 
 
+def make_absolute_support():
+    return SupportWorkInputs(
+        ai_interaction=absolute_amount(8),
+        ai_verification=absolute_amount(6),
+    )
+
+
+def make_normalized_support():
+    return SupportWorkInputs(
+        ai_interaction=normalized_amount("0.08"),
+        ai_verification=normalized_amount("0.06"),
+    )
+
+
 def test_end_to_end_absolute_pipeline_delegates_to_wave1_accounting():
-    result = run_staged_pipeline(
+    result = _run_staged_pipeline(
         make_operational(),
         make_classification(),
         make_added(),
         make_absolute_accounting(),
+        support_work=make_absolute_support(),
     )
 
-    assert result.accounting.w0 == Decimal(100)
-    assert result.accounting.w1 == Decimal(74)
-    assert result.accounting.gross_removed_work_ratio == Decimal("0.4")
-    assert result.accounting.added_human_work_ratio == Decimal("0.14")
-    assert result.accounting.net_remaining_work_ratio == Decimal("0.74")
-    assert result.accounting.net_substitution_ratio == Decimal("0.26")
-    assert result.accounting.effect.value == "gain"
+    assert result.w0 == Decimal(100)
+    assert result.w1 == Decimal(74)
+    assert result.gross_removed_work_ratio == Decimal("0.4")
+    assert result.added_human_work_ratio == Decimal("0.14")
+    assert result.net_remaining_work_ratio == Decimal("0.74")
+    assert result.net_substitution_ratio == Decimal("0.26")
+    assert result.effect.value == "gain"
 
 
 def test_same_stages_support_normalized_accounting():
-    result = run_staged_pipeline(
+    result = _run_staged_pipeline(
         make_operational(),
         make_classification(with_effort=False),
         make_added(normalized=True),
         make_normalized_accounting(),
+        support_work=make_normalized_support(),
     )
-    assert result.accounting.w1 == Decimal("0.74")
-    assert result.accounting.net_substitution_ratio == Decimal("0.26")
+    assert result.w1 == Decimal("0.74")
+    assert result.net_substitution_ratio == Decimal("0.26")
 
 
 def test_effort_bearing_classification_can_be_normalized_without_duplicate_semantics():
-    result = run_staged_pipeline(
+    result = _run_staged_pipeline(
         make_operational(),
         make_classification(),
         make_added(normalized=True),
         make_normalized_accounting(),
+        support_work=make_normalized_support(),
     )
-    assert result.accounting.net_remaining_work_ratio == Decimal("0.74")
+    assert result.net_remaining_work_ratio == Decimal("0.74")
 
 
 def test_wire_case_is_normalized_but_identity_is_preserved():
@@ -337,56 +352,15 @@ def test_operational_structure_does_not_apply_lexical_semantic_rejection():
     validate_operational_decomposition(bad)
 
 
-def test_added_work_requires_explicit_basis_and_amount_for_accounting():
-    missing_amount = make_added().model_copy(
-        update={
-            "added_work_rows": (
-                make_added().added_work_rows[0].model_copy(update={"amount": None}),
-                *make_added().added_work_rows[1:],
-            )
-        }
+def test_staged_pipeline_uses_resolved_support_inputs():
+    result = _run_staged_pipeline(
+        make_operational(),
+        make_classification(),
+        make_added(),
+        make_absolute_accounting(),
+        support_work=make_absolute_support(),
     )
-    with pytest.raises(MissingAccountingInputError):
-        run_staged_pipeline(
-            make_operational(),
-            make_classification(),
-            missing_amount,
-            make_absolute_accounting(),
-        )
-
-    mixed_basis = make_added().model_copy(
-        update={
-            "added_work_rows": (
-                make_added()
-                .added_work_rows[0]
-                .model_copy(update={"sequence_index": None}),
-                make_added()
-                .added_work_rows[0]
-                .model_copy(
-                    update={
-                        "work_id": "work-gov-2",
-                        "amount": normalized_amount("0.04"),
-                        "sequence_index": None,
-                    }
-                ),
-                make_added()
-                .added_work_rows[1]
-                .model_copy(
-                    update={"amount": normalized_amount("0.08"), "sequence_index": None}
-                ),
-                make_added()
-                .added_work_rows[2]
-                .model_copy(update={"sequence_index": None}),
-            )
-        }
-    )
-    with pytest.raises(SupportBasisConflictError):
-        run_staged_pipeline(
-            make_operational(),
-            make_classification(),
-            mixed_basis,
-            make_absolute_accounting(),
-        )
+    assert result.added_human_work.value == Decimal(14)
 
 
 def test_partial_classification_effort_is_not_invented():
@@ -401,6 +375,10 @@ def test_partial_classification_effort_is_not_invented():
         }
     )
     with pytest.raises(MissingAccountingInputError):
-        run_staged_pipeline(
-            make_operational(), classification, make_added(), make_absolute_accounting()
+        _run_staged_pipeline(
+            make_operational(),
+            classification,
+            make_added(),
+            make_absolute_accounting(),
+            support_work=make_absolute_support(),
         )

@@ -125,6 +125,11 @@ def parse_model_payload(raw: Any, schema, *, provider_name: str, stage: Provider
     try:
         if isinstance(raw, str):
             raw = json.loads(raw)
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise ProviderOutputError(
+            f"{provider_name} returned malformed JSON for {stage.value}"
+        ) from exc
+    try:
         return schema.model_validate(raw)
     except Exception as exc:
         raise ProviderOutputError(

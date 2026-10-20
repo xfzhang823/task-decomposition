@@ -22,6 +22,12 @@ Transformation decomposition answers “What happens to that work under the spec
 
 `decompose(...)` is a convenience operation that composes these two capabilities. It is not a separate architecture and does not own duplicate decomposition or accounting logic.
 
+The supported application entry points are:
+
+- `decompose_task(request, provider, *, effort_allocator=None, evaluator=None)` for creating a reusable baseline.
+- `decompose_transformation(request, provider)` for evaluating a transformation against an existing baseline.
+- `decompose(request, provider, *, transformation_context, accounting_input)` for the complete two-step composition.
+
 Added-work estimation supports `AI_INTERACTION` and `AI_VERIFICATION` rows with explicit causal REMOVE-subtask references and reference-class estimates. Baseline references are normalized by their estimated occurrences per parent execution; external references require a compatible quantitative per-occurrence anchor. Support selection defaults to host inputs and can be switched to `estimate` or `auto` through `SupportWorkMode`; canonical accounting remains deterministic and provider-independent.
 
 ## Repository ownership
@@ -32,13 +38,15 @@ This repository does not own workflow execution, workflow throughput or capacity
 
 ## Task decomposition
 
-`decompose_task(request, provider, effort_allocator=None)` accepts a `TaskDecompositionRequest` containing a task reference, task/process context, and optional explicit baseline effort and weights. It asks a `TaskDecompositionProvider` for operational subtasks, validates the untrusted response, and returns a frozen `TaskDecomposition`.
+`decompose_task(request, provider, *, effort_allocator=None, evaluator=None)` accepts a `TaskDecompositionRequest` containing a `TaskReference`, optional task context, and optional baseline effort or effort weights. It asks a `TaskDecompositionProvider` for operational subtasks, validates the untrusted response, and returns a frozen `TaskDecomposition`.
 
 The reusable baseline invariant is central: transformation decomposition consumes an existing task decomposition and does not regenerate its subtasks or re-estimate its baseline effort.
 
 ## Transformation decomposition
 
-`decompose_transformation(request, provider)` accepts a `TransformationDecompositionRequest` containing an existing `TaskDecomposition`, `transformation_context`, and explicit absolute or normalized accounting input. It asks a `TransformationDecompositionProvider` for RETAIN/REMOVE and added-work proposals, validates each stage, and returns a `TransformationDecompositionResult` containing the transformation facts and canonical impact.
+`decompose_transformation(request, provider)` accepts a `TransformationDecompositionRequest` containing an existing `TaskDecomposition`, `transformation_context`, explicit `AbsoluteEffortInput` or `NormalizedAccountingInput`, and a `SupportWorkMode`. It asks a `TransformationDecompositionProvider` for RETAIN/REMOVE and added-work proposals, validates each stage, and returns a `TransformationDecompositionResult` containing the transformation facts and canonical impact.
+
+Every added-work row must identify one or more original subtasks in `source_removed_subtask_ids`; each source must exist and be classified `REMOVE`. This causal attribution explains why the added work exists and is independent of the reference used to estimate its effort. The reference may be a `RETAIN` or `REMOVE` baseline subtask, or an external analogous workflow. Python validates the references and computes the estimate; providers do not provide authoritative accounting amounts. A valid transformation may contain no added-work rows.
 
 There is no sibling application-level `account_transformation(...)` operation. The application invokes the deterministic accounting domain after transformation facts are validated; low-level accounting functions remain directly callable for deterministic use cases and tests.
 
@@ -48,7 +56,7 @@ There is no sibling application-level `account_transformation(...)` operation. T
 
 ```text
 W0 = retained_human_work + gross_removed_work
-added_human_work = governance_work + operational_support_work + lifecycle_support_work
+added_human_work = ai_interaction_work + ai_verification_work
 W1 = retained_human_work + added_human_work
 gross_removed_work_ratio = gross_removed_work / W0
 net_remaining_work_ratio = W1 / W0
@@ -62,7 +70,7 @@ Accounting supports normalized mode with `W0 = 1.0` and absolute mode with expli
 
 ## Providers
 
-The provider boundary is split by capability:
+The provider boundary is split by capability. Behavioral protocols live under `task_decomposition.interfaces`; data schemas live under `task_decomposition.contracts`:
 
 ```text
 TaskDecompositionProvider
@@ -76,18 +84,19 @@ DecompositionProvider
   → composite capability for providers implementing both
 ```
 
-OpenAI, Gemini, and DeepSeek adapters may implement both capabilities while sharing only narrow provider infrastructure. Provider output is untrusted: the application validates it before advancing to the next stage, and providers never calculate authoritative W0, W1, substitution, augmentation, or effect values.
+OpenAI, Gemini, and DeepSeek adapters may implement both capabilities while sharing only narrow provider infrastructure. Provider output is untrusted: the application validates it before advancing to the next stage, and providers never calculate authoritative W0, W1, substitution, augmentation, or effect values. Import protocols from `task_decomposition.interfaces`, for example `from task_decomposition.interfaces import DecompositionProvider`.
 
-The deterministic core does not require an LLM SDK. Install optional provider support with:
+Install the library and add provider-specific dependencies as needed:
 
 ```bash
+uv pip install -e .
 uv pip install -e '.[openai]'
 uv pip install -e '.[gemini]'
 uv pip install -e '.[deepseek]'
 uv pip install -e '.[providers]'
 ```
 
-Configure `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `DEEPSEEK_API_KEY`, or inject credentials through the provider-specific configuration object. Bot0 is not required to use this package.
+The deterministic contracts and accounting functions are available without invoking an LLM. Configure `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `DEEPSEEK_API_KEY`, or inject credentials through the provider-specific configuration object. Bot0 is not required to use this package.
 
 ## Minimal provider-driven usage
 
@@ -96,30 +105,117 @@ The concrete live example is in [`examples/openai_decompose.py`](examples/openai
 Task decomposition only:
 
 ```python
-from task_decomposition import decompose_task
+from task_decomposition import (
+    EffortQuantity,
+    EffortUnit,
+    TaskDecompositionRequest,
+    TaskReference,
+    TimeBasis,
+    decompose_task,
+)
+from task_decomposition.providers.openai import OpenAIDecompositionProvider
 
-baseline = decompose_task(task_request, provider, effort_allocator=allocator)
+request = TaskDecompositionRequest(
+    task=TaskReference(
+        task_name="Review an invoice",
+        task_description="Validate and approve an invoice.",
+    ),
+    baseline_effort=EffortQuantity(
+        value=8,
+        unit=EffortUnit.HOURS,
+        time_basis=TimeBasis.PER_OPERATION,
+    ),
+)
+baseline = decompose_task(request, OpenAIDecompositionProvider())
 ```
 
 Transformation decomposition from that existing baseline:
 
 ```python
-from task_decomposition import decompose_transformation
+from task_decomposition import (
+    AbsoluteEffortInput,
+    EffortQuantity,
+    EffortUnit,
+    SupportWorkMode,
+    TimeBasis,
+    TransformationDecompositionRequest,
+    decompose_transformation,
+)
+from task_decomposition.providers.openai import OpenAIDecompositionProvider
 
-impact = decompose_transformation(transformation_request, provider)
+accounting_input = AbsoluteEffortInput(
+    baseline_human_effort=EffortQuantity(
+        value=8, unit=EffortUnit.HOURS, time_basis=TimeBasis.PER_OPERATION
+    ),
+    retained_human_work=EffortQuantity(
+        value=4, unit=EffortUnit.HOURS, time_basis=TimeBasis.PER_OPERATION
+    ),
+    gross_removed_work=EffortQuantity(
+        value=4, unit=EffortUnit.HOURS, time_basis=TimeBasis.PER_OPERATION
+    ),
+)
+transformation_request = TransformationDecompositionRequest(
+    task_decomposition=baseline,
+    transformation_context={"goal": "Draft invoice checks while retaining approval"},
+    accounting_input=accounting_input,
+    support_work_mode=SupportWorkMode.ESTIMATE,
+)
+impact = decompose_transformation(
+    transformation_request,
+    OpenAIDecompositionProvider(),
+)
 ```
 
 Full convenience composition:
 
 ```python
-from task_decomposition import decompose, TaskDecompositionRequest, TaskReference
+from task_decomposition import (
+    AbsoluteEffortInput,
+    EffortQuantity,
+    EffortUnit,
+    TaskDecompositionRequest,
+    TaskReference,
+    TimeBasis,
+    decompose,
+)
 from task_decomposition.providers.openai import OpenAIDecompositionProvider
 
-request = TaskDecompositionRequest(task=TaskReference(task_name="Review an invoice"), task_context={"domain": "accounts_payable"})
-result = decompose(request, OpenAIDecompositionProvider(), transformation_context={"goal": "Draft invoice checks while retaining approval"}, accounting_input=accounting_input)
+request = TaskDecompositionRequest(
+    task=TaskReference(task_name="Review an invoice"),
+    task_context={"domain": "accounts_payable"},
+    baseline_effort=EffortQuantity(
+        value=8, unit=EffortUnit.HOURS, time_basis=TimeBasis.PER_OPERATION
+    ),
+)
+result = decompose(
+    request,
+    OpenAIDecompositionProvider(),
+    transformation_context={"goal": "Draft invoice checks while retaining approval"},
+    accounting_input=AbsoluteEffortInput(
+        baseline_human_effort=EffortQuantity(
+            value=8, unit=EffortUnit.HOURS, time_basis=TimeBasis.PER_OPERATION
+        ),
+        retained_human_work=EffortQuantity(
+            value=4, unit=EffortUnit.HOURS, time_basis=TimeBasis.PER_OPERATION
+        ),
+        gross_removed_work=EffortQuantity(
+            value=4, unit=EffortUnit.HOURS, time_basis=TimeBasis.PER_OPERATION
+        ),
+    ),
+)
 ```
 
-The example assumes `accounting_input` is an explicit `AbsoluteEffortInput` or `NormalizedAccountingInput`; providers may not invent authoritative effort or final metrics.
+The absolute accounting values must reconcile with the provider's RETAIN/REMOVE classification. Use `NormalizedAccountingInput` when the host supplies baseline-relative values instead. The examples require an OpenAI API key; replace `OpenAIDecompositionProvider` with any implementation of the appropriate protocol for another provider or a credential-free test double.
+
+### Support-work selection
+
+`TransformationDecompositionRequest.support_work_mode` defaults to `SupportWorkMode.HOST`:
+
+- `HOST` uses `accounting_input.support_work`, including explicit zero values, and fails if host support is absent.
+- `ESTIMATE` derives `AI_INTERACTION` and `AI_VERIFICATION` support from validated `AddedWorkEstimate` rows and fails if an estimate is missing or noncomputable.
+- `AUTO` uses explicit host support when present; otherwise it derives estimates. When both are available, the result includes reconciliation diagnostics and does not silently mix the values.
+
+Reference-class estimates preserve low/typical/high ranges as metadata; typical values drive canonical support inputs. Baseline references are normalized by their reference occurrence frequency. External references need a compatible quantitative per-occurrence effort anchor. See [`docs/reference/ACCOUNTING_MODEL.md`](docs/reference/ACCOUNTING_MODEL.md) for effort units, bases, and equations.
 
 ## Validation and testing
 
@@ -184,7 +280,7 @@ raw response as unavailable; it cannot reconstruct bytes the SDK discarded.
 
 ## Further documentation
 
-- [`docs/DECOMPOSITION_MODEL.md`](docs/reference/DECOMPOSITION_MODEL.md) explains the two capabilities and their contracts.
-- [`docs/ACCOUNTING_MODEL.md`](docs/reference/ACCOUNTING_MODEL.md) explains quantities, equations, modes, units, ranges, and edge behavior.
+- [`docs/reference/DECOMPOSITION_MODEL.md`](docs/reference/DECOMPOSITION_MODEL.md) explains the two capabilities and their contracts.
+- [`docs/reference/ACCOUNTING_MODEL.md`](docs/reference/ACCOUNTING_MODEL.md) explains quantities, equations, modes, units, ranges, and edge behavior.
 - [`docs/README.md`](docs/README.md) indexes current reference, active topic, historical, and verification documentation.
 - [`AGENTS.md`](AGENTS.md) gives concise maintenance rules for coding agents.

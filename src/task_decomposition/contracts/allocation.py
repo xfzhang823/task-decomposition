@@ -1,6 +1,4 @@
-"""Optional host-neutral effort allocation extension."""
-
-from typing import Protocol, runtime_checkable
+"""Host-neutral effort allocation data contracts."""
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -33,16 +31,8 @@ class EffortAllocationResult(BaseModel):
     provenance_refs: tuple[ProvenanceRef, ...] = ()
 
 
-@runtime_checkable
-class EffortAllocator(Protocol):
-    """Optional allocator; it supplies row effort but never computes impact."""
-
-    def allocate(self, request: EffortAllocationRequest) -> EffortAllocationResult: ...
-
-
 __all__ = [
     "EffortAllocation",
     "EffortAllocationRequest",
     "EffortAllocationResult",
-    "EffortAllocator",
 ]

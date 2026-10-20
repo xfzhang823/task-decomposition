@@ -16,7 +16,7 @@ Transformation decomposition answers “What happens to that existing work under
 
 `decompose_transformation(request, provider)` asks a `TransformationDecompositionProvider` to classify the supplied operational subtasks as `RETAIN` or `REMOVE`, validates identity and coverage, then asks the provider to propose new added/support human work. Added work is separate from baseline rows and uses the explicit Wave 1 support basis contract.
 
-After stage validation, the application applies the frozen baseline allocations to the classification rows and calls `run_staged_pipeline()`. That lower-level pipeline validates the handoff and delegates all W0/W1 and derived metrics to `domain/accounting.py`. The result is a `TransformationDecompositionResult` containing the original baseline, classification, added work, canonical impact, and portable provenance.
+After stage validation, the application applies the frozen baseline allocations to the classification rows and performs the internal validated accounting handoff. That handoff delegates all W0/W1 and derived metrics to `domain/accounting.py`. The public result is a `TransformationDecompositionResult` containing the original baseline, classification, added work, canonical impact, and portable provenance.
 
 ## Provider capability boundary
 

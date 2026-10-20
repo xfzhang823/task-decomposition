@@ -10,7 +10,6 @@ from task_decomposition.evaluation.contracts import (
     SemanticFindingCode,
     SemanticFindingSeverity,
 )
-from task_decomposition.evaluation.ports import SemanticEvaluator
 from task_decomposition.evaluation.rubric import (
     SEMANTIC_EVALUATION_RUBRIC,
     SEMANTIC_EVALUATION_RUBRIC_VERSION,
@@ -22,7 +21,6 @@ __all__ = [
     "SemanticEvaluation",
     "SemanticEvaluationDecision",
     "SemanticEvaluationRequest",
-    "SemanticEvaluator",
     "SemanticEvaluatorProvenance",
     "SemanticFinding",
     "SemanticFindingCategory",

@@ -30,7 +30,7 @@ from task_decomposition import (
     decompose_transformation,
 )
 from task_decomposition.evaluation.rubric import SEMANTIC_EVALUATION_RUBRIC_VERSION
-from task_decomposition.ports import (
+from task_decomposition.interfaces import (
     DecompositionProvider,
     TaskDecompositionProvider,
     TransformationDecompositionProvider,
@@ -102,21 +102,21 @@ def added_work():
                 work_id="work-governance",
                 workload_name="Review account changes",
                 category=AddedWorkCategory.AI_VERIFICATION,
-                amount=amount(4),
+                source_removed_subtask_ids=("sub-2",),
                 sequence_index=1,
             ),
             AddedWorkItem(
                 work_id="work-support",
                 workload_name="Handle exceptions",
                 category=AddedWorkCategory.AI_INTERACTION,
-                amount=amount(8),
+                source_removed_subtask_ids=("sub-2",),
                 sequence_index=2,
             ),
             AddedWorkItem(
                 work_id="work-lifecycle",
                 workload_name="Maintain update rules",
                 category=AddedWorkCategory.AI_VERIFICATION,
-                amount=amount(2),
+                source_removed_subtask_ids=("sub-2",),
                 sequence_index=3,
             ),
         ),
@@ -189,7 +189,10 @@ class BoundaryProvider:
         self.calls.append("added-work")
         return self._response(
             ProviderStage.ADDED_WORK_CLASSIFICATION,
-            added_work(),
+            AddedWorkClassification(
+                task=TASK,
+                added_work_rows=() if self.all_retain else added_work().added_work_rows,
+            ),
         )
 
 

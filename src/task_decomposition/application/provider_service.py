@@ -14,7 +14,7 @@ from task_decomposition.contracts.provider import (
 )
 from task_decomposition.contracts.stages import TransformationDecompositionResult
 from task_decomposition.errors import MissingAccountingInputError, ProviderOutputError
-from task_decomposition.ports.provider import DecompositionProvider
+from task_decomposition.interfaces.provider import DecompositionProvider
 from task_decomposition.tracing import TraceLogger, current_tracer
 
 

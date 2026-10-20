@@ -133,7 +133,7 @@ def test_repeated_reference_is_normalized_and_retained_reference_is_valid():
     assert diagnostic.estimated_support_work == resolved
 
 
-def test_strict_causal_validation_rejects_missing_and_retain_sources():
+def test_causal_validation_rejects_missing_and_retain_sources():
     base = operational()
     classified = classification()
     missing = AddedWorkClassification(
@@ -143,9 +143,7 @@ def test_strict_causal_validation_rejects_missing_and_retain_sources():
         ),
     )
     with pytest.raises(StageValidationError):
-        validate_added_work_classification(
-            base, classified, missing, compatibility="strict"
-        )
+        validate_added_work_classification(base, classified, missing)
     wrong = missing.model_copy(
         update={
             "added_work_rows": (
@@ -159,15 +157,7 @@ def test_strict_causal_validation_rejects_missing_and_retain_sources():
         }
     )
     with pytest.raises(StageValidationError):
-        validate_added_work_classification(
-            base, classified, wrong, compatibility="strict"
-        )
-    assert (
-        validate_added_work_classification(
-            base, classified, missing, compatibility="legacy"
-        )
-        == missing
-    )
+        validate_added_work_classification(base, classified, wrong)
 
 
 def test_external_reference_requires_quantitative_anchor():

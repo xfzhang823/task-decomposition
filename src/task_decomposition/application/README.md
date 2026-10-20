@@ -1,15 +1,15 @@
 # Application
 
-Provider-agnostic orchestration. This layer takes a host-supplied provider (something that implements a `ports/` interface), drives the staged flow, treats every provider result as untrusted, and ends in deterministic canonical accounting. No I/O, no vendor SDK, no environment variable, no persistence.
+Provider-agnostic orchestration. This layer takes a host-supplied provider (something that implements an `interfaces/` protocol), drives the staged flow, treats every provider result as untrusted, and ends in deterministic canonical accounting. No I/O, no vendor SDK, no environment variable, no persistence.
 
-Dependency direction: `application/` → `ports/` (interfaces) and `contracts/` (models); concrete providers live in `providers/`.
+Dependency direction: `application/` → `interfaces/` (behavioral protocols) and `contracts/` (data schemas); concrete providers live in `providers/`.
 
 ## How to read this layer
 
 Two kinds of module sit here:
 
-- **Provider-driven services** call a provider through a port and validate the result — `task_decomposition.py`, `transformation_decomposition.py`, `provider_service.py`.
-- **The provider-independent core** validates already-typed stages and delegates all arithmetic to canonical accounting — `staged_pipeline.py`.
+- **Provider-driven services** call a provider through an interface and validate the result — `task_decomposition.py`, `transformation_decomposition.py`, `provider_service.py`.
+- **The provider-independent accounting handoff** validates already-typed stages and delegates all arithmetic to canonical accounting — internal `staged_pipeline.py`.
 
 `_provider_stage.py` holds the shared helpers for the provider-driven side: the `provider_id` guard, `call_stage`, and the three `validate_*_response` wrappers.
 
@@ -20,27 +20,23 @@ Two kinds of module sit here:
 | `decompose_task` | `task_decomposition.py` | task + provider → `TaskDecomposition` (operational only, optional baseline effort) | Yes |
 | `decompose_transformation` | `transformation_decomposition.py` | existing `TaskDecomposition` + provider → `TransformationDecompositionResult` | Yes |
 | `decompose` | `provider_service.py` | canonical task request + transformation context + provider + explicit accounting → `TransformationDecompositionResult` | Yes |
-| `run_staged_pipeline` | `staged_pipeline.py` | three typed stages + accounting input → `StagedDecompositionResult` | No |
-
-All four are re-exported from `application/__init__.py`.
+Only the three decomposition functions are application entry points. The staged handoff is internal to transformation decomposition.
 
 ## `staged_pipeline.py` — the provider-independent core
 
-The one function here, `run_staged_pipeline`, is a **boundary checker, not a calculator**. It computes no formulas; every W0/W1/gross/net/effect number comes from `domain/accounting`.
+The internal `_run_staged_pipeline` function is a **boundary checker, not a calculator**. It computes no formulas; every W0/W1/gross/net/effect number comes from `domain/accounting` and it returns the canonical accounting impact directly.
 
 Flow:
 
 1. **Validate the chain** — `validate_stage_chain` coerces dicts to typed models and checks the three stages are mutually consistent (IDs, classifications, dependencies).
 2. **Cross-check the effort handoff** — `_validate_effort_handoff` requires the explicit accounting input to agree with the classified subtask effort. This is the "must not invent effort" guard.
-3. **Resolve support work** — use `support_work_override` if given, else derive it from the added-work rows via `_support_inputs`.
+3. **Receive resolved support work** — `added_work_estimation.resolve_support_work` selects host or estimate support inputs before the staged handoff.
 4. **Delegate to canonical accounting** — dispatch on input type to `account_absolute` or `account_normalized`, injecting the resolved support work.
-5. **Reassemble** — build `StagedDecompositionResult` and concatenate provenance refs from all three stages.
+5. **Return accounting** — transformation orchestration assembles the public `TransformationDecompositionResult` from the validated stage values and accounting impact.
 
 The four private helpers:
 
 - `_validate_effort_handoff` — the heaviest (~100 of 269 lines). *Absolute*: per-subtask effort is all-present or all-absent; if present, units must match and RETAIN/REMOVE sums must equal `retained_human_work` / `gross_removed_work`. *Normalized*: baseline ratios (or normalized per-row totals) must equal `retained_work_ratio` / `gross_removed_work_ratio`. Any mismatch raises `MissingAccountingInputError`.
-- `_support_inputs` — groups added-work rows into `ai_interaction` and `ai_verification`; every row must carry an explicit amount/basis.
-- `_sum_support_values` — enforces one basis per category (and, for absolute values, one unit and time basis); empty group yields a zero input with a mode-appropriate basis.
 - `_require_matching_units` — all classified efforts must share one unit and time basis.
 
 Load-bearing invariants:
@@ -74,12 +70,12 @@ supplied baseline effort is distributed using the same ratios. These rows are
 marked with `allocation_source="estimated"`, while host-supplied allocations
 remain marked `allocation_source="host"`.
 
-So baseline effort is optional, and the optional `EffortAllocator` port is the plug for host-supplied allocation.
+So baseline effort is optional, and the optional `EffortAllocator` interface is the plug for host-supplied allocation.
 
 ## `transformation_decomposition.py` — classify and account a reusable decomposition
 
 `decompose_transformation` mirrors `decompose_task`: it takes an existing `TaskDecomposition`, runs the two classification stages, and ends in accounting.
 
-Flow: check the provider implements `TransformationDecompositionProvider` → `classify_retain_remove` → `validate_classification_response` → `_apply_baseline_allocation` → `classify_added_work` → `validate_added_response` → `run_staged_pipeline` (passing the request's own `support_work` as the override) → assemble `TransformationDecompositionResult`.
+Flow: check the provider implements `TransformationDecompositionProvider` → `classify_retain_remove` → `validate_classification_response` → `_apply_baseline_allocation` → `classify_added_work` → strict `validate_added_response` → resolve support work → internal `_run_staged_pipeline` (passing concrete resolved support) → assemble `TransformationDecompositionResult`.
 
 `_apply_baseline_allocation` injects the baseline effort already carried by the incoming decomposition into each classified subtask, so the provider need not restate it: absolute mode sets `effort`, normalized mode sets `baseline_effort_ratio`. `decompose_task` → `decompose_transformation` is the intended two-call composition.

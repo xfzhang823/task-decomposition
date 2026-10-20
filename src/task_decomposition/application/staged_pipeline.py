@@ -1,65 +1,56 @@
 """Provider-independent staged orchestration ending in Wave 1 accounting."""
 
-from collections import defaultdict
 from decimal import Decimal
 
-from task_decomposition.contracts.accounting import AccountingMode
+from task_decomposition.contracts.accounting import CanonicalTransformationImpact
 from task_decomposition.contracts.decomposition import TransformationClassification
 from task_decomposition.contracts.effort import (
     AbsoluteEffortInput,
     NormalizedAccountingInput,
-    RatioBasis,
-    SupportWorkInput,
     SupportWorkInputs,
 )
 from task_decomposition.contracts.stages import (
-    AddedWorkCategory,
     AddedWorkClassification,
     OperationalDecomposition,
     RetainRemoveClassification,
-    StagedDecompositionResult,
 )
 from task_decomposition.domain.accounting import account_absolute, account_normalized
 from task_decomposition.errors import (
     IncompatibleEffortUnitError,
     MissingAccountingInputError,
     StageValidationError,
-    SupportBasisConflictError,
 )
 from task_decomposition.validation.stages import validate_stage_chain
 
 
-def run_staged_pipeline(
+def _run_staged_pipeline(
     operational: OperationalDecomposition | dict,
     classification: RetainRemoveClassification | dict,
     added_work: AddedWorkClassification | dict,
     accounting_input: AbsoluteEffortInput | NormalizedAccountingInput,
     *,
-    support_work_override: SupportWorkInputs | None = None,
-) -> StagedDecompositionResult:
+    support_work: SupportWorkInputs,
+) -> CanonicalTransformationImpact:
     """Validate typed stage outputs and delegate all formulas to Wave 1.
 
+    Support work is resolved by the application estimator before this handoff.
     No provider, prompt, environment variable, persistence layer, or API is
-    consulted. ``accounting_input`` is explicit because staged reasoning must
-    not invent effort when provider output does not contain enough information.
+    consulted here. ``accounting_input`` is explicit because staged reasoning
+    must not invent effort when provider output does not contain enough
+    information.
     """
-    operational_output, classification_output, added_output = validate_stage_chain(
+    _, classification_output, _ = validate_stage_chain(
         operational, classification, added_work
     )
     _validate_effort_handoff(classification_output, accounting_input)
-    support_inputs = (
-        support_work_override
-        if support_work_override is not None
-        else _support_inputs(added_output, accounting_input)
-    )
     try:
         if isinstance(accounting_input, AbsoluteEffortInput):
             accounting = account_absolute(
-                accounting_input.model_copy(update={"support_work": support_inputs})
+                accounting_input.model_copy(update={"support_work": support_work})
             )
         elif isinstance(accounting_input, NormalizedAccountingInput):
             accounting = account_normalized(
-                accounting_input.model_copy(update={"support_work": support_inputs})
+                accounting_input.model_copy(update={"support_work": support_work})
             )
         else:
             raise MissingAccountingInputError(
@@ -71,18 +62,7 @@ def run_staged_pipeline(
         raise StageValidationError(
             f"canonical accounting handoff failed: {exc}"
         ) from exc
-    provenance = (
-        *operational_output.provenance_refs,
-        *classification_output.provenance_refs,
-        *added_output.provenance_refs,
-    )
-    return StagedDecompositionResult(
-        operational_decomposition=operational_output,
-        retain_remove_classification=classification_output,
-        added_work_classification=added_output,
-        accounting=accounting,
-        provenance_refs=provenance,
-    )
+    return accounting
 
 
 def _validate_effort_handoff(classification, accounting_input) -> None:
@@ -186,70 +166,6 @@ def _validate_effort_handoff(classification, accounting_input) -> None:
         raise MissingAccountingInputError("missing explicit Wave 1 accounting input")
 
 
-def _support_inputs(
-    added: AddedWorkClassification, accounting_input
-) -> SupportWorkInputs:
-    groups = defaultdict(list)
-    for row in added.added_work_rows:
-        if row.amount is None:
-            raise MissingAccountingInputError(
-                f"added-work row {row.work_id!r} has no explicit support amount/basis"
-            )
-        groups[row.category].append(row.amount)
-    mode = (
-        AccountingMode.ABSOLUTE
-        if isinstance(accounting_input, AbsoluteEffortInput)
-        else AccountingMode.NORMALIZED
-    )
-    interaction = groups.get(AddedWorkCategory.AI_INTERACTION, [])
-    verification = groups.get(AddedWorkCategory.AI_VERIFICATION, [])
-    return SupportWorkInputs(
-        ai_interaction=_sum_support_values(
-            interaction,
-            category=AddedWorkCategory.AI_INTERACTION,
-            mode=mode,
-            accounting_input=accounting_input,
-        ),
-        ai_verification=_sum_support_values(
-            verification,
-            category=AddedWorkCategory.AI_VERIFICATION,
-            mode=mode,
-            accounting_input=accounting_input,
-        ),
-    )
-
-
-def _sum_support_values(
-    values, *, category, mode, accounting_input
-) -> SupportWorkInput:
-    if not values:
-        if mode is AccountingMode.ABSOLUTE:
-            baseline = accounting_input.baseline_human_effort
-            return SupportWorkInput(
-                value=0,
-                basis=RatioBasis.ABSOLUTE_EFFORT,
-                unit=baseline.unit,
-                time_basis=baseline.time_basis,
-            )
-        return SupportWorkInput(value=0, basis=RatioBasis.NORMALIZED_CONTRIBUTION)
-    first = values[0]
-    if any(value.basis is not first.basis for value in values[1:]):
-        raise SupportBasisConflictError(
-            f"added-work category {category} contains incompatible support bases"
-        )
-    if first.basis is RatioBasis.ABSOLUTE_EFFORT:
-        if any(
-            value.unit != first.unit or value.time_basis != first.time_basis
-            for value in values[1:]
-        ):
-            raise IncompatibleEffortUnitError(
-                f"added-work category {category} contains incompatible effort units"
-            )
-    return first.model_copy(
-        update={"value": sum((value.value for value in values), Decimal("0"))}
-    )
-
-
 def _require_matching_units(values) -> None:
     values = tuple(values)
     if not values:
@@ -262,6 +178,3 @@ def _require_matching_units(values) -> None:
         raise IncompatibleEffortUnitError(
             "classified subtask effort must share one unit/time basis"
         )
-
-
-__all__ = ["run_staged_pipeline"]

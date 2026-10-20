@@ -1,6 +1,5 @@
 """Optional DeepSeek adapter using its documented OpenAI-compatible API."""
 
-import json
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -140,21 +139,8 @@ class DeepSeekDecompositionProvider:
                     "DeepSeek returned no structured output for semantic_evaluation"
                 )
             try:
-                parsed = json.loads(content) if isinstance(content, str) else content
-            except Exception as exc:
-                self.tracer.exception(invocation, exc)
-                self.tracer.validation(
-                    phase="evaluation",
-                    stage=SEMANTIC_EVALUATION_STAGE,
-                    result="failure",
-                    errors=(str(exc),),
-                )
-                raise ProviderOutputError(
-                    "DeepSeek returned malformed JSON for semantic_evaluation"
-                ) from exc
-            try:
                 evaluation = parse_semantic_evaluation(
-                    parsed,
+                    content,
                     request,
                     provider_name="DeepSeek",
                     model_id=self.config.model,
@@ -165,7 +151,7 @@ class DeepSeekDecompositionProvider:
                     stage=SEMANTIC_EVALUATION_STAGE,
                     result="failure",
                     errors=(str(exc),),
-                    response=parsed,
+                    response=content,
                 )
                 raise
             self.tracer.emit(
@@ -288,23 +274,17 @@ class DeepSeekDecompositionProvider:
                 f"DeepSeek returned no structured output for {stage.value}"
             )
         try:
-            parsed = json.loads(content) if isinstance(content, str) else content
-        except Exception as exc:
-            self.tracer.exception(invocation, exc)
-            raise ProviderOutputError(
-                f"DeepSeek returned malformed JSON for {stage.value}"
-            ) from exc
-        try:
             payload = parse_model_payload(
-                parsed, schema, provider_name="DeepSeek", stage=stage
+                content, schema, provider_name="DeepSeek", stage=stage
             )
         except Exception as exc:
+            self.tracer.exception(invocation, exc)
             self.tracer.validation(
                 phase="structural",
                 stage=stage.value,
                 result="failure",
                 errors=(str(exc),),
-                response=parsed,
+                response=content,
             )
             raise
         self.tracer.validation(

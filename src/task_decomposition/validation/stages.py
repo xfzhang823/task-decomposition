@@ -122,8 +122,6 @@ def validate_added_work_classification(
     operational: OperationalDecomposition,
     classification: RetainRemoveClassification,
     value: AddedWorkClassification | dict,
-    *,
-    compatibility: str = "legacy",
 ) -> AddedWorkClassification:
     output = _validate_model(value, AddedWorkClassification)
     _require_same_task(operational.task, output.task)
@@ -139,7 +137,7 @@ def validate_added_work_classification(
             raise UnknownReferenceError(
                 f"added-work row {row.work_id!r} has unknown subtasks: {sorted(unknown)}"
             )
-        if compatibility == "strict" and not row.source_removed_subtask_ids:
+        if not row.source_removed_subtask_ids:
             raise StageValidationError(
                 f"added-work row {row.work_id!r} requires causal removed subtasks"
             )
@@ -157,7 +155,7 @@ def validate_added_work_classification(
                 f"{sorted(unknown_sources)}"
             )
         if any(
-            classified[subtask_id] is not TransformationClassification.REMOVE
+            classified.get(subtask_id) is not TransformationClassification.REMOVE
             for subtask_id in sources
         ):
             raise StageValidationError(

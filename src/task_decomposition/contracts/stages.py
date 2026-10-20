@@ -219,7 +219,6 @@ class AddedWorkItem(BaseModel):
     category: AddedWorkCategory
     source_removed_subtask_ids: tuple[str, ...] = ()
     description: str | None = None
-    amount: SupportWorkInput | None = None
     estimate: AddedWorkEstimate | None = None
     depends_on_subtask_ids: tuple[str, ...] = ()
     sequence_index: int | None = Field(default=None, ge=1)
@@ -259,20 +258,6 @@ class SupportWorkResolution(BaseModel):
     reconciliation: Literal["not_applicable", "match", "difference"]
 
 
-class StagedDecompositionResult(BaseModel):
-    """Validated staged inputs plus the authoritative Wave 1 accounting result."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    operational_decomposition: OperationalDecomposition
-    retain_remove_classification: RetainRemoveClassification
-    added_work_classification: AddedWorkClassification
-    accounting: CanonicalTransformationImpact
-    provenance_refs: tuple[ProvenanceRef, ...] = ()
-    provider_provenance: tuple[ProviderProvenance, ...] = ()
-    support_work_resolution: SupportWorkResolution | None = None
-
-
 class TransformationDecompositionResult(BaseModel):
     """Transformation facts plus authoritative canonical transformation impact."""
 
@@ -299,7 +284,6 @@ __all__ = [
     "OperationalDecomposition",
     "OperationalSubtask",
     "RetainRemoveClassification",
-    "StagedDecompositionResult",
     "SupportWorkMode",
     "SupportWorkResolution",
     "TaskDecomposition",

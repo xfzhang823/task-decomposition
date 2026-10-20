@@ -1,6 +1,14 @@
 from decimal import Decimal
 
 import pytest
+from benchmark_support import (
+    BenchmarkCase,
+    check_hard_validity,
+    load_benchmark_cases,
+    render_review_artifact,
+    review_task_semantics,
+    review_transformation_semantics,
+)
 
 from task_decomposition import (
     AbsoluteEffortInput,
@@ -25,15 +33,6 @@ from task_decomposition import (
     account_absolute,
 )
 from task_decomposition.contracts.provenance import ProviderStage
-
-from benchmark_support import (
-    BenchmarkCase,
-    check_hard_validity,
-    load_benchmark_cases,
-    render_review_artifact,
-    review_task_semantics,
-    review_transformation_semantics,
-)
 
 
 def effort(value: int | str) -> EffortQuantity:
@@ -140,7 +139,7 @@ def fixture_result() -> TransformationDecompositionResult:
                 workload_name="Review model responses",
                 category=AddedWorkCategory.AI_VERIFICATION,
                 description="Review a sample of model-assisted responses.",
-                amount=support(4),
+                source_removed_subtask_ids=("diagnose",),
             ),
         ),
     )

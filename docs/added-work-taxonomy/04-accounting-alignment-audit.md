@@ -14,7 +14,7 @@ Per the task constraint, implementation stops here rather than silently reclassi
 
 `src/task_decomposition/domain/accounting.py` converts all three support inputs independently according to their ratio basis, validates absolute units/time bases for each, and sums them into `added_human_work`. W0/W1 formulas do not depend on the category names, but the three fields are independently observable and independently validated.
 
-`src/task_decomposition/application/staged_pipeline.py` currently derives support inputs from added-work rows. The prior taxonomy change combines `AI_INTERACTION` and `AI_VERIFICATION` into `operational_support` only when no explicit support override is supplied. Explicit `support_work_override` retains precedence. That mapping preserves total effort but discards the distinction between the two canonical categories in accounting output.
+`src/task_decomposition/application/added_work_estimation.py` is the canonical support resolver. It preserves separate `AI_INTERACTION` and `AI_VERIFICATION` support inputs and applies host/estimate/auto precedence before the internal accounting handoff passes concrete inputs to deterministic accounting.
 
 ## Direct consumers and serialization
 
@@ -43,7 +43,7 @@ The accounting formulas are independent of the category labels:
 - W1 is retained human work plus the converted sum of support inputs;
 - `added_human_work` is the sum of the three converted support values.
 
-The current pipeline's explicit support override prevents derived added-work rows from being counted again. Empty derived rows produce zero support values when no override is present. These semantics should remain unchanged until a category migration defines how explicit legacy buckets map to the two canonical execution categories.
+The single resolver prevents added-work rows from being counted again through a second quantitative path. Empty categories produce explicit zero support values, and the two canonical execution categories remain independently observable.
 
 ## Required migration decision
 

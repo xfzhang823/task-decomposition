@@ -16,7 +16,7 @@ The verified canonical flow is:
           ↓
     TransformationDecompositionResult
 
-decompose_task() generates and validates operational subtasks and establishes explicit baseline allocations when effort or weights are supplied. decompose_transformation() consumes an existing frozen TaskDecomposition, performs RETAIN/REMOVE and added-work stages, and invokes run_staged_pipeline(). domain/accounting.py remains the mathematical authority. decompose() composes the two canonical operations and contains no parallel accounting or decomposition implementation.
+decompose_task() generates and validates operational subtasks and establishes explicit baseline allocations when effort or weights are supplied. decompose_transformation() consumes an existing frozen TaskDecomposition, performs RETAIN/REMOVE and added-work stages, and performs the internal validated accounting handoff. domain/accounting.py remains the mathematical authority. decompose() composes the two canonical operations and contains no parallel accounting or decomposition implementation.
 
 ## Ownership boundaries
 
@@ -24,7 +24,7 @@ Production ownership is limited to task decomposition, baseline effort allocatio
 
 ## Public API
 
-The primary application surface is decompose_task, decompose_transformation, and decompose, with TaskDecompositionRequest, TransformationDecompositionRequest, TaskDecomposition, and TransformationDecompositionResult. Direct accounting functions, allocation helpers, validation functions, ports, and canonical contracts remain exported because they have concrete deterministic, host-integration, or testing use cases. No runtime legacy request or compatibility-provider symbol is exported.
+The primary application surface is decompose_task, decompose_transformation, and decompose, with TaskDecompositionRequest, TransformationDecompositionRequest, TaskDecomposition, and TransformationDecompositionResult. Direct accounting functions, allocation helpers, validation functions, interfaces, and canonical contracts remain exported because they have concrete deterministic, host-integration, or testing use cases. No runtime legacy request or compatibility-provider symbol is exported.
 
 ## Legacy-removal result
 
@@ -46,7 +46,7 @@ benchmarks/processes.json contains the 11-case corpus, benchmarks/run_live.py is
 
 ## Documentation consistency
 
-README.md, AGENTS.md, docs/DECOMPOSITION_MODEL.md, and docs/ACCOUNTING_MODEL.md agree with the implementation on the two application capabilities, frozen baseline ownership, transformation context, provider trust boundaries, public APIs, effort semantics, equations, units, support bases, tolerances, edge behavior, and testing status. Prior audit documents retain historical snapshots and explicitly identify removed compatibility structures where applicable.
+README.md, AGENTS.md, docs/reference/DECOMPOSITION_MODEL.md, and docs/reference/ACCOUNTING_MODEL.md agree with the implementation on the two application capabilities, frozen baseline ownership, transformation context, provider trust boundaries, public APIs, effort semantics, equations, units, support bases, tolerances, edge behavior, and testing status. Prior audit documents retain historical snapshots and explicitly identify removed compatibility structures where applicable.
 
 ## Repository hygiene
 

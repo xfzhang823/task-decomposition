@@ -1,4 +1,4 @@
-"""Provider protocol with no vendor, host, transport, or persistence types."""
+"""Provider protocols with no vendor, host, transport, or persistence types."""
 
 from typing import Protocol, runtime_checkable
 
@@ -46,9 +46,7 @@ class TransformationDecompositionProvider(Protocol):
 class DecompositionProvider(
     TaskDecompositionProvider, TransformationDecompositionProvider, Protocol
 ):
-    """Composite compatibility port implemented by concrete providers."""
-
-    pass
+    """Combined provider capability required by the convenience composition API."""
 
 
 __all__ = [

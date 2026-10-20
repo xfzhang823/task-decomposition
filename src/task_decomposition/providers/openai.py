@@ -34,6 +34,7 @@ from task_decomposition.providers._semantic import (
     semantic_payload,
 )
 from task_decomposition.providers._shared import (
+    raise_provider_failure,
     request_metadata,
     stage_output_tokens,
     stage_payload,
@@ -58,6 +59,7 @@ def _semantic_parse_diagnostics(exc: BaseException) -> dict[str, Any]:
     severities: set[str] = set()
 
     def inspect(value: Any) -> None:
+        """Collect decision/severity strings from nested validator error entries."""
         if isinstance(value, Mapping):
             decision = value.get("decision")
             if isinstance(decision, str):
@@ -150,7 +152,6 @@ def _provider_text_format(stage, schema):
         item = definitions["AddedWorkItem"]
         compact_item_fields = {
             "description",
-            "amount",
             "depends_on_subtask_ids",
             "sequence_index",
             "provenance_refs",
@@ -193,17 +194,11 @@ def _canonicalize_transformation_values(stage, payload):
             effort = subtask.get("effort")
             if isinstance(effort, dict) and effort.get("value") is not None:
                 effort["value"] = Decimal(str(effort["value"]))
-    elif stage is ProviderStage.ADDED_WORK_CLASSIFICATION:
-        for row in payload.get("added_work_rows", ()):
-            if not isinstance(row, dict):
-                continue
-            amount = row.get("amount")
-            if isinstance(amount, dict) and amount.get("value") is not None:
-                amount["value"] = Decimal(str(amount["value"]))
     return payload
 
 
 def _response_detail(value, key):
+    """Read one field from a dict-or-object response detail."""
     if value is None:
         return None
     if isinstance(value, dict):
@@ -212,6 +207,7 @@ def _response_detail(value, key):
 
 
 def _response_refusal(response):
+    """Return the first refusal message in a Responses API result, if any."""
     for output in getattr(response, "output", ()) or ():
         for content in getattr(output, "content", ()) or ():
             if getattr(content, "type", None) == "refusal":
@@ -232,9 +228,11 @@ class OpenAIProviderConfig:
     stage_output_tokens: Mapping[str | ProviderStage, int] | None = None
 
     def __post_init__(self):
+        """Validate stage-scoped output-token overrides."""
         validate_stage_output_tokens(self.stage_output_tokens)
 
     def output_tokens_for(self, stage: str) -> int | None:
+        """Resolve the output-token cap for one stage."""
         return stage_output_tokens(
             self.stage_output_tokens, stage, self.max_output_tokens
         )
@@ -252,6 +250,7 @@ class OpenAIDecompositionProvider:
     def __init__(
         self, config: OpenAIProviderConfig | None = None, *, client=None, tracer=None
     ):
+        """Store config; use an injected client and tracer when provided."""
         self.config = config or OpenAIProviderConfig()
         self._client = client if client is not None else self._build_client()
         self.tracer = tracer or TraceLogger.from_env()
@@ -263,6 +262,7 @@ class OpenAIDecompositionProvider:
             return self._evaluate_inner(request)
 
     def _evaluate_inner(self, request: SemanticEvaluationRequest):
+        """Run the evaluation request and normalize structured-output failures."""
         payload = semantic_payload(request)
         messages = [
             {"role": "system", "content": SEMANTIC_EVALUATION_PROMPT},
@@ -344,6 +344,7 @@ class OpenAIDecompositionProvider:
     def generate_operational_decomposition(
         self, request: OperationalDecompositionRequest
     ) -> ProviderStageResponse:
+        """Propose operational subtasks for a task."""
         payload = stage_payload(request)
         request_id, references = request_metadata(request)
         return self._structured_stage(
@@ -358,6 +359,7 @@ class OpenAIDecompositionProvider:
     def repair_operational_decomposition(
         self, request, *, rejected_response, validation_errors
     ):
+        """Re-propose operational subtasks after a semantic validation failure."""
         payload = stage_payload(request)
         payload["rejected_structured_output"] = rejected_response.payload.model_dump(
             mode="json"
@@ -376,6 +378,7 @@ class OpenAIDecompositionProvider:
     def classify_retain_remove(
         self, request: RetainRemoveClassificationRequest
     ) -> ProviderStageResponse:
+        """Classify baseline subtasks as RETAIN or REMOVE."""
         payload = stage_payload(request)
         request_id, references = request_metadata(request)
         return self._structured_stage(
@@ -390,6 +393,7 @@ class OpenAIDecompositionProvider:
     def classify_added_work(
         self, request: AddedWorkClassificationRequest
     ) -> ProviderStageResponse:
+        """Propose added/support work caused by REMOVE subtasks."""
         payload = stage_payload(request)
         request_id, references = request_metadata(request)
         return self._structured_stage(
@@ -411,6 +415,7 @@ class OpenAIDecompositionProvider:
         payload: dict[str, Any],
         schema,
     ) -> ProviderStageResponse:
+        """Run one structured stage and attach provenance to the parsed payload."""
         with self.tracer.session(request_id):
             parsed = self._parse_structured(
                 stage=stage,
@@ -431,6 +436,7 @@ class OpenAIDecompositionProvider:
         )
 
     def _parse_structured(self, *, stage, prompt, payload, schema):
+        """Call the Responses API, then validate status, JSON, and schema."""
         messages = [
             {"role": "system", "content": prompt},
             {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
@@ -477,7 +483,7 @@ class OpenAIDecompositionProvider:
                 result="failure",
                 errors=(str(exc),),
             )
-            self._raise_openai_failure(stage, exc)
+            raise_provider_failure("OpenAI", stage, exc)
         self.tracer.response(
             invocation,
             raw=response,
@@ -587,6 +593,7 @@ class OpenAIDecompositionProvider:
             ) from exc
 
     def _build_client(self):
+        """Build the OpenAI SDK client or raise a configuration error."""
         try:
             from openai import OpenAI
         except ImportError as exc:
@@ -610,19 +617,8 @@ class OpenAIDecompositionProvider:
             ) from exc
 
     @staticmethod
-    def _raise_openai_failure(stage, exc):
-        stage_name = stage.value if hasattr(stage, "value") else stage
-        name = type(exc).__name__.lower()
-        if "auth" in name or "permission" in name:
-            raise ProviderAuthenticationError(
-                f"OpenAI authentication failed during {stage_name}"
-            ) from exc
-        raise ProviderExecutionError(
-            f"OpenAI request failed during {stage_name} ({type(exc).__name__})"
-        ) from exc
-
-    @staticmethod
     def _raise_openai_evaluation_failure(stage, exc):
+        """Map an SDK exception onto the provider error taxonomy."""
         stage_name = stage.value if hasattr(stage, "value") else stage
         name = type(exc).__name__.lower()
         if "auth" in name or "permission" in name:

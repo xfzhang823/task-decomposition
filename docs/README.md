@@ -7,6 +7,14 @@ This directory separates current reference material, active topic work, historic
 - [Decomposition model](reference/DECOMPOSITION_MODEL.md) — task and transformation capabilities, contracts, and ownership boundaries.
 - [Accounting model](reference/ACCOUNTING_MODEL.md) — W0/W1 equations, effort bases, units, tolerances, and edge behavior.
 - [Final verification](verification/FINAL_VERIFICATION.md) — repository-wide verification status and accepted limitations.
+- [Canonicalization final verification](verification/CANONICALIZATION_FINAL.md) — completion status for the interfaces migration and Phases 1–4 cleanup.
+
+## Audits
+
+- [Architecture audit](audits/architecture-audit.md) — current package ownership, execution flow, boundaries, findings, and incremental roadmap.
+- [Canonicalization audit](audits/canonicalization-audit.md) — legacy paths, duplication, ownership, and dependency-aware deletion plan.
+- [Downstream consumer audit](audits/downstream-consumer-audit.md) — accessible
+  consumer usage and required public-API migrations after Phase 3.
 
 ## Active topic documentation
 

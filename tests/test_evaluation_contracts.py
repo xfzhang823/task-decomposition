@@ -15,13 +15,13 @@ from task_decomposition.evaluation import (
     SemanticEvaluation,
     SemanticEvaluationDecision,
     SemanticEvaluationRequest,
-    SemanticEvaluator,
     SemanticEvaluatorProvenance,
     SemanticFinding,
     SemanticFindingCategory,
     SemanticFindingCode,
     SemanticFindingSeverity,
 )
+from task_decomposition.interfaces import SemanticEvaluator
 
 
 def operational_decomposition():

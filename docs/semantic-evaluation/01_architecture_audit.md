@@ -86,7 +86,7 @@ This target architecture is approved but has not yet been implemented.
 
 ### Provider and tracing boundaries
 
-The provider protocol currently requires only `provider_id` and `generate_operational_decomposition` for task decomposition (`src/task_decomposition/ports/provider.py:14-24`). The repair hook is discovered dynamically with `getattr` by the application, so adding it as a required protocol method would break custom providers.
+The provider protocol currently requires only `provider_id` and `generate_operational_decomposition` for task decomposition (`src/task_decomposition/interfaces/provider.py:14-24`). The repair hook is discovered dynamically with `getattr` by the application, so adding it as a required protocol method would break custom providers.
 
 OpenAI uses `responses.parse()` in its structured-stage implementation (`src/task_decomposition/providers/openai.py`). DeepSeek uses an OpenAI-compatible chat-completions call and JSON parsing; Gemini uses `generate_content` with a JSON schema. Their adapters have provider-specific transport code but share application-stage and tracing conventions.
 
@@ -105,7 +105,7 @@ OpenAI uses `responses.parse()` in its structured-stage implementation (`src/tas
 | Lexical semantic rules | `validation/semantic.py` | forbidden phrases, verb allowlist, abstract-label patterns, `operational_subtask_semantic_errors` (`:12-138`) |
 | Pydantic domain contracts | `contracts/stages.py` | `OperationalSubtask` (`:26-37`), `OperationalDecomposition` (`:40-46`), result contracts (`:75-94`) |
 | Provider request/response contracts | `contracts/provider.py` | request models and `ProviderStageResponse` (`:25-90`) |
-| Provider capability protocols | `ports/provider.py` | task and transformation provider protocols (`:14-50`) |
+| Provider capability protocols | `interfaces/provider.py` | task and transformation provider protocols (`:14-50`) |
 | Provider prompts | `providers/prompts.py` | operational and repair prompts (`:3-37`) |
 | Provider structured transport | `providers/openai.py`, `deepseek.py`, `gemini.py` | provider SDK calls, parsing, repair hooks |
 | Error mapping and repair diagnostics | `errors.py` | `ProviderSemanticValidationError` (`:85-104`) |
@@ -232,21 +232,22 @@ This boundary applies only to the operational decomposition stage. Retain/remove
 
 ### Minimal package shape
 
-Add a provider-independent `evaluation/` package in a later implementation phase, for example:
+The provider-independent evaluation package is organized as:
 
 ```text
 src/task_decomposition/evaluation/
   __init__.py
   contracts.py
   rubric.py
-  ports.py
+src/task_decomposition/interfaces/
+  semantic_evaluator.py
 ```
 
 Proposed responsibilities:
 
 - `contracts.py`: Pydantic contracts for an evaluation request, a finding, and an evaluation result.
 - `rubric.py`: versioned prose rubric and explicit examples; it should not be another operational-verb allowlist.
-- `ports.py`: a small evaluator capability protocol, independent of OpenAI, DeepSeek, or Gemini transport.
+- `interfaces/semantic_evaluator.py`: a small evaluator capability protocol, independent of OpenAI, DeepSeek, or Gemini transport.
 
 The approved contract shape is:
 
@@ -334,7 +335,7 @@ Tracing remains opt-in, credentials remain redacted, and prompts/responses must 
 
 ## 10. Compatibility risks
 
-1. **Provider protocol changes.** Adding evaluator methods to `TaskDecompositionProvider` would break custom implementations and test doubles. Prefer an optional capability or separate evaluator port.
+1. **Provider protocol changes.** Adding evaluator methods to `TaskDecompositionProvider` would break custom implementations and test doubles. The separate `SemanticEvaluator` interface remains the canonical capability.
 2. **Intentional public behavior change.** Callers may directly use `validate_operational_decomposition` or `operational_subtask_semantic_errors`. Removing lexical checks changes behavior: structural validation remains deterministic, while contextual semantic acceptance/rejection moves to `SemanticEvaluator`. This is intentional; no legacy keyword mode is retained. Public API migration details remain to be decided.
 3. **Error types and payloads.** Existing callers may inspect `ProviderSemanticValidationError` attributes. Add evaluator diagnostics compatibly or preserve the existing attributes while adding structured findings.
 4. **Stage identifiers and tracing.** Adding evaluator stages may affect `ProviderStage` enums, trace filters, snapshots, and consumers of provenance.

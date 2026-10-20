@@ -4,7 +4,7 @@
 
 ## Quantities
 
-`retained_human_work` is baseline work still performed by humans after the transformation. `gross_removed_work` is baseline work classified as removed. `added_human_work` is new human work introduced by the transformation and is the sum of governance, operational/review/support, and lifecycle/maintenance contributions.
+`retained_human_work` is baseline work still performed by humans after the transformation. `gross_removed_work` is baseline work classified as removed. `added_human_work` is new human work introduced by the transformation and is the sum of the `AI_INTERACTION` and `AI_VERIFICATION` support contributions. Either category may be zero, including when no added-work rows are returned.
 
 The baseline and post-transformation work are:
 
@@ -50,7 +50,7 @@ Full removal with zero added work produces `W1 = 0`, so the augmentation multipl
 
 ## Accounting handoff
 
-`TaskDecomposition` stores baseline effort allocations by stable subtask ID. Transformation decomposition applies the appropriate absolute effort or normalized weight to validated RETAIN/REMOVE rows, validates the result, and calls `run_staged_pipeline()`. Added-work rows are aggregated by canonical category before the domain accounting call. Added work is not baseline work and removed work is not counted again.
+`TaskDecomposition` stores baseline effort allocations by stable subtask ID. Transformation decomposition applies the appropriate absolute effort or normalized weight to validated RETAIN/REMOVE rows, validates the result, and performs the internal accounting handoff. Added-work support is resolved by the application estimator before the domain accounting call. Added work is not baseline work and removed work is not counted again.
 
 ## Verification
 

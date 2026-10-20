@@ -161,7 +161,6 @@ def test_provider_driven_normalized_case_uses_same_staged_semantics():
 
 
 def test_provider_driven_degradation_remains_unclamped():
-    # Replace the three support values while retaining their explicit basis.
     def amount(value):
         return SupportWorkInput(
             value=value,
@@ -170,14 +169,6 @@ def test_provider_driven_degradation_remains_unclamped():
             time_basis=TimeBasis.PER_OPERATION,
         )
 
-    added = make_added().model_copy(
-        update={
-            "added_work_rows": tuple(
-                row.model_copy(update={"amount": amount(value)})
-                for row, value in zip(make_added().added_work_rows, (10, 10, 5))
-            )
-        }
-    )
     accounting = make_absolute_accounting().model_copy(
         update={
             "retained_human_work": make_absolute_accounting().retained_human_work.model_copy(
@@ -193,7 +184,7 @@ def test_provider_driven_degradation_remains_unclamped():
         }
     )
     provider = FakeProvider(
-        classification=make_classification(with_effort=False), added=added
+        classification=make_classification(with_effort=False), added=make_added()
     )
     result = run_decompose(
         request().model_copy(update={"baseline_effort": None, "effort_weights": None}),
@@ -262,16 +253,8 @@ def test_provider_failure_is_wrapped_without_vendor_exception_leak():
     assert provider.calls == ["operational"]
 
 
-def test_explicit_accounting_support_is_not_replaced_by_provider_amounts():
-    added = make_added().model_copy(
-        update={
-            "added_work_rows": tuple(
-                item.model_copy(update={"amount": None})
-                for item in make_added().added_work_rows
-            )
-        }
-    )
-    provider = FakeProvider(added=added)
+def test_explicit_accounting_support_is_passed_to_canonical_handoff():
+    provider = FakeProvider(added=make_added())
     result = run_decompose(request(), provider)
     assert result.accounting.w1 == Decimal(74)
     assert provider.calls == ["operational", "classification", "added"]

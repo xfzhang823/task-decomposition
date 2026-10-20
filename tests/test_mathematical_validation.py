@@ -6,9 +6,9 @@ from pydantic import ValidationError
 from task_decomposition import (
     AbsoluteEffortInput,
     AccountingInvariantError,
+    EffectClassification,
     EffortQuantity,
     EffortUnit,
-    EffectClassification,
     IncompatibleEffortUnitError,
     InvalidDenominatorError,
     NormalizedAccountingInput,
@@ -18,18 +18,17 @@ from task_decomposition import (
     TimeBasis,
     account_absolute,
     account_normalized,
-    classify_effect,
     aggregate_baseline_rows,
     allocate_effort,
-    run_staged_pipeline,
+    classify_effect,
 )
+from task_decomposition.application.staged_pipeline import _run_staged_pipeline
 from task_decomposition.contracts.decomposition import (
     TransformationClassification,
     TransformationRow,
 )
 from task_decomposition.contracts.stages import AddedWorkCategory, AddedWorkItem
 from task_decomposition.errors import ZeroBaselineError
-
 
 UNIT = EffortUnit.EFFORT
 PER_OPERATION = TimeBasis.PER_OPERATION
@@ -309,26 +308,30 @@ def test_allocation_handoff_preserves_retain_remove_totals(removed_ids, expected
 
 def test_staged_pipeline_matches_direct_accounting_for_absolute_and_normalized_inputs():
     from test_staged_pipeline import (
-        make_added,
         make_absolute_accounting,
+        make_added,
         make_classification,
         make_normalized_accounting,
         make_operational,
     )
 
-    absolute_staged = run_staged_pipeline(
+    absolute_staged = _run_staged_pipeline(
         make_operational(),
         make_classification(),
         make_added(),
         make_absolute_accounting(),
-    ).accounting
+        support_work=support_inputs((8, 6), RatioBasis.ABSOLUTE_EFFORT),
+    )
     absolute_direct = account_absolute(absolute_input("100", "60", "40", (8, 6)))
-    normalized_staged = run_staged_pipeline(
+    normalized_staged = _run_staged_pipeline(
         make_operational(),
         make_classification(with_effort=False),
         make_added(normalized=True),
         make_normalized_accounting(),
-    ).accounting
+        support_work=support_inputs(
+            ("0.08", "0.06"), RatioBasis.NORMALIZED_CONTRIBUTION
+        ),
+    )
     normalized_direct = account_normalized(
         normalized_input("0.60", "0.40", ("0.08", "0.06"))
     )
@@ -346,8 +349,8 @@ def test_staged_pipeline_matches_direct_accounting_for_absolute_and_normalized_i
 
 def test_multiple_added_work_items_aggregate_by_category_without_double_counting():
     from test_staged_pipeline import (
-        make_added,
         make_absolute_accounting,
+        make_added,
         make_classification,
         make_operational,
     )
@@ -362,7 +365,7 @@ def test_multiple_added_work_items_aggregate_by_category_without_double_counting
                     work_id="work-gov-2",
                     workload_name="Review additional samples",
                     category=AddedWorkCategory.AI_VERIFICATION,
-                    amount=absolute_amount(1),
+                    source_removed_subtask_ids=("sub-2",),
                     sequence_index=2,
                 ),
                 rows[1].model_copy(update={"sequence_index": 3}),
@@ -370,9 +373,13 @@ def test_multiple_added_work_items_aggregate_by_category_without_double_counting
             )
         }
     )
-    result = run_staged_pipeline(
-        make_operational(), make_classification(), added, make_absolute_accounting()
-    ).accounting
+    result = _run_staged_pipeline(
+        make_operational(),
+        make_classification(),
+        added,
+        make_absolute_accounting(),
+        support_work=support_inputs((8, 7), RatioBasis.ABSOLUTE_EFFORT),
+    )
 
     assert result.ai_interaction_work.value == Decimal("8")
     assert result.ai_verification_work.value == Decimal("7")

@@ -74,7 +74,7 @@ The existing opt-in JSONL tracer records generation, structural validation, sema
 - Full pytest: **176 passed, 6 skipped**.
 - Changed-file Ruff checks: **passed**.
 - Repository-wide `ruff format --check src tests`: **passed**; 61 files already formatted.
-- Repository-wide `ruff check src tests`: **34 pre-existing diagnostics remain**, concentrated in unrelated import ordering, style, and typing rules in contracts/domain/ports/benchmark files. No diagnostics remain in the migration implementation or updated migration tests.
+- Repository-wide `ruff check src tests`: **34 pre-existing diagnostics remain**, concentrated in unrelated import ordering, style, and typing rules in contracts/domain/interfaces/benchmark files. No diagnostics remain in the migration implementation or updated migration tests.
 - `PYTHONPYCACHEPREFIX=/tmp/task-decomp-pyc python -m compileall -q src`: **passed**.
 - Import check for core plus all three provider adapters: **passed**.
 - `git diff --check`: **passed**.

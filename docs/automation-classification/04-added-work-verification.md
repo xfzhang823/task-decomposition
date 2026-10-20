@@ -36,25 +36,25 @@ This is an audit-only verification. No production code, prompt, schema, validato
    - Status: Implemented.
    - Evidence: Validation enforces task identity, unique work IDs, known subtask dependencies, and all-or-none sequence indexes (`src/task_decomposition/validation/stages.py:120-136`). It does not require a row for every REMOVE label, which is correct for the taxonomy.
 
-8. **Nonempty rows with missing amounts are handled explicitly**
-   - Status: Partial by design.
-   - Evidence: `AddedWorkItem.amount` is optional at the provider boundary (`src/task_decomposition/contracts/stages.py:151-158`). When rows are converted into derived support inputs, a missing amount raises `MissingAccountingInputError` rather than defaulting to zero (`src/task_decomposition/application/staged_pipeline.py:189-198`); this is covered by `tests/test_staged_pipeline.py:340-355`. In the canonical transformation path, explicit host support inputs are passed as an override and therefore take precedence over provider row amounts (`src/task_decomposition/application/transformation_decomposition.py:67-72`).
+8. **Nonempty rows with missing estimates are handled explicitly**
+   - Status: Implemented.
+   - Evidence: added-work rows carry semantic evidence and optional estimates, not accounting amounts. `resolve_support_work()` rejects a non-empty estimate-mode category without a computable estimate; host mode uses the caller’s concrete support input.
 
-9. **Explicit zero is distinct from an omitted amount**
+9. **Explicit zero is distinct from an omitted estimate**
    - Status: Implemented for accounting conversion; Partial for provider semantics.
-   - Evidence: An empty category is converted to an explicit zero with the accounting input's compatible unit/time basis (`src/task_decomposition/application/staged_pipeline.py:222-234`). A row with `amount=None` is not itself a quantified zero, but the provider contract intentionally leaves amounts unset unless the caller supplies explicit accounting inputs (`src/task_decomposition/providers/prompts.py:77`).
+   - Evidence: An empty category is converted by the canonical resolver to an explicit zero with the accounting input’s compatible unit/time basis. A missing estimate in estimate mode is an error, not an implicit zero.
 
 10. **Support units, time bases, and ratio bases are preserved**
     - Status: Implemented.
-    - Evidence: Absolute support requires unit and time basis; normalized and ratio bases reject those metadata (`src/task_decomposition/contracts/effort.py:62-96`). Category aggregation rejects incompatible bases or absolute units/time bases (`src/task_decomposition/application/staged_pipeline.py:222-250`).
+    - Evidence: Absolute support requires unit and time basis; normalized and ratio bases reject those metadata (`src/task_decomposition/contracts/effort.py:62-96`). The canonical resolver preserves those units and bases.
 
 11. **Explicit accounting inputs have defined precedence**
     - Status: Implemented.
-    - Evidence: `run_staged_pipeline()` uses `support_work_override` when supplied and otherwise derives support from added rows (`src/task_decomposition/application/staged_pipeline.py:46-63`). Transformation orchestration always passes `request.accounting_input.support_work` as that override (`src/task_decomposition/application/transformation_decomposition.py:67-72`). Existing tests verify provider amounts do not replace explicit accounting support (`tests/test_provider_application.py:265-277`).
+    - Evidence: the internal accounting handoff requires already-resolved `support_work`; transformation orchestration obtains it from `resolve_support_work()` before the handoff. Host/estimate/auto precedence is tested at the resolver boundary.
 
 12. **Added work is aggregated without double counting**
     - Status: Implemented.
-    - Evidence: Rows are grouped independently by `AI_INTERACTION` and `AI_VERIFICATION`, then summed once per category (`src/task_decomposition/application/staged_pipeline.py:189-219,222-250`). Accounting sums the two converted support values into `added_human_work` and computes W1 as retained work plus added work (`src/task_decomposition/domain/accounting.py:109-144,180-212`). Tests cover category aggregation and total-effort parity (`tests/test_mathematical_validation.py:347-380`).
+    - Evidence: `resolve_support_work()` aggregates each category once, and accounting sums the two resolved support values into `added_human_work` and computes W1 as retained work plus added work. Tests cover category aggregation and total-effort parity.
 
 13. **Accounting formulas are deterministic and provider-independent**
     - Status: Implemented.
@@ -78,14 +78,14 @@ TaskDecomposition
   -> apply frozen baseline allocations
   -> added-work provider stage receives prior classification
   -> added-work structural and cross-stage validation
-  -> explicit support-work override, or row-derived support conversion
+  -> resolved host/estimate/auto support inputs
   -> deterministic absolute or normalized accounting
   -> TransformationDecompositionResult
 ```
 
-`stage_payload()` sends the task, transformation context, operational decomposition, and—only for added work—the prior RETAIN/REMOVE classification (`src/task_decomposition/providers/_shared.py:55-84`). It does not send accounting input. This keeps providers from supplying authoritative W0/W1 metrics, but it also means the added-work provider cannot quantify amounts from the host accounting contract. The prompt therefore correctly says to leave amounts unset unless explicit inputs are supplied (`src/task_decomposition/providers/prompts.py:77`).
+`stage_payload()` sends the task, transformation context, operational decomposition, and—only for added work—the prior RETAIN/REMOVE classification (`src/task_decomposition/providers/_shared.py:55-84`). It does not send accounting input. This keeps providers from supplying authoritative W0/W1 metrics; the prompt returns semantic evidence and estimates, while Python resolves all accounting values.
 
-The canonical transformation path passes explicit support inputs into `run_staged_pipeline()` as an override (`src/task_decomposition/application/transformation_decomposition.py:67-72`). Consequently, provider rows describe semantic added work, while host accounting inputs determine the support quantities in the final result. If the override is absent, row amounts are aggregated by category; a nonempty row without an amount fails, and an empty category becomes an explicit zero with a compatible basis.
+The canonical transformation path resolves support inputs once and passes the concrete result into the internal accounting handoff. Provider rows describe semantic added work; host or estimate mode determines support quantities before deterministic accounting. Empty categories remain explicit zero values with compatible units.
 
 The accounting domain preserves the established bases. Normalized contribution and baseline-relative support values remain baseline-relative; gross-removed-work ratios are multiplied by gross removed work only once; absolute support is divided by W0 for normalized outputs and requires matching absolute units/time bases (`src/task_decomposition/domain/accounting.py:47-82`). W1 is retained work plus AI interaction plus AI verification, with no provider arithmetic.
 
@@ -99,7 +99,7 @@ The prompt provides the correct taxonomy distinctions for a provider judgment:
 - occasional exceptions are included only when they create genuinely new execution-time human intervention or verification;
 - system design, deployment, maintenance, and passive waiting are excluded.
 
-The contract cannot independently determine whether a described activity is genuinely new. It accepts provider semantic facts and validates structure. An empty list is therefore ambiguous between “no new human work is required” and “the provider did not identify any,” but that ambiguity is not an accounting defect and does not justify forcing nonzero overhead. A nonempty row with no amount is a different state: it identifies work but is unquantified. Direct derived accounting rejects it; canonical explicit accounting can proceed using the host-supplied support values.
+The contract cannot independently determine whether a described activity is genuinely new. It accepts provider semantic facts and validates structure. An empty list is therefore ambiguous between “no new human work is required” and “the provider did not identify any,” but that ambiguity is not an accounting defect and does not justify forcing nonzero overhead. In estimate mode, a nonempty row without a computable estimate fails explicitly; host mode can proceed using caller-supplied support values.
 
 ## Production Scheduling trace
 
@@ -107,9 +107,9 @@ The available trace is `logs/llm/task_decomposition_2026-10-17_014615.jsonl`, co
 
 The trace supplies no evidence that new AI interaction or verification was required, but it also cannot prove that none was required. It shows a structurally valid provider conclusion under a prompt that explicitly permits an empty result and prohibits inventing work. The existence of one REMOVE label is not sufficient evidence of added human work.
 
-The trace does not contain the host-side `AbsoluteEffortInput` or `NormalizedAccountingInput`, a support override, a final accounting event, or a final accounting result. Therefore the reported zero interaction and verification effort is consistent with the provider response and with explicit zero support inputs, but is not verified by this trace as a complete accounting handoff. No additional human activity should be inferred from the trace alone.
+The trace does not contain the host-side `AbsoluteEffortInput` or `NormalizedAccountingInput`, resolved support inputs, a final accounting event, or a final accounting result. Therefore the empty provider result is not enough to reconstruct the final accounting handoff. No additional human activity should be inferred from the trace alone.
 
-Additional diagnostic evidence would materially improve confidence only if it records the host accounting mode/input, whether support override was used, and the final deterministic accounting output. The provider response itself does not need to be changed to make the empty result valid.
+Additional diagnostic evidence would materially improve confidence only if it records the host accounting mode/input, selected support source, and final deterministic accounting output. The provider response itself does not need to be changed to make the empty result valid.
 
 ## Existing regression coverage
 
@@ -121,14 +121,14 @@ Existing coverage verifies:
 - empty added-work output and complete root fields (`tests/test_added_work_taxonomy.py:76-91`);
 - separation from baseline RETAIN/REMOVE rows (`tests/test_added_work_taxonomy.py:118-135`);
 - prompt exclusions and category meanings (`tests/test_added_work_taxonomy.py:138-150`);
-- missing row amounts, incompatible bases, and partial classification effort (`tests/test_staged_pipeline.py:340-405`);
-- explicit accounting precedence over provider amounts (`tests/test_provider_application.py:265-277`);
+- resolved support handoff and partial classification effort (`tests/test_staged_pipeline.py`);
+- explicit host support precedence (`tests/test_provider_application.py`);
 - absolute and normalized accounting, zero added work, scale equivalence, and monotonicity (`tests/test_mathematical_validation.py:123-216`);
 - category aggregation without double counting (`tests/test_mathematical_validation.py:347-380`);
 - provider parity and cross-stage sequencing (`tests/test_provider_parity.py:99-138`; `tests/test_task_transformation_boundaries.py:232-280`);
 - trace capture of the provider-stage sequence (`tests/test_tracing.py:302-325`).
 
-Genuinely missing coverage is host-side trace reconciliation: no test currently asserts that the accounting input, support override/derived path, and final accounting result are emitted together in the execution trace. This is an observability gap, not evidence that the current accounting calculation is wrong. There is also no test that can distinguish a semantically omitted added-work row from a justified empty result without an external expected-work oracle; adding such a test would require a product policy or benchmark, not a structural validator.
+Genuinely missing coverage is host-side trace reconciliation: no test currently asserts that the accounting input, selected support source, and final accounting result are emitted together in the execution trace. This is an observability gap, not evidence that the current accounting calculation is wrong. There is also no test that can distinguish a semantically omitted added-work row from a justified empty result without an external expected-work oracle; adding such a test would require a product policy or benchmark, not a structural validator.
 
 ## Confirmed gaps ranked by severity
 
@@ -140,13 +140,13 @@ The named trace proves the provider's empty array and structural acceptance, but
 
 `added_work_rows: []` is a valid semantic result, but the contract has no confidence, rationale, or completeness signal. The current prompt's anti-invention rule makes this intentional. Resolving it would require a diagnostic or evaluation policy, not a new category or mandatory overhead assumption.
 
-### Low — provider row amounts are intentionally non-authoritative
+### Low — provider estimates are intentionally non-authoritative
 
-Rows may be identified without amounts, while host accounting supplies quantities. This is safe because derived accounting rejects missing amounts and canonical transformation explicitly documents host-input precedence. It can make a provider row's quantitative contribution invisible unless the host input and final result are traced together.
+Rows may be identified without computable estimates, while host accounting supplies quantities. Estimate mode fails explicitly when required values are missing; host/auto selection is recorded in resolver diagnostics.
 
 ## Minimal recommendations
 
-No production correction is justified. Preserve the existing taxonomy, prompt, contracts, validation, precedence, units, and formulas. If future incident reconstruction requires stronger evidence, consider a separate audit/trace enhancement that records redacted accounting mode, support-input basis, whether an explicit override was used, and final W0/W1 fields. That would be an observability design change and should not be implemented as an added-work semantic change.
+No production correction is justified. Preserve the existing taxonomy, prompt, contracts, validation, precedence, units, and formulas. If future incident reconstruction requires stronger evidence, consider a separate audit/trace enhancement that records redacted accounting mode, support-input basis, selected source, and final W0/W1 fields.
 
 Do not require nonzero interaction or verification, infer added work from REMOVE, reinterpret baseline oversight as added work, or use added work to compensate for coarse decomposition. Mixed-activity handling remains deferred under Phase 02 and is outside this verification.
 

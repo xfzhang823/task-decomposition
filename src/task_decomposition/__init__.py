@@ -4,7 +4,6 @@ from task_decomposition.application import (
     decompose,
     decompose_task,
     decompose_transformation,
-    run_staged_pipeline,
 )
 from task_decomposition.contracts import (
     AbsoluteEffortInput,
@@ -18,6 +17,9 @@ from task_decomposition.contracts import (
     CanonicalTransformationImpact,
     ClassifiedSubtask,
     EffectClassification,
+    EffortAllocation,
+    EffortAllocationRequest,
+    EffortAllocationResult,
     EffortQuantity,
     EffortUnit,
     EstimateRange,
@@ -33,7 +35,6 @@ from task_decomposition.contracts import (
     RatioBasis,
     RetainRemoveClassification,
     RetainRemoveClassificationRequest,
-    StagedDecompositionResult,
     SupportWorkInput,
     SupportWorkInputs,
     SupportWorkMode,
@@ -85,18 +86,15 @@ from task_decomposition.errors import (
 from task_decomposition.evaluation import (
     SemanticEvaluation,
     SemanticEvaluationDecision,
-    SemanticEvaluator,
     SemanticFinding,
     SemanticFindingCategory,
     SemanticFindingCode,
     SemanticFindingSeverity,
 )
-from task_decomposition.ports import (
+from task_decomposition.interfaces import (
     DecompositionProvider,
-    EffortAllocation,
-    EffortAllocationRequest,
-    EffortAllocationResult,
     EffortAllocator,
+    SemanticEvaluator,
     TaskDecompositionProvider,
     TransformationDecompositionProvider,
 )
@@ -169,7 +167,6 @@ __all__ = [
     "SemanticFindingSeverity",
     "StageDependencyError",
     "StageValidationError",
-    "StagedDecompositionResult",
     "SupportBasisConflictError",
     "SupportWorkInput",
     "SupportWorkInputs",
@@ -198,7 +195,6 @@ __all__ = [
     "decompose",
     "decompose_task",
     "decompose_transformation",
-    "run_staged_pipeline",
     "validate_added_work_classification",
     "validate_operational_decomposition",
     "validate_retain_remove_classification",

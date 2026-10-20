@@ -10,7 +10,7 @@ The package contains:
 
 - `contracts.py`: Pydantic request, finding, decision, severity, category, code, and optional provenance contracts.
 - `rubric.py`: versioned provider-neutral evaluation guidance.
-- `ports.py`: the provider-independent synchronous `SemanticEvaluator` protocol.
+- `interfaces/semantic_evaluator.py`: the provider-independent synchronous `SemanticEvaluator` protocol.
 - `__init__.py`: focused package exports.
 
 The later migration will remove keyword-based semantic acceptance and rejection entirely. The new rubric deliberately does not reproduce an operational-verb allowlist, abstract-label regexes, forbidden-phrase matching, or a numerical quality score.
@@ -101,7 +101,7 @@ The examples cover production scheduling, invoice review and approval decisions,
 
 ## 6. Evaluator protocol and ownership
 
-`SemanticEvaluator` in `evaluation/ports.py` is a synchronous runtime-checkable protocol:
+`SemanticEvaluator` in `interfaces/semantic_evaluator.py` is a synchronous runtime-checkable protocol:
 
 ```python
 evaluate(request: SemanticEvaluationRequest) -> SemanticEvaluation

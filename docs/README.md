@@ -13,6 +13,7 @@ This directory separates current reference material, active topic work, historic
 
 - [Architecture audit](audits/architecture-audit.md) — current package ownership, execution flow, boundaries, findings, and incremental roadmap.
 - [Canonicalization audit](audits/canonicalization-audit.md) — legacy paths, duplication, ownership, and dependency-aware deletion plan.
+- [Baseline effort weighting audit](audits/baseline-effort-weighting.md) — provider-generated baseline ratios, prompt semantics, validation, normalization, and interpretability limitations.
 - [Downstream consumer audit](audits/downstream-consumer-audit.md) — accessible
   consumer usage and required public-API migrations after Phase 3.
 

@@ -54,23 +54,23 @@ Load-bearing invariants:
 
 `decompose_task` runs only the first stage: a provider proposes operational subtasks, with no transformation context and no accounting. The result (`TaskDecomposition`) is the reusable input the transformation path consumes.
 
-Flow: check the provider implements `TaskDecompositionProvider` → `call_stage(OPERATIONAL_DECOMPOSITION)` → deterministic structural validation → `SemanticEvaluator` evaluation → bounded targeted repair through the provider's optional `repair_operational_decomposition` hook → structural revalidation and complete-decomposition re-evaluation → `_allocate_baseline`. Only an accepted decomposition reaches allocation; evaluator capability is provider-default or explicit via `decompose_task(..., evaluator=...)`.
+Flow: check the provider implements `TaskDecompositionProvider` → `call_stage(OPERATIONAL_DECOMPOSITION)` → deterministic structural validation → `SemanticEvaluator` evaluation → bounded targeted repair through the provider's optional `repair_operational_decomposition` hook → structural revalidation and complete-decomposition re-evaluation → deterministic normalization of provider weights in `_allocate_baseline`. Only an accepted decomposition reaches allocation; evaluator capability is provider-default or explicit via `decompose_task(..., evaluator=...)`.
 
-`_allocate_baseline` decides the baseline effort, in three cases:
+`_allocate_baseline` uses provider-generated positive
+`relative_effort_weight` values as the sole allocation source. The
+deterministic `allocate_effort` utility normalizes those weights against a
+synthetic `W0 = 1.0` parent, producing `BaselineEffortAllocation.weight_ratio`
+values. When measured `baseline_effort` is present, the same utility derives
+compatible absolute values. Baseline effort is optional; no user-supplied
+hours or alternate host-weight pathway is required.
 
-- **Allocator given** — requires explicit `baseline_effort`; the allocator must return exactly one allocation per subtask with a positive total. A missing `weight_ratio` is derived as effort / total.
-- **Neither weights nor baseline effort and no provider estimates** — returns no allocations (operational decomposition only).
-- **Weights given** — `effort_weights` must hold exactly one weight per subtask with a positive total; a `baseline_effort` without weights or an allocator is an error.
-
-Built-in provider outputs may also include positive, unnormalized
-`relative_effort_weight` values on each operational subtask. When host weights
-and an allocator are absent, the application normalizes those provider
-estimates into `BaselineEffortAllocation.weight_ratio` values that sum to one;
-supplied baseline effort is distributed using the same ratios. These rows are
-marked with `allocation_source="estimated"`, while host-supplied allocations
-remain marked `allocation_source="host"`.
-
-So baseline effort is optional, and the optional `EffortAllocator` interface is the plug for host-supplied allocation.
+These weights are ratio estimates of aggregate baseline human working-time
+shares; their absolute numeric scale is not meaningful because normalization
+removes it. The current application validates positivity and allocation
+invariants, but it does not validate the provider's estimation assumptions or
+effort plausibility. See the [decomposition model reference](../../../docs/reference/DECOMPOSITION_MODEL.md)
+and [baseline effort weighting audit](../../../docs/audits/baseline-effort-weighting.md)
+for the semantic boundary and evidence.
 
 ## `transformation_decomposition.py` — classify and account a reusable decomposition
 

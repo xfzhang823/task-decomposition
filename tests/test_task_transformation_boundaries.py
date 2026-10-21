@@ -75,12 +75,14 @@ def operational():
                 subtask_id="sub-1",
                 subtask_name="Receive account request",
                 description="Log the incoming customer request.",
+                relative_effort_weight=Decimal("0.30"),
             ),
             OperationalSubtask(
                 sequence_index=2,
                 subtask_id="sub-2",
                 subtask_name="Verify requester identity",
                 description="Confirm the requester is authorized.",
+                relative_effort_weight=Decimal("0.40"),
                 depends_on=("sub-1",),
             ),
             OperationalSubtask(
@@ -88,6 +90,7 @@ def operational():
                 subtask_id="sub-3",
                 subtask_name="Update account record",
                 description="Apply the approved account change.",
+                relative_effort_weight=Decimal("0.30"),
                 depends_on=("sub-2",),
             ),
         ),
@@ -201,11 +204,6 @@ def task_request():
         task=TASK,
         task_context={"domain": "customer_support"},
         baseline_effort=EffortQuantity(value=100, unit=UNIT, time_basis=TIME),
-        effort_weights={
-            "sub-1": Decimal("0.30"),
-            "sub-2": Decimal("0.40"),
-            "sub-3": Decimal("0.30"),
-        },
     )
 
 

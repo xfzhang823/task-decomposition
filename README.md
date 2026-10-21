@@ -16,7 +16,9 @@ decompose_transformation(...)
 TransformationDecompositionResult
 ```
 
-Task decomposition answers “What work exists?” It produces validated operational subtasks and explicit baseline effort allocation or weights.
+Task decomposition answers “What work exists?” It produces validated operational subtasks and deterministic normalized baseline allocations derived from provider weights.
+
+See the [decomposition model reference](docs/reference/DECOMPOSITION_MODEL.md) and the [baseline effort weighting audit](docs/audits/baseline-effort-weighting.md) for current weighting semantics and evidence.
 
 Transformation decomposition answers “What happens to that work under the specified transformation?” It consumes an existing `TaskDecomposition`, classifies subtasks as `RETAIN` or `REMOVE`, identifies added/support human work, and invokes deterministic canonical accounting.
 
@@ -24,7 +26,7 @@ Transformation decomposition answers “What happens to that work under the spec
 
 The supported application entry points are:
 
-- `decompose_task(request, provider, *, effort_allocator=None, evaluator=None)` for creating a reusable baseline.
+- `decompose_task(request, provider, *, evaluator=None)` for creating a reusable baseline.
 - `decompose_transformation(request, provider)` for evaluating a transformation against an existing baseline.
 - `decompose(request, provider, *, transformation_context, accounting_input)` for the complete two-step composition.
 
@@ -38,7 +40,7 @@ This repository does not own workflow execution, workflow throughput or capacity
 
 ## Task decomposition
 
-`decompose_task(request, provider, *, effort_allocator=None, evaluator=None)` accepts a `TaskDecompositionRequest` containing a `TaskReference`, optional task context, and optional baseline effort or effort weights. It asks a `TaskDecompositionProvider` for operational subtasks, validates the untrusted response, and returns a frozen `TaskDecomposition`.
+`decompose_task(request, provider, *, evaluator=None)` accepts a `TaskDecompositionRequest` containing a `TaskReference`, optional task context, and optional measured baseline effort. It asks a `TaskDecompositionProvider` for operational subtasks, validates the untrusted response, normalizes provider-generated relative effort weights to `W0 = 1.0`, and returns a frozen `TaskDecomposition`. Measured baseline effort is optional and only materializes compatible absolute allocations.
 
 The reusable baseline invariant is central: transformation decomposition consumes an existing task decomposition and does not regenerate its subtasks or re-estimate its baseline effort.
 
@@ -221,7 +223,7 @@ Reference-class estimates preserve low/typical/high ranges as metadata; typical 
 
 Pydantic contracts enforce field and value constraints. Stage validation enforces identity, cardinality, dependency, and effort invariants. Semantic validation rejects non-operational or meta-only provider output. Deterministic accounting then validates and computes the canonical impact.
 
-Hard validity is machine-checkable: schemas, identities, dependencies, allocations, accounting reconciliation, and derived identities must hold. Semantic quality is a separate human-review concern covering completeness, overlap, granularity, effort plausibility, transformation plausibility, and support-work plausibility.
+Hard validity is machine-checkable: schemas, identities, dependencies, allocations, accounting reconciliation, and derived identities must hold. Semantic quality is a separate review concern covering completeness, overlap, granularity, transformation plausibility, and support-work plausibility. Relative-effort proportions are validated structurally but are not currently subject to an explicit effort-plausibility rubric; see the [baseline effort weighting audit](docs/audits/baseline-effort-weighting.md).
 
 The `benchmarks/` corpus and review helpers support credential-free framework tests and opt-in live review. Ordinary tests do not require network access or provider credentials. S4B-2 did not execute live providers because no provider keys were configured, so live semantic quality remains deferred to manual evaluation.
 

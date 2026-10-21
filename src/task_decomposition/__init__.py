@@ -17,9 +17,6 @@ from task_decomposition.contracts import (
     CanonicalTransformationImpact,
     ClassifiedSubtask,
     EffectClassification,
-    EffortAllocation,
-    EffortAllocationRequest,
-    EffortAllocationResult,
     EffortQuantity,
     EffortUnit,
     EstimateRange,
@@ -93,7 +90,6 @@ from task_decomposition.evaluation import (
 )
 from task_decomposition.interfaces import (
     DecompositionProvider,
-    EffortAllocator,
     SemanticEvaluator,
     TaskDecompositionProvider,
     TransformationDecompositionProvider,
@@ -123,10 +119,6 @@ __all__ = [
     "ContractValidationError",
     "DecompositionProvider",
     "EffectClassification",
-    "EffortAllocation",
-    "EffortAllocationRequest",
-    "EffortAllocationResult",
-    "EffortAllocator",
     "EffortQuantity",
     "EffortUnit",
     "EstimateRange",

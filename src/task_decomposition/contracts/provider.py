@@ -1,6 +1,5 @@
 """Host-neutral requests and untrusted provider-stage response envelopes."""
 
-from decimal import Decimal
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -32,7 +31,6 @@ class TaskDecompositionRequest(BaseModel):
     task: TaskReference
     task_context: dict[str, str] = Field(default_factory=dict)
     baseline_effort: "EffortQuantity | None" = None
-    effort_weights: dict[str, Decimal] | None = None
     request_id: str | None = None
     provenance_refs: tuple[ProvenanceRef, ...] = ()
 

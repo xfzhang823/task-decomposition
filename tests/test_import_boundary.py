@@ -30,7 +30,6 @@ def test_interfaces_are_canonical_and_old_modules_are_absent():
     interfaces = importlib.import_module("task_decomposition.interfaces")
     assert hasattr(interfaces, "TaskDecompositionProvider")
     assert hasattr(interfaces, "TransformationDecompositionProvider")
-    assert hasattr(interfaces, "EffortAllocator")
     assert hasattr(interfaces, "SemanticEvaluator")
 
     with pytest.raises(ModuleNotFoundError):

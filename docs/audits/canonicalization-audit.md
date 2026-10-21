@@ -149,11 +149,9 @@ application/
   added_work_estimation.py       # only added-work resolver
   staged_pipeline.py             # concrete handoff, no alternate support path
 contracts/
-  allocation.py                  # allocation request/result schemas
   ...                            # one current contract per boundary
 interfaces/
   provider.py                    # provider protocols
-  effort_allocator.py            # allocator protocol
   semantic_evaluator.py          # evaluator protocol
 domain/
   accounting.py                  # only W0/W1 mathematics

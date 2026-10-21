@@ -90,11 +90,6 @@ def request():
         baseline_effort=EffortQuantity(
             value=100, unit=EffortUnit.EFFORT, time_basis=TimeBasis.PER_OPERATION
         ),
-        effort_weights={
-            "sub-1": Decimal("0.30"),
-            "sub-2": Decimal("0.40"),
-            "sub-3": Decimal("0.30"),
-        },
         request_id="request-1",
     )
 
@@ -187,7 +182,7 @@ def test_provider_driven_degradation_remains_unclamped():
         classification=make_classification(with_effort=False), added=make_added()
     )
     result = run_decompose(
-        request().model_copy(update={"baseline_effort": None, "effort_weights": None}),
+        request().model_copy(update={"baseline_effort": None}),
         provider,
         accounting,
     )

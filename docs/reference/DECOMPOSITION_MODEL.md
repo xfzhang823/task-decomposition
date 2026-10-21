@@ -2,9 +2,11 @@
 
 ## Task decomposition
 
-Task decomposition answers “What work exists?” Its canonical input is `TaskDecompositionRequest`, which contains a host-neutral `TaskReference`, `task_context`, and optional baseline effort and effort weights. It does not contain transformation context.
+Task decomposition answers “What work exists?” Its canonical input is `TaskDecompositionRequest`, which contains a host-neutral `TaskReference`, `task_context`, and optional measured baseline effort. It does not contain transformation context.
 
-`decompose_task(request, provider, effort_allocator=None, evaluator=None)` asks a `TaskDecompositionProvider` to propose operational subtasks. The application validates the provider response for contract shape, identity, ordering, and dependencies, then uses the configured LLM semantic evaluator for contextual operational judgment. It establishes baseline effort allocations only after evaluator acceptance.
+`decompose_task(request, provider, evaluator=None)` asks a `TaskDecompositionProvider` to propose operational subtasks. The application validates the provider response for contract shape, identity, ordering, and dependencies, then uses the configured LLM semantic evaluator for contextual operational judgment. After evaluator acceptance, provider-generated relative effort weights are normalized deterministically to `W0 = 1.0`; an optional measured baseline materializes absolute allocations using the same weights.
+
+Baseline `relative_effort_weight` values are provider-generated ratio estimates of each subtask's share of aggregate baseline human working time. Their overall numeric scale is arbitrary: normalization treats `12` as three times `4`. The current prompt mentions duration, frequency, workload volume, and occupational or benchmark estimates, but the contract does not require a formal scale, reference subtask, structured assumptions, or weight rationale. Structural validation requires positive weights when present and requires them to be consistently present or absent; it does not validate estimation plausibility. See the detailed [baseline effort weighting audit](../audits/baseline-effort-weighting.md) for the prompt, provider-message, parsing, validation, and normalization evidence.
 
 The result is a frozen `TaskDecomposition` containing `OperationalDecomposition`, `OperationalSubtask` rows, and `BaselineEffortAllocation` rows when supplied or allocated. Each baseline allocation is attached to a subtask by stable `subtask_id` and contains explicit absolute effort, normalized weight, or both as allowed by the contract.
 

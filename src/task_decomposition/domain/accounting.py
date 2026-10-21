@@ -1,4 +1,10 @@
-"""Deterministic canonical W0/W1 accounting."""
+"""Deterministic canonical W0/W1 accounting.
+
+The domain treats original human work and newly introduced support work as
+separate quantities.  For compatible absolute inputs, ``W0`` is the original
+baseline and must satisfy ``W0 = retained + gross_removed``.  ``W1`` is the
+post-transformation human effort and is ``retained + resolved_support``.
+"""
 
 from collections.abc import Iterable
 from decimal import Decimal
@@ -85,7 +91,13 @@ def _support_to_absolute(
 def classify_effect(
     w0: Decimal, w1: Decimal, tolerance: Decimal = DEFAULT_TOLERANCE
 ) -> EffectClassification:
-    """Derive effect from W0/W1; values are never clamped."""
+    """Derive effect from original and post-transformation work totals.
+
+    ``w0`` is original human effort and ``w1`` is remaining human effort after
+    transformation.  Values are never clamped: support work can exceed gross
+    removal, producing a degradation and a negative net-substitution ratio.
+    The tolerance defines the neutral band around equality.
+    """
     if w1 < w0 - tolerance:
         return EffectClassification.GAIN
     if w1 > w0 + tolerance:
@@ -98,7 +110,18 @@ def account_normalized(
     *,
     tolerance: Decimal = DEFAULT_TOLERANCE,
 ) -> CanonicalTransformationImpact:
-    """Account with W0=1.0 and baseline-relative contributions."""
+    """Compute canonical accounting from baseline-relative contributions.
+
+    This mode fixes ``W0 = 1``.  The retained and gross-removed ratios are a
+    baseline partition and must sum to one within ``tolerance``.  Support
+    contributions are additional post-transformation work, converted from
+    their declared ratio bases as needed.  The resulting relationship is
+    ``W1 = retained + resolved_support``; gross removal is not added to W1.
+
+    The application support-work resolver normally supplies the two support
+    values before this function is called.  Absolute support effort is not a
+    valid representation in normalized mode.
+    """
     w0 = Decimal("1")
     retained = accounting.retained_work_ratio
     removed = accounting.gross_removed_work_ratio
@@ -150,7 +173,19 @@ def account_absolute(
     *,
     tolerance: Decimal = DEFAULT_TOLERANCE,
 ) -> CanonicalTransformationImpact:
-    """Account absolute effort and expose the equivalent normalized ratios."""
+    """Compute canonical accounting from absolute effort quantities.
+
+    All absolute baseline quantities must share one unit and time basis.  The
+    baseline partition is validated as ``W0 = retained_human_work +
+    gross_removed_work`` within ``tolerance``.  Support work is additional
+    post-transformation effort, so the post-transformation relationship is
+    ``W1 = retained_human_work + resolved_support_work``.  Gross removal is
+    reported separately and is not itself part of W1.
+
+    Ratio-based support inputs are converted to absolute effort using their
+    explicit bases; absolute support inputs must match the baseline unit and
+    time basis.  The result also exposes baseline-relative ratios.
+    """
     baseline = accounting.baseline_human_effort
     retained_quantity = accounting.retained_human_work
     removed_quantity = accounting.gross_removed_work
@@ -216,7 +251,12 @@ def account_absolute(
 def aggregate_baseline_rows(
     rows: Iterable[TransformationRow],
 ) -> tuple[Decimal, Decimal]:
-    """Return retained and gross-removed effort from effort-bearing rows."""
+    """Aggregate validated baseline rows into retained and gross-removed work.
+
+    The returned values are both portions of the original baseline.  Added
+    support work is not represented by this helper and must not be included in
+    either total.
+    """
     retained = Decimal("0")
     removed = Decimal("0")
     for row in rows:

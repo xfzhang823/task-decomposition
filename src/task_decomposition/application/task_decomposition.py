@@ -1,13 +1,11 @@
 """Application capability for reusable task decomposition."""
 
-from decimal import Decimal
-
 from task_decomposition.application._provider_stage import (
     call_stage,
     provider_id,
     validate_operational_response,
 )
-from task_decomposition.contracts.allocation import EffortAllocationRequest
+from task_decomposition.contracts.effort import EffortQuantity, EffortUnit, TimeBasis
 from task_decomposition.contracts.provenance import ProviderStage
 from task_decomposition.contracts.provider import (
     OperationalDecompositionRequest,
@@ -17,8 +15,8 @@ from task_decomposition.contracts.stages import (
     BaselineEffortAllocation,
     TaskDecomposition,
 )
+from task_decomposition.domain.allocation import allocate_effort
 from task_decomposition.errors import (
-    MissingEffortAllocationError,
     ProviderContractValidationError,
     ProviderError,
     ProviderExecutionError,
@@ -34,7 +32,6 @@ from task_decomposition.evaluation.contracts import (
     SemanticFinding,
 )
 from task_decomposition.evaluation.rubric import SEMANTIC_EVALUATION_RUBRIC_VERSION
-from task_decomposition.interfaces.effort_allocator import EffortAllocator
 from task_decomposition.interfaces.provider import TaskDecompositionProvider
 from task_decomposition.tracing import TraceLogger, current_tracer
 
@@ -43,15 +40,14 @@ def decompose_task(
     request: TaskDecompositionRequest,
     provider: TaskDecompositionProvider,
     *,
-    effort_allocator: EffortAllocator | None = None,
     evaluator=None,
 ) -> TaskDecomposition:
     """Generate and validate a reusable task decomposition.
 
     Transformation context and accounting are deliberately absent. Baseline
-    effort is either supplied through explicit weights, allocated by the
-    optional host-neutral allocator, or omitted when the caller wants only an
-    operational decomposition.
+    Provider-generated relative effort weights are normalized into baseline
+    shares. A measured ``baseline_effort`` is optional; when supplied, the
+    same normalized shares are also materialized as absolute allocations.
     """
     if not isinstance(provider, TaskDecompositionProvider):
         raise ProviderOutputError(
@@ -75,9 +71,7 @@ def decompose_task(
             response,
             evaluator=evaluator,
         )
-        allocations = _allocate_baseline(
-            request, operational, effort_allocator=effort_allocator
-        )
+        allocations = _allocate_baseline(request, operational)
         return TaskDecomposition(
             operational_decomposition=operational,
             baseline_effort_allocations=allocations,
@@ -252,114 +246,40 @@ def _semantic_failure(
     )
 
 
-def _allocate_baseline(request, operational, *, effort_allocator):
+def _allocate_baseline(request, operational):
     subtasks = operational.operational_subtasks
-    if effort_allocator is not None:
-        if request.baseline_effort is None:
-            raise MissingEffortAllocationError(
-                "an effort allocator requires explicit baseline_effort"
-            )
-        result = effort_allocator.allocate(
-            EffortAllocationRequest(
-                task=operational.task,
-                operational_subtasks=subtasks,
-                parent_effort=request.baseline_effort,
-            )
-        )
-        by_id = {item.subtask_id: item for item in result.allocations}
-        if set(by_id) != {item.subtask_id for item in subtasks}:
-            raise MissingEffortAllocationError(
-                "effort allocator must return one allocation per subtask"
-            )
-        total_effort = sum(
-            (by_id[subtask.subtask_id].effort.value for subtask in subtasks),
-            Decimal(0),
-        )
-        if total_effort <= 0:
-            raise MissingEffortAllocationError(
-                "effort allocator must return a positive total effort"
-            )
-        return tuple(
-            BaselineEffortAllocation(
-                subtask_id=subtask.subtask_id,
-                effort=by_id[subtask.subtask_id].effort,
-                weight_ratio=(
-                    Decimal(str(by_id[subtask.subtask_id].weight_ratio))
-                    if by_id[subtask.subtask_id].weight_ratio is not None
-                    else by_id[subtask.subtask_id].effort.value / total_effort
-                ),
-                allocation_source="host",
-                provenance_refs=by_id[subtask.subtask_id].provenance_refs,
-            )
-            for subtask in subtasks
-        )
-    if request.effort_weights is not None:
-        expected = {item.subtask_id for item in subtasks}
-        if set(request.effort_weights) != expected:
-            raise MissingEffortAllocationError(
-                "effort_weights must contain exactly one weight per subtask"
-            )
-        total = sum(request.effort_weights.values(), Decimal(0))
-        if total <= 0:
-            raise MissingEffortAllocationError(
-                "effort_weights must have a positive total"
-            )
-        allocated = {}
-        if request.baseline_effort is not None:
-            allocated = {
-                subtask_id: request.baseline_effort.model_copy(
-                    update={"value": request.baseline_effort.value * weight / total}
-                )
-                for subtask_id, weight in request.effort_weights.items()
-            }
-        return tuple(
-            BaselineEffortAllocation(
-                subtask_id=subtask.subtask_id,
-                effort=allocated.get(subtask.subtask_id),
-                weight_ratio=request.effort_weights[subtask.subtask_id] / total,
-                allocation_source="host",
-            )
-            for subtask in subtasks
-        )
     raw_weights = tuple(subtask.relative_effort_weight for subtask in subtasks)
     if any(weight is None for weight in raw_weights):
         return ()
-    total = sum(raw_weights, Decimal(0))
-    if total <= 0:
-        return ()
-    ratios = _normalized_ratios(raw_weights, total)
-    allocated = {}
-    if request.baseline_effort is not None:
-        allocated = {
-            subtask_id: request.baseline_effort.model_copy(
-                update={"value": request.baseline_effort.value * ratio}
-            )
-            for subtask_id, ratio in zip(
-                (subtask.subtask_id for subtask in subtasks), ratios
-            )
-        }
+    normalized_parent = EffortQuantity(
+        value=1,
+        unit=EffortUnit.EFFORT,
+        time_basis=TimeBasis.PER_OPERATION,
+    )
+    normalized = allocate_effort(
+        normalized_parent,
+        {subtask.subtask_id: weight for subtask, weight in zip(subtasks, raw_weights)},
+    )
+    absolute = (
+        allocate_effort(
+            request.baseline_effort,
+            {
+                subtask.subtask_id: weight
+                for subtask, weight in zip(subtasks, raw_weights)
+            },
+        )
+        if request.baseline_effort is not None
+        else {}
+    )
     return tuple(
         BaselineEffortAllocation(
             subtask_id=subtask.subtask_id,
-            effort=allocated.get(subtask.subtask_id),
-            weight_ratio=ratio,
+            effort=absolute.get(subtask.subtask_id),
+            weight_ratio=normalized[subtask.subtask_id].value,
             allocation_source="estimated",
         )
-        for subtask, ratio in zip(subtasks, ratios)
+        for subtask in subtasks
     )
-
-
-def _normalized_ratios(weights, total):
-    """Normalize positive provider weights and compensate the final ratio."""
-    ratios = tuple(weight / total for weight in weights)
-    if len(ratios) == 1:
-        return (Decimal(1),)
-    normalized = ratios[:-1] + (Decimal(1) - sum(ratios[:-1], Decimal(0)),)
-    if normalized[-1] <= 0:
-        raise MissingEffortAllocationError(
-            "estimated effort weights could not be normalized"
-        )
-    return normalized
 
 
 __all__ = ["decompose_task"]

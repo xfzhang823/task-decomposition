@@ -1,4 +1,16 @@
-"""Canonical accounting result contracts."""
+"""Contracts for deterministic transformation-accounting results.
+
+This module defines the public result vocabulary used by the accounting domain:
+the accounting mode, the derived effect classification, and the immutable
+``CanonicalTransformationImpact`` result.  It owns data shape and semantic
+labels only.  It does not calculate W0, W1, ratios, or effects; those formulas
+belong to ``task_decomposition.domain.accounting``.
+
+Providers and application orchestration may supply or resolve accounting
+inputs, but they must not create authoritative derived metrics outside the
+domain accounting module.  The contracts remain provider-neutral and contain
+no persistence, workflow, scenario, or execution concerns.
+"""
 
 from decimal import Decimal
 from enum import Enum
@@ -10,18 +22,74 @@ from task_decomposition.contracts.provenance import ProvenanceRef
 
 
 class AccountingMode(str, Enum):
+    """Representation used for the canonical accounting calculation.
+
+    ``NORMALIZED`` represents the baseline as ``W0 = 1`` and exposes ratios.
+    ``ABSOLUTE`` represents effort with explicit units and time bases and also
+    exposes the corresponding normalized ratios.
+    """
+
     NORMALIZED = "normalized"
     ABSOLUTE = "absolute"
 
 
 class EffectClassification(str, Enum):
+    """Direction of change derived by comparing post-transformation W1 to W0.
+
+    The accounting domain applies its canonical tolerance when assigning these
+    labels.  Values are not clamped: support work can exceed gross removed work
+    and produce ``DEGRADATION``.
+    """
+
     GAIN = "gain"
     NEUTRAL = "neutral"
     DEGRADATION = "degradation"
 
 
 class CanonicalTransformationImpact(BaseModel):
-    """Derived, unclamped workload transformation impact."""
+    """Immutable derived impact of a transformation on human effort.
+
+    This model is the output contract of deterministic accounting.  ``w0`` is
+    original baseline human effort, while ``w1`` is post-transformation human
+    effort: retained work plus resolved AI-related support work.  Gross removed
+    work is retained as a separate baseline quantity and is not added to ``w1``.
+
+    Absolute-mode quantity fields are populated with ``EffortQuantity`` values.
+    In normalized mode those fields are ``None`` because the result is
+    represented by baseline-relative ratios instead.  The ratio fields are
+    available in both modes.  Derived values are intentionally unclamped, so
+    net substitution may be negative when support work exceeds gross removal.
+
+    Attributes:
+        accounting_mode: Whether the result was computed from absolute or
+            normalized accounting inputs.
+        baseline_human_effort: Original baseline effort in absolute mode;
+            ``None`` in normalized mode.
+        retained_human_work: Baseline effort retained after transformation in
+            absolute mode; ``None`` in normalized mode.
+        gross_removed_work: Baseline effort classified as removed before
+            support work, in absolute mode; ``None`` in normalized mode.
+        ai_interaction_work: Resolved added human effort for AI interaction in
+            absolute mode; ``None`` in normalized mode.
+        ai_verification_work: Resolved added human effort for AI verification
+            in absolute mode; ``None`` in normalized mode.
+        added_human_work: Sum of interaction and verification support work in
+            absolute mode; ``None`` in normalized mode.
+        net_human_effort: Post-transformation human effort in absolute mode;
+            ``None`` in normalized mode.
+        w0: Original baseline effort, or ``1`` for normalized accounting.
+        w1: Post-transformation human effort, using the same representation as
+            ``w0``.
+        gross_removed_work_ratio: Gross removed work divided by ``w0``.
+        added_human_work_ratio: Added support work divided by ``w0``.
+        net_remaining_work_ratio: ``w1 / w0``.
+        net_substitution_ratio: ``1 - net_remaining_work_ratio``; this is not
+            the same as gross removed work ratio when support work is present.
+        net_augmentation_multiplier: ``1 / net_remaining_work_ratio``.
+        effect: Tolerance-aware classification derived from ``w0`` and ``w1``.
+        provenance_refs: Portable references supporting the result inputs or
+            classifications.
+    """
 
     model_config = ConfigDict(frozen=True)
 

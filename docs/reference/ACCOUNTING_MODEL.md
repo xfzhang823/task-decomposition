@@ -1,57 +1,140 @@
-# Accounting Model
+# Canonical Accounting Model
 
-`src/task_decomposition/domain/accounting.py` is the sole deterministic mathematical authority. Application orchestration prepares and validates inputs, but it does not duplicate these equations and providers do not calculate the resulting metrics.
+`src/task_decomposition/domain/accounting.py` is the sole deterministic
+authority for canonical effort accounting. This document defines the meaning
+of its inputs and outputs. Application orchestration prepares and validates the
+inputs; providers propose semantic facts but do not calculate authoritative
+metrics.
 
-## Quantities
+## Canonical quantities and provenance
 
-`retained_human_work` is baseline work still performed by humans after the transformation. `gross_removed_work` is baseline work classified as removed. `added_human_work` is new human work introduced by the transformation and is the sum of the `AI_INTERACTION` and `AI_VERIFICATION` support contributions. Either category may be zero, including when no added-work rows are returned.
+The accounting quantities have distinct origins and meanings:
 
-The baseline and post-transformation work are:
+| Quantity | Meaning | Origin |
+| --- | --- | --- |
+| `baseline_human_effort` | Total human effort required before the AI transformation. This is the complete baseline `W0`, not an additional component to sum. | Host/application input, usually an `EffortQuantity`. |
+| `retained_human_work` | Portion of baseline effort associated with subtasks classified `RETAIN`. | Validated task allocation plus validated transformation classification, or an equivalent host accounting input. |
+| `gross_removed_work` | Portion of baseline effort associated with subtasks classified `REMOVE`, before newly introduced support work is considered. | Validated task allocation plus validated transformation classification, or an equivalent host accounting input. |
+| `support_work` | Additional human effort introduced by AI-related activities. Canonical categories are `AI_INTERACTION` and `AI_VERIFICATION`. | Application resolution from host-provided support or validated added-work estimates. |
+| `added_human_work` | Sum of resolved interaction and verification support work. | Deterministically computed by the accounting domain. |
+| `W0` | Original human effort before transformation. | Deterministically computed from the baseline input. |
+| `W1` | Human effort remaining after transformation, including retained work and new support work. | Deterministically computed by the accounting domain. |
+
+Support work is post-transformation effort. It is not part of the original
+baseline partition and must not be added to `gross_removed_work`.
+
+## Baseline and post-transformation relationships
+
+For compatible absolute effort quantities, the baseline partition is:
 
 ```text
 W0 = retained_human_work + gross_removed_work
-W1 = retained_human_work + added_human_work
 ```
 
-The derived ratios are:
+The post-transformation effort is:
+
+```text
+W1 = retained_human_work + resolved_support_work
+```
+
+The second equation uses the sum of the resolved `AI_INTERACTION` and
+`AI_VERIFICATION` contributions. Gross removal and net reduction are therefore
+different concepts: gross removal measures baseline work no longer performed,
+while net reduction accounts for support work that is newly introduced.
+
+The canonical derived ratios are:
 
 ```text
 gross_removed_work_ratio = gross_removed_work / W0
+added_human_work_ratio   = added_human_work / W0
 net_remaining_work_ratio = W1 / W0
-net_substitution_ratio = 1 - net_remaining_work_ratio
+net_substitution_ratio   = 1 - net_remaining_work_ratio
 net_augmentation_multiplier = 1 / net_remaining_work_ratio
 ```
 
-For absolute accounting, the multiplier is calculated equivalently as `W0 / W1`. The canonical impact also exposes `added_human_work_ratio = added_human_work / W0`.
+For absolute accounting, the multiplier is calculated equivalently as `W0 / W1`.
+Ratios are not clamped. If support work exceeds gross removal, `W1 > W0`, net
+substitution is negative, and the effect is `DEGRADATION`.
 
-## Gross versus net
+Example: if `W0 = 100`, retained work is `60`, gross removed work is `40`, and
+resolved support work is `10`, then:
 
-Gross removal is not net substitution. If baseline human work is `100`, removed work is `40`, and added work is `10`, retained work is `60`, `W0 = 100`, and `W1 = 70`. The gross removed ratio is `0.40`, while net substitution is `0.30`, because the new support work consumes part of the gross reduction. The augmentation multiplier is `100 / 70`, approximately `1.43`.
+```text
+W0 = 60 + 40 = 100
+W1 = 60 + 10 = 70
+gross_removed_work_ratio = 0.40
+net_substitution_ratio = 1 - 70/100 = 0.30
+net_augmentation_multiplier = 100/70 ≈ 1.43
+```
 
-## Effect classification
+The gross removed ratio is `0.40`, but the net substitution ratio is `0.30`
+because support work offsets part of the gross reduction.
 
-`classify_effect(W0, W1)` derives the effect from the two work totals using `DEFAULT_TOLERANCE = 0.000000001`. It returns `GAIN` when `W1` is below `W0` beyond tolerance, `DEGRADATION` when `W1` is above `W0` beyond tolerance, and `NEUTRAL` within tolerance.
+## Absolute and normalized accounting
 
-Ratios are unclamped. If added work exceeds removed work, `W1 > W0`, net substitution is negative, the augmentation multiplier is below one, and the effect is `DEGRADATION`. This is valid canonical behavior, not an error.
+`AbsoluteEffortInput` expresses baseline, retained, and removed work as
+`EffortQuantity` values. All absolute quantities used together must have the
+same `EffortUnit` and `TimeBasis`, for example `HOURS` per operation. Absolute
+support inputs must use the same unit and time basis as the baseline. Ratio
+support inputs are converted using their explicit `RatioBasis`.
 
-## Accounting modes
+`NormalizedAccountingInput` fixes `W0 = 1.0`. Its retained and gross-removed
+ratios must partition the baseline within the canonical tolerance. Normalized
+support inputs use an explicit non-absolute ratio basis. `ABSOLUTE_EFFORT`
+support is rejected in normalized accounting because it cannot be interpreted
+without an absolute baseline unit and basis.
 
-Normalized accounting uses `NormalizedAccountingInput` with `W0 = 1.0`, retained and gross-removed baseline-relative contributions, and support values with explicit `RatioBasis`. Absolute accounting uses `AbsoluteEffortInput` with baseline, retained, and removed `EffortQuantity` values plus support inputs. Absolute quantities must use one unit and time basis, such as `EFFORT` per operation or `HOURS` per day.
+The supported support bases are:
 
-The supported support bases are `RATIO_OF_BASELINE_WORK`, `RATIO_OF_GROSS_REMOVED_WORK`, `NORMALIZED_CONTRIBUTION`, and `ABSOLUTE_EFFORT`. A basis is never inferred from an unqualified ratio. Absolute support effort is converted to the baseline-relative contribution for derived ratios; normalized mode rejects absolute support effort.
+- `RATIO_OF_BASELINE_WORK`: already relative to baseline work.
+- `RATIO_OF_GROSS_REMOVED_WORK`: relative to gross removed work and converted
+  using the gross-removed contribution.
+- `NORMALIZED_CONTRIBUTION`: already a baseline-relative contribution; it must
+  not be multiplied by gross removed work again.
+- `ABSOLUTE_EFFORT`: a concrete effort amount, valid for absolute accounting
+  when its unit and time basis match the baseline.
 
-For equivalent inputs, normalized and absolute modes are scale invariant: scaling baseline, retained, removed, and absolute support effort by the same positive factor preserves ratios, multiplier, and effect classification. S4A tests this at scales `1`, `10`, `100`, and `10,000`.
+The representations are scale-equivalent when corresponding absolute values
+and absolute support work are scaled by the same positive factor.
 
-## Edge behavior and constraints
+## Responsibility boundaries
 
-No transformation with retained work equal to baseline and no added work is `NEUTRAL`. Pure removal with no added work makes net substitution equal gross removal. Added work that exactly offsets removed work produces `W1 = W0`, zero net substitution, and a neutral effect. Full removal with positive added work is defined using the same equations.
+The canonical flow preserves these ownership boundaries:
 
-Full removal with zero added work produces `W1 = 0`, so the augmentation multiplier is undefined and the implementation raises `InvalidDenominatorError`. Absolute accounting rejects non-positive baseline `W0` with `ZeroBaselineError`. Retained plus gross removed must reconcile to `W0` within tolerance. Effort and support values must be finite and non-negative, and incompatible absolute units or time bases are rejected.
+1. The host/application supplies the baseline effort and transformation
+   accounting input.
+2. Task decomposition validates operational subtasks and establishes baseline
+   allocations by stable subtask ID.
+3. Transformation decomposition consumes that existing task decomposition and
+   validates `RETAIN`/`REMOVE` classifications and added-work proposals.
+4. The application resolves added support work from host inputs or validated
+   added-work estimates.
+5. `domain/accounting.py` validates the accounting handoff and computes W0, W1,
+   ratios, multiplier, and effect.
 
-## Accounting handoff
+The baseline is never regenerated during transformation decomposition. Providers
+do not own accounting formulas, and application layers must not duplicate them.
 
-`TaskDecomposition` stores baseline effort allocations by stable subtask ID. Transformation decomposition applies the appropriate absolute effort or normalized weight to validated RETAIN/REMOVE rows, validates the result, and performs the internal accounting handoff. Added-work support is resolved by the application estimator before the domain accounting call. Added work is not baseline work and removed work is not counted again.
+## Edge behavior and assumptions
+
+- Retained plus gross removed work must reconcile to the baseline within
+  `DEFAULT_TOLERANCE`.
+- Effort values are finite and non-negative.
+- Absolute units and time bases must be compatible before arithmetic.
+- Full removal with zero support produces `W1 = 0`; the augmentation
+  multiplier is undefined and raises `InvalidDenominatorError`.
+- Absolute accounting rejects a non-positive baseline with `ZeroBaselineError`.
+- Effect classification uses the canonical tolerance and returns `GAIN`,
+  `NEUTRAL`, or `DEGRADATION` without clamping values.
+
+The input contracts permit `support_work=None` so the application can resolve
+host-versus-estimated support. Before direct domain accounting, support work is
+expected to have been resolved; the staged application handoff supplies the
+resolved support bundle.
 
 ## Verification
 
-S4A added known-answer, scale-equivalence, algebraic-invariant, boundary, invalid-input, allocation-handoff, support-aggregation, staged-parity, and effect-tolerance tests. Ordinary tests are credential-free and do not invoke providers.
+Known-answer, scale-equivalence, algebraic-invariant, boundary, invalid-input,
+allocation-handoff, support-aggregation, staged-parity, and effect-tolerance
+tests protect these semantics. They are credential-free and do not invoke
+providers.

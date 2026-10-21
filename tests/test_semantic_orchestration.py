@@ -84,7 +84,17 @@ def test_acceptance_with_suggestion_continues_to_allocation():
             )
         ]
     )
-    result = decompose_task(request(), FakeProvider(), evaluator=evaluator)
+    operational = make_operational().model_copy(
+        update={
+            "operational_subtasks": tuple(
+                item.model_copy(update={"relative_effort_weight": 1})
+                for item in make_operational().operational_subtasks
+            )
+        }
+    )
+    result = decompose_task(
+        request(), FakeProvider(operational=operational), evaluator=evaluator
+    )
     assert result.baseline_effort_allocations
     assert len(evaluator.requests) == 1
 

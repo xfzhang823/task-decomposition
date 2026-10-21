@@ -20,6 +20,7 @@ Decomposition Rules:
 Subtask Structure:
 - Preserve task identity. Use stable short subtask IDs and a contiguous 1-based sequence.
 - Dependencies may reference only earlier subtasks.
+- Copy dependency references character-for-character from an earlier `subtask_id`; never renumber, shorten, or reformat an ID (for example, `SUB004` must be referenced as `SUB004`, not `SUB4`). If there is no exact ID, use an empty dependency list.
 - Keep names and descriptions concise, stating the activity and its object or decision.
 - Use empty dependency and provenance arrays unless needed; omit rationale and unnecessary metadata.
 

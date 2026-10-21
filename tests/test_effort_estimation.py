@@ -29,9 +29,7 @@ def weighted_operational():
 
 
 def test_estimated_weights_create_shares_without_baseline_effort():
-    task_request = request().model_copy(
-        update={"baseline_effort": None, "effort_weights": None}
-    )
+    task_request = request().model_copy(update={"baseline_effort": None})
     result = decompose_task(
         task_request,
         FakeProvider(operational=weighted_operational()),
@@ -49,7 +47,7 @@ def test_estimated_weights_create_shares_without_baseline_effort():
 
 
 def test_estimated_weights_allocate_supplied_baseline_effort():
-    task_request = request().model_copy(update={"effort_weights": None})
+    task_request = request()
     result = decompose_task(
         task_request,
         FakeProvider(operational=weighted_operational()),
@@ -60,22 +58,6 @@ def test_estimated_weights_allocate_supplied_baseline_effort():
         Decimal(30),
         Decimal(50),
     ]
-
-
-def test_host_weights_override_estimated_weights():
-    result = decompose_task(
-        request(),
-        FakeProvider(operational=weighted_operational()),
-    )
-
-    assert [item.weight_ratio for item in result.baseline_effort_allocations] == [
-        Decimal("0.3"),
-        Decimal("0.4"),
-        Decimal("0.3"),
-    ]
-    assert all(
-        item.allocation_source == "host" for item in result.baseline_effort_allocations
-    )
 
 
 @pytest.mark.parametrize("weight", [0, -1, "not-a-number"])
@@ -146,7 +128,7 @@ def test_repaired_subtasks_preserve_relative_effort_weights():
     provider = RepairingWeightedProvider(repaired)
 
     result = decompose_task(
-        request().model_copy(update={"baseline_effort": None, "effort_weights": None}),
+        request().model_copy(update={"baseline_effort": None}),
         provider,
     )
 

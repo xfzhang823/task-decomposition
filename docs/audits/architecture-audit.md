@@ -15,7 +15,7 @@ The main architectural strengths are explicit Pydantic contracts, behavioral int
 
 ### Post-audit migration status
 
-The approved `ports/` → `interfaces/` migration is complete. Provider protocols now live in `src/task_decomposition/interfaces/provider.py`, `EffortAllocator` lives in `interfaces/effort_allocator.py`, and `SemanticEvaluator` lives in `interfaces/semantic_evaluator.py`. Allocation request/result schemas moved to `src/task_decomposition/contracts/allocation.py`. The obsolete `ports/` package and `evaluation/ports.py` are no longer part of the tracked source tree. Root-level public symbols are preserved; obsolete submodule paths are intentionally not.
+The approved `ports/` → `interfaces/` migration is complete. Provider protocols now live in `src/task_decomposition/interfaces/provider.py`, and `SemanticEvaluator` lives in `interfaces/semantic_evaluator.py`. The unused alternate effort-allocation protocol and request/result schemas were removed; deterministic allocation remains in `domain/allocation.py`. The obsolete `ports/` package and `evaluation/ports.py` are no longer part of the tracked source tree. Root-level public symbols are preserved; obsolete submodule paths are intentionally not.
 
 The migration and Phases 1–4 added-work, public-API, provider-helper, and documentation canonicalization resolve the former interface/data-schema, validation-compatibility, shared-provider-logic, and category-drift findings. Remaining findings concern packaging dependency ownership, direct accounting input optionality, and provider/tracing module size.
 
@@ -62,12 +62,11 @@ Tracing is opt-in through `tracing.py`. It records provider/stage lifecycle, saf
 | Task application | `application/task_decomposition.py`, `application/_provider_stage.py` | Task orchestration, validation, evaluator/repair policy, allocation handoff |
 | Transformation application | `application/transformation_decomposition.py`, `application/added_work_estimation.py`, `application/staged_pipeline.py` | Transformation orchestration, added-work resolution, support selection, accounting handoff |
 | Contracts | `contracts/*.py` | Pydantic request, stage, effort, accounting, and provenance schemas |
-| Behavioral interfaces | `interfaces/provider.py`, `interfaces/effort_allocator.py`, `interfaces/semantic_evaluator.py` | Provider, allocator, and evaluator protocols |
-| Allocation schemas | `contracts/allocation.py` | Effort allocation request/result data contracts |
+| Behavioral interfaces | `interfaces/provider.py`, `interfaces/semantic_evaluator.py` | Provider and evaluator protocols |
 | Provider adapters | `providers/*.py` | SDK calls, prompts, structured parsing, provider provenance |
 | Validation | `validation/stages.py` | Structural and cross-stage invariants; not accounting formulas |
 | Evaluation | `evaluation/*.py` | Semantic evaluator request/result/rubric and evaluator port |
-| Deterministic domain | `domain/accounting.py`, `domain/allocation.py` | W0/W1 mathematics, ratio bases, allocation invariants and tolerances |
+| Deterministic domain | `domain/accounting.py`, `domain/allocation.py` | W0/W1 mathematics, ratio bases, normalized allocation invariants and tolerances |
 | Observability | `tracing.py` | Opt-in trace lifecycle, redaction, persistence, and console output |
 
 The effective dependency direction is:

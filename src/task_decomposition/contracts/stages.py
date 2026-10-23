@@ -36,6 +36,7 @@ class OperationalSubtask(BaseModel):
     subtask_name: str = Field(min_length=1)
     description: str | None = None
     relative_effort_weight: Decimal | None = Field(default=None, gt=0)
+    effort_rationale: str = Field(min_length=1)
     depends_on: tuple[str, ...] = ()
     provenance_refs: tuple[ProvenanceRef, ...] = ()
 
@@ -240,6 +241,20 @@ class AddedWorkClassification(BaseModel):
     provenance_refs: tuple[ProvenanceRef, ...] = ()
 
 
+class NormalizedWorkEstimate(BaseModel):
+    """Auditable 100-unit baseline estimate for one classified subtask."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    subtask_id: str = Field(min_length=1)
+    baseline_work_units: Decimal = Field(ge=0)
+    retained_work_units: Decimal = Field(ge=0)
+    gross_removed_work_units: Decimal = Field(ge=0)
+    estimate_source: Literal["relative_effort_weight", "model_classification"]
+    assumption: str = Field(min_length=1)
+    rationale: str = Field(min_length=1)
+
+
 class SupportWorkMode(str, Enum):
     HOST = "host"
     ESTIMATE = "estimate"
@@ -270,6 +285,8 @@ class TransformationDecompositionResult(BaseModel):
     provenance_refs: tuple[ProvenanceRef, ...] = ()
     provider_provenance: tuple[ProviderProvenance, ...] = ()
     support_work_resolution: SupportWorkResolution | None = None
+    normalized_work_estimates: tuple[NormalizedWorkEstimate, ...] = ()
+    estimation_assumptions: tuple[str, ...] = ()
 
 
 __all__ = [
@@ -281,6 +298,7 @@ __all__ = [
     "ClassifiedSubtask",
     "EstimateRange",
     "ExternalReference",
+    "NormalizedWorkEstimate",
     "OperationalDecomposition",
     "OperationalSubtask",
     "RetainRemoveClassification",

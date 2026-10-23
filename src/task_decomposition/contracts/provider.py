@@ -48,6 +48,17 @@ class TransformationDecompositionRequest(BaseModel):
     provenance_refs: tuple[ProvenanceRef, ...] = ()
 
 
+class TransformationProposalRequest(BaseModel):
+    """Qualitative transformation request before quantitative accounting."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    task_decomposition: TaskDecomposition
+    transformation_context: dict[str, str] = Field(default_factory=dict)
+    request_id: str | None = None
+    provenance_refs: tuple[ProvenanceRef, ...] = ()
+
+
 class OperationalDecompositionRequest(BaseModel):
     """Provider request for the first stage."""
 
@@ -61,7 +72,7 @@ class RetainRemoveClassificationRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    request: TransformationDecompositionRequest
+    request: TransformationDecompositionRequest | TransformationProposalRequest
     operational_decomposition: OperationalDecomposition
 
 
@@ -70,7 +81,7 @@ class AddedWorkClassificationRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    request: TransformationDecompositionRequest
+    request: TransformationDecompositionRequest | TransformationProposalRequest
     operational_decomposition: OperationalDecomposition
     retain_remove_classification: RetainRemoveClassification
 
@@ -92,4 +103,5 @@ __all__ = [
     "RetainRemoveClassificationRequest",
     "TaskDecompositionRequest",
     "TransformationDecompositionRequest",
+    "TransformationProposalRequest",
 ]

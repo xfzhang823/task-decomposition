@@ -289,6 +289,25 @@ def test_openai_operational_provider_schema_uses_numeric_effort_weight():
             {"type": "null"},
         ]
     }
+    assert schema["effort_rationale"]["type"] == "string"
+    assert schema["effort_rationale"]["minLength"] == 1
+
+
+def test_operational_provider_preserves_effort_rationale():
+    operational = make_operational().model_dump(mode="json")
+    for subtask in operational["operational_subtasks"]:
+        subtask["effort_rationale"] = (
+            "Usually occurs once; effort depends on review complexity."
+        )
+    provider = OpenAIDecompositionProvider(
+        client=FakeClient(outputs={type(make_operational()): operational})
+    )
+
+    result = provider.generate_operational_decomposition(stage_requests()[0])
+
+    assert all(
+        subtask.effort_rationale for subtask in result.payload.operational_subtasks
+    )
 
 
 def test_openai_transformation_provider_schemas_use_numeric_decimal_fields():
@@ -408,6 +427,22 @@ def test_provider_prompts_request_compact_optional_fields():
         "Keep names and descriptions concise" in OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT
     )
     assert "Set optional descriptions, dependencies" in ADDED_WORK_PROMPT
+
+
+def test_operational_prompt_requires_transparent_effort_rationales():
+    assert (
+        "Include relative_effort_weight and effort_rationale"
+        in OPERATIONAL_DECOMPOSITION_PROMPT
+    )
+    assert (
+        "frequency and effort-per-occurrence assumptions"
+        in OPERATIONAL_DECOMPOSITION_PROMPT
+    )
+    assert (
+        "absolute minutes, hours, or workload volumes"
+        in OPERATIONAL_DECOMPOSITION_PROMPT
+    )
+    assert "valid effort_rationale values" in OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT
 
 
 def test_retain_remove_prompt_assesses_current_ai_potential_without_context():

@@ -87,7 +87,7 @@ class GeminiDecompositionProvider:
             contents = stage_text(SEMANTIC_EVALUATION_PROMPT, payload)
             config: dict[str, Any] = {
                 "response_mime_type": "application/json",
-                "response_schema": SemanticEvaluation,
+                "response_json_schema": SemanticEvaluation.model_json_schema(),
             }
             output_tokens = self.config.output_tokens_for(SEMANTIC_EVALUATION_STAGE)
             if output_tokens is not None:
@@ -96,12 +96,7 @@ class GeminiDecompositionProvider:
                 provider=self.provider_id,
                 stage=SEMANTIC_EVALUATION_STAGE,
                 model=self.config.model,
-                parameters={
-                    "config": {
-                        **config,
-                        "response_schema": SemanticEvaluation.model_json_schema(),
-                    }
-                },
+                parameters={"config": config},
                 messages=contents,
                 schema=SemanticEvaluation,
                 kind="evaluation",
@@ -222,7 +217,7 @@ class GeminiDecompositionProvider:
         contents = stage_text(prompt, payload)
         config: dict[str, Any] = {
             "response_mime_type": "application/json",
-            "response_schema": schema,
+            "response_json_schema": schema.model_json_schema(),
         }
         output_tokens = self.config.output_tokens_for(stage.value)
         if output_tokens is not None:

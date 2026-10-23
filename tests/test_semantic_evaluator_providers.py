@@ -169,10 +169,11 @@ def test_evaluator_request_contains_context_and_complete_decomposition(provider_
             call["messages"][0]["content"].split("INPUT JSON:\n", 1)[1]
         )
         assert call["response_format"] == {"type": "json_object"}
+        assert "OUTPUT JSON SCHEMA" in call["messages"][0]["content"]
     else:
         call = client.models.calls[0]
         payload = json.loads(call["contents"].split("INPUT JSON:\n", 1)[1])
-        assert call["config"]["response_schema"] is SemanticEvaluation
+        assert call["config"]["response_json_schema"]["title"] == "SemanticEvaluation"
 
     assert payload["task"]["task_name"] == "Review an invoice"
     assert payload["task_context"] == {"department": "accounts payable"}

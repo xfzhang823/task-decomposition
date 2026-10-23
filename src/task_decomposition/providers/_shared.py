@@ -11,6 +11,7 @@ from task_decomposition.contracts.provider import (
     RetainRemoveClassificationRequest,
     TaskDecompositionRequest,
     TransformationDecompositionRequest,
+    TransformationProposalRequest,
 )
 from task_decomposition.errors import (
     ProviderAuthenticationError,
@@ -62,7 +63,7 @@ def stage_payload(stage_request: Any) -> dict[str, Any]:
             "task": request.task.model_dump(mode="json"),
             "task_context": context,
         }
-    elif isinstance(request, TransformationDecompositionRequest):
+    elif isinstance(request, (TransformationDecompositionRequest, TransformationProposalRequest)):
         context = request.transformation_context
         payload = {
             "task": request.task_decomposition.operational_decomposition.task.model_dump(
@@ -89,8 +90,29 @@ def request_metadata(stage_request: Any):
     return request.request_id, request.provenance_refs
 
 
-def stage_text(prompt: str, payload: dict[str, Any]) -> str:
-    return f"{prompt}\n\nINPUT JSON:\n{json.dumps(payload, ensure_ascii=False)}"
+def output_schema_text(schema) -> str:
+    """Render a stage contract as explicit generation guidance."""
+
+    return (
+        "OUTPUT JSON SCHEMA (return exactly this object; use these exact field "
+        "names and do not add extra keys):\n"
+        + json.dumps(
+            schema.model_json_schema(),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+    )
+
+
+def stage_text(prompt: str, payload: dict[str, Any], *, schema=None) -> str:
+    """Combine stage instructions, optional contract schema, and input payload."""
+
+    sections = [prompt]
+    if schema is not None:
+        sections.append(output_schema_text(schema))
+    sections.append(f"INPUT JSON:\n{json.dumps(payload, ensure_ascii=False)}")
+    return "\n\n".join(sections)
 
 
 def make_stage_response(
@@ -133,8 +155,27 @@ def parse_model_payload(raw: Any, schema, *, provider_name: str, stage: Provider
         return schema.model_validate(raw)
     except Exception as exc:
         raise ProviderOutputError(
-            f"{provider_name} structured output failed contract mapping for {stage.value}"
+            f"{provider_name} structured output failed contract mapping for "
+            f"{stage.value}{_validation_summary(exc)}"
         ) from exc
+
+
+def _validation_summary(exc: Exception) -> str:
+    """Summarize field locations and messages without echoing provider values."""
+
+    errors = getattr(exc, "errors", None)
+    if not callable(errors):
+        return ""
+    try:
+        details = []
+        for error in errors()[:5]:
+            location = ".".join(str(part) for part in error.get("loc", ()))
+            details.append(
+                f"{location or '<root>'}: {error.get('msg', 'invalid value')}"
+            )
+    except Exception:  # noqa: BLE001 - diagnostics must not mask the mapping failure
+        return ""
+    return f" ({'; '.join(details)})" if details else ""
 
 
 def _stage_name(stage: ProviderStage | str) -> str:
@@ -157,6 +198,7 @@ def raise_provider_failure(
 
 __all__ = [
     "make_stage_response",
+    "output_schema_text",
     "parse_model_payload",
     "raise_provider_failure",
     "request_metadata",

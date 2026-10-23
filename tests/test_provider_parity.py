@@ -64,7 +64,7 @@ class GeminiModels:
                     "decision": "accept",
                     "rubric_version": SEMANTIC_EVALUATION_RUBRIC_VERSION,
                 },
-            }[kwargs["config"]["response_schema"].__name__]
+            }[kwargs["config"]["response_json_schema"]["title"]]
         )
 
 

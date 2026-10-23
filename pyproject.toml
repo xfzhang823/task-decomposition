@@ -17,14 +17,14 @@ openai = [
     "openai>=1.68.0",
 ]
 gemini = [
-    "google-genai>=1.0.0",
+    "google-genai>=2.33.0",
 ]
 deepseek = [
     "openai>=1.68.0",
 ]
 providers = [
     "openai>=1.68.0",
-    "google-genai>=1.0.0",
+    "google-genai>=2.33.0",
 ]
 
 [build-system]

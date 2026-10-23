@@ -31,6 +31,7 @@ from task_decomposition.contracts.provider import (
     RetainRemoveClassificationRequest,
     TaskDecompositionRequest,
     TransformationDecompositionRequest,
+    TransformationProposalRequest,
 )
 from task_decomposition.contracts.stages import (
     AddedWorkCategory,
@@ -41,6 +42,7 @@ from task_decomposition.contracts.stages import (
     ClassifiedSubtask,
     EstimateRange,
     ExternalReference,
+    NormalizedWorkEstimate,
     OperationalDecomposition,
     OperationalSubtask,
     RetainRemoveClassification,
@@ -68,6 +70,7 @@ __all__ = [
     "EstimateRange",
     "ExternalReference",
     "NormalizedAccountingInput",
+    "NormalizedWorkEstimate",
     "OperationalDecomposition",
     "OperationalDecompositionRequest",
     "OperationalSubtask",
@@ -89,5 +92,6 @@ __all__ = [
     "TransformationClassification",
     "TransformationDecompositionRequest",
     "TransformationDecompositionResult",
+    "TransformationProposalRequest",
     "TransformationRow",
 ]

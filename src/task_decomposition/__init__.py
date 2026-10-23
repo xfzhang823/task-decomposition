@@ -4,6 +4,7 @@ from task_decomposition.application import (
     decompose,
     decompose_task,
     decompose_transformation,
+    estimate_transformation,
 )
 from task_decomposition.contracts import (
     AbsoluteEffortInput,
@@ -22,6 +23,7 @@ from task_decomposition.contracts import (
     EstimateRange,
     ExternalReference,
     NormalizedAccountingInput,
+    NormalizedWorkEstimate,
     OperationalDecomposition,
     OperationalDecompositionRequest,
     OperationalSubtask,
@@ -43,6 +45,7 @@ from task_decomposition.contracts import (
     TransformationClassification,
     TransformationDecompositionRequest,
     TransformationDecompositionResult,
+    TransformationProposalRequest,
     TransformationRow,
 )
 from task_decomposition.domain import (
@@ -130,6 +133,7 @@ __all__ = [
     "MissingEffortAllocationError",
     "NegativeEffortError",
     "NormalizedAccountingInput",
+    "NormalizedWorkEstimate",
     "OperationalDecomposition",
     "OperationalDecompositionRequest",
     "OperationalSubtask",
@@ -176,6 +180,7 @@ __all__ = [
     "TransformationDecompositionProvider",
     "TransformationDecompositionRequest",
     "TransformationDecompositionResult",
+    "TransformationProposalRequest",
     "TransformationRow",
     "UnknownReferenceError",
     "ZeroBaselineError",
@@ -187,6 +192,7 @@ __all__ = [
     "decompose",
     "decompose_task",
     "decompose_transformation",
+    "estimate_transformation",
     "validate_added_work_classification",
     "validate_operational_decomposition",
     "validate_retain_remove_classification",

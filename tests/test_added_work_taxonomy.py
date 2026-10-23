@@ -34,6 +34,7 @@ OPERATIONAL = OperationalDecomposition(
             sequence_index=1,
             subtask_id="baseline-1",
             subtask_name="Review request",
+            effort_rationale="Usually occurs once; reviewing the request requires focused attention.",
         ),
     ),
 )

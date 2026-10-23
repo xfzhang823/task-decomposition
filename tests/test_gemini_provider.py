@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -11,7 +12,6 @@ from task_decomposition import (
     ProviderExecutionError,
     ProviderOutputError,
     ProviderStage,
-    SemanticEvaluation,
     TaskDecomposition,
     decompose,
 )
@@ -39,8 +39,9 @@ class FakeModels:
         self.calls.append(kwargs)
         if self.error is not None:
             raise self.error
-        schema = kwargs["config"]["response_schema"]
-        return SimpleNamespace(parsed=self.outputs.get(schema), text=None)
+        schema = kwargs["config"]["response_json_schema"]
+        schema_name = schema["title"] if isinstance(schema, dict) else schema.__name__
+        return SimpleNamespace(parsed=self.outputs.get(schema_name), text=None)
 
 
 class FakeGeminiClient:
@@ -76,10 +77,10 @@ def stage_requests():
 def provider():
     client = FakeGeminiClient(
         outputs={
-            type(make_operational()): make_operational(),
-            type(make_classification()): make_classification(),
-            type(make_added()): make_added(),
-            SemanticEvaluation: {
+            "OperationalDecomposition": make_operational(),
+            "RetainRemoveClassification": make_classification(),
+            "AddedWorkClassification": make_added(),
+            "SemanticEvaluation": {
                 "decision": "accept",
                 "rubric_version": SEMANTIC_EVALUATION_RUBRIC_VERSION,
             },
@@ -114,6 +115,20 @@ def test_gemini_implements_port_and_maps_all_stages():
         call["config"]["response_mime_type"] == "application/json"
         for call in client.models.calls
     )
+    assert all("response_json_schema" in call["config"] for call in client.models.calls)
+    assert all("response_schema" not in call["config"] for call in client.models.calls)
+
+
+def test_gemini_preserves_full_json_schema_constraints():
+    provider_instance, client = provider()
+    provider_instance.generate_operational_decomposition(stage_requests()[0])
+
+    schema = client.models.calls[0]["config"]["response_json_schema"]
+    serialized = json.dumps(schema)
+    assert schema["title"] == "OperationalDecomposition"
+    assert "$defs" in schema
+    assert "$ref" in serialized
+    assert "exclusiveMinimum" in serialized
 
 
 def test_gemini_adapter_runs_validated_application():
@@ -135,7 +150,7 @@ def test_gemini_malformed_and_empty_output_are_rejected():
 
     request_value = stage_requests()[0]
     bad = GeminiDecompositionProvider(
-        client=FakeGeminiClient(outputs={type(make_operational()): BadOutput()})
+        client=FakeGeminiClient(outputs={"OperationalDecomposition": BadOutput()})
     )
     with pytest.raises(ProviderOutputError, match="contract mapping"):
         bad.generate_operational_decomposition(request_value)

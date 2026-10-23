@@ -62,12 +62,14 @@ def fixture_result() -> TransformationDecompositionResult:
             subtask_id="receive",
             subtask_name="Receive ticket",
             description="Receive the customer ticket.",
+            effort_rationale="Usually occurs once; intake is a brief, straightforward action.",
         ),
         OperationalSubtask(
             sequence_index=2,
             subtask_id="verify",
             subtask_name="Verify account",
             description="Verify the customer account.",
+            effort_rationale="Usually occurs once; verification requires focused record checking.",
             depends_on=("receive",),
         ),
         OperationalSubtask(
@@ -75,6 +77,7 @@ def fixture_result() -> TransformationDecompositionResult:
             subtask_id="diagnose",
             subtask_name="Review issue evidence",
             description="Review evidence and diagnose the reported issue.",
+            effort_rationale="Usually occurs once; diagnosis varies with issue complexity and available information.",
             depends_on=("verify",),
         ),
         OperationalSubtask(
@@ -82,6 +85,7 @@ def fixture_result() -> TransformationDecompositionResult:
             subtask_id="communicate",
             subtask_name="Communicate resolution",
             description="Send the approved resolution to the customer.",
+            effort_rationale="Usually occurs once; communicating the result is a focused action.",
             depends_on=("diagnose",),
         ),
         OperationalSubtask(
@@ -89,6 +93,7 @@ def fixture_result() -> TransformationDecompositionResult:
             subtask_id="escalate",
             subtask_name="Escalate exception",
             description="Escalate exceptions for human review.",
+            effort_rationale="Occurs only for a subset of tickets; exceptions require coordination.",
             depends_on=("diagnose",),
         ),
     )

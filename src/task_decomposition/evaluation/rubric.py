@@ -1,6 +1,6 @@
 """Versioned, provider-neutral semantic evaluation rubric."""
 
-SEMANTIC_EVALUATION_RUBRIC_VERSION = "1.1"
+SEMANTIC_EVALUATION_RUBRIC_VERSION = "1.2"
 
 SEMANTIC_EVALUATION_RUBRIC = """
 Evaluate whether the supplied operational decomposition adequately represents the work required by the original task, at a granularity suitable for independent automation assessment.
@@ -18,13 +18,20 @@ Coverage and boundaries:
 - Flag an unsupported responsibility only when it materially expands the task boundary. Do not add activities merely to make the decomposition appear complete.
 - Identify material overlap, duplication, fragmentation, or ambiguity only when the boundary prevents meaningful independent automation assessment.
 
+Effort plausibility and transparency:
+- Treat `relative_effort_weight` as a provider-generated estimate of each subtask's share of baseline human effort; Python performs the authoritative normalization.
+- Assess whether the relative weights are directionally plausible for the described work and whether each `effort_rationale` makes its main frequency and effort-per-occurrence assumptions transparent.
+- When a rationale gives frequency or occurrence assumptions and effort-per-occurrence comparisons, check that their implied ordering is consistent with the relative weights. Flag material contradictions, such as a frequently occurring and effort-intensive activity receiving a much smaller weight without an explanation.
+- Accept qualitative or approximate assumptions. Do not require absolute minutes, hours, workload volumes, external benchmark retrieval, citations, formal calibration scales, or numeric frequency ranges.
+- Distinguish supplied operational facts from model-generated estimates and assumptions. Do not treat an unverified benchmark claim or citation as required evidence.
+
 Severity and decision boundary:
 - Suggestions cover wording, specificity, presentation, and other optional improvements; they do not prevent acceptance.
 - Repairable findings are material, actionable defects that can be corrected locally while preserving the useful decomposition. Examples include vague or non-operational descriptions whose intended activities are recoverable, or missing required activities that can be reliably added without substantial redesign.
 - Blocking findings are material defects that prevent reliable independent automation assessment and cannot be resolved through local repair. A missing activity is blocking only when the task explicitly assigns it or the assigned task cannot be performed without it, and no existing subtask covers it. Other examples include non-operational subtasks, ambiguous boundaries, excessive overlap or fragmentation, or materially out-of-scope responsibilities. Classify a defect as blocking only when its correction cannot be reliably determined from the supplied task and decomposition without substantial redesign.
 - Accept when the decomposition is operationally sufficient, even if it could be improved. Use repair only for repairable findings. Reserve reject for blocking findings. Do not make a finding blocking merely because more detail would be useful.
 
-Return concise, observable findings. Do not use keyword matching, an operational-verb allowlist, numerical quality scores, or a requirement that every subtask produce a physical or externally visible action.
+Return concise, observable findings. Do not use keyword matching, an operational-verb allowlist, numerical quality scores, or a requirement that every subtask produce a physical or externally visible action. Do not reject a decomposition solely because an effort estimate is approximate when its assumptions are transparent and directionally coherent.
 """.strip()
 
 

@@ -7,41 +7,85 @@ from task_decomposition.evaluation.rubric import (
 
 OPERATIONAL_DECOMPOSITION_PROMPT = """
 Objective:
-Decompose the supplied business task into concrete, distinct human activities that can each be independently evaluated for complete automation using current AI capabilities.
+Decompose the supplied business task into concrete, distinct human activities suitable for independent evaluation for complete automation using current AI capabilities. Ground the decomposition in the baseline work performed, without assuming or favoring an automation outcome.
 
 Decomposition Rules:
 - Each subtask must represent a meaningful unit of human work, including physical work, system interaction, communication, investigation, analysis, evaluation, or decision-making.
 - Specify what is performed, reviewed, evaluated, or determined.
-- Separate distinct operational activities without trivial microsteps or unnecessary fragmentation.
+- Decompose around meaningful, distinct operational activities. Use suitability for independent automation evaluation as a check on granularity.
+- Keep subtasks distinct and non-overlapping. Each should describe work not already included in another subtask. Combine activities that repeat the same check against the same information unless they involve clearly different actions or decisions.
+- Avoid trivial microsteps or unnecessary fragmentation. Do not split activities merely to create fully automatable subtasks.
+- Ensure each subtask name matches the activity described.
+- Distinguish reviewing or checking for a condition from the additional work performed when that condition is present.
+- Cover the substantive work explicitly required by the task, including criteria that affect decisions or routing. Make these checks clear in the descriptions without creating a separate subtask for every criterion.
 - Describe activities, not goals, outcomes, or completion states.
 - Do not assess automation feasibility or assign RETAIN/REMOVE classifications.
 - Include only activities necessary or reasonably implied by the supplied task objective. Do not add documentation, monitoring, feedback, or follow-up activities merely to make the decomposition appear complete.
+- Include recording or communication when needed to deliver the task's result or hand it off. State what is recorded or communicated and for whom; avoid generic activities such as "document outcomes for future reference."
 
 Subtask Structure:
 - Preserve task identity. Use stable short subtask IDs and a contiguous 1-based sequence.
-- Dependencies may reference only earlier subtasks.
+- Dependencies may reference only earlier subtasks. Sequence indicates presentation order; it does not by itself imply a dependency.
 - Copy dependency references character-for-character from an earlier `subtask_id`; never renumber, shorten, or reformat an ID (for example, `SUB004` must be referenced as `SUB004`, not `SUB4`). If there is no exact ID, use an empty dependency list.
 - Keep names and descriptions concise, stating the activity and its object or decision.
-- Use empty dependency and provenance arrays unless needed; omit rationale and unnecessary metadata.
+- Use empty dependency and provenance arrays unless needed; omit unnecessary metadata.
 
 Relative Effort Estimation:
-- Assign each subtask a positive relative_effort_weight based on its estimated share of baseline human working time.
-- Consider typical duration, frequency, and workload volume.
-- Use supplied operational data or empirical benchmarks when available; otherwise rely on reasonable occupational estimates.
-- Relevant sources include O*NET, occupational time-use studies, and industry productivity benchmarks.
+- Assign each subtask a positive relative_effort_weight proportional to its expected baseline human effort per parent task.
+- Estimate expected effort as typical occurrences per parent task × relative human effort per occurrence.
+- Estimate effort per occurrence from the work involved, including complexity, coordination, and information availability. Account for exception frequency in expected occurrences.
+- Use a consistent parent-task workload basis; do not double-count volume or effort across subtasks, or assume conditional activities occur every time.
+- Use supplied operational facts when available; otherwise make reasonable occupational estimates informed by general knowledge, frameworks such as O*NET, and relevant industry practices.
+- Use a consistent relative scale across all subtasks; the application performs authoritative normalization.
+- Do not require absolute minutes, hours, or workload volumes from the user.
+- Do not use business importance, risk, or decision authority as proxies for human effort.
+
+Effort Rationale:
+- Provide a concise rationale for each subtask's relative_effort_weight.
+- Explain the main frequency and effort-per-occurrence assumptions, including relevant complexity, coordination, or information availability factors.
+- Distinguish supplied operational facts from model-generated estimates and assumptions.
+- State the assumed occurrence frequency clearly. For conditional work, provide an approximate frequency or range labeled as an assumption when none is supplied.
+- Do not invent measured data, benchmarks, or citations. Do not claim to have consulted specific sources unless they were actually provided or retrieved.
+- Keep each rationale brief, typically 1–2 sentences.
+- Before returning, check that each rationale supports the assigned weight through expected frequency and human effort per occurrence, and describes only the work included in that subtask. Do not justify weights using phrases such as "important," "integral," or "frequency varies."
 
 Output:
-Return only the requested JSON object. No readiness analysis, implementation plans, recommendations, transformation commentary, scoring, or accounting.
+Return only the requested JSON object, conforming to the supplied output schema.
+Include relative_effort_weight and effort_rationale for each subtask.
+No readiness analysis, implementation plans, recommendations, transformation commentary, scoring, or accounting.
 """.strip()
 
 OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT = """
-Repair the supplied JSON operational decomposition following semantic validation.
-- Return the identical JSON schema with no extra metadata or rationale.
-- Preserve task identity, valid subtasks, IDs, sequence, dependencies, and valid existing relative_effort_weight values.
-- Apply the minimal correction to rejected subtasks only; do not alter unrelated items or over-decompose work.
-- Every subtask must be a concrete human-executable action (e.g., physical tasks, system interaction, analysis, specific decisions) specifying what is reviewed, determined, recorded, or communicated.
-- Reject goals, states, outcomes, or vague completion labels. Keep names and descriptions concise.
-- Ensure every subtask has a positive, unnormalized relative_effort_weight (no hours or percentages).
+Repair the supplied JSON operational decomposition using the supplied semantic validation feedback and the original task context.
+
+Repair Scope:
+- Return the same JSON schema with no extra metadata.
+- Follow the operational decomposition rules used to generate the original response.
+- Preserve task identity and all valid effort_rationale values, unaffected subtasks, IDs, ordering, dependencies, and relative_effort_weight values.
+- Apply the smallest correction needed to resolve the validation findings. Change related fields or dependent references only when necessary to keep the decomposition consistent.
+- Do not alter unrelated items, add unsupported activities, or over-decompose work.
+- Preserve existing IDs where possible. If structural changes are necessary, keep IDs unique, sequence contiguous and 1-based, and dependencies limited to exact IDs of earlier subtasks.
+
+Activity Requirements:
+- Every subtask must represent a meaningful, concrete human activity, including physical work, system interaction, communication, investigation, analysis, evaluation, or decision-making.
+- Specify what is performed, reviewed, evaluated, determined, recorded, or communicated.
+- Ensure each subtask name matches its description.
+- Distinguish checking for a condition from additional work performed when that condition is present.
+- Reject goals, states, outcomes, and vague completion labels. Keep names and descriptions concise.
+- Ground boundaries in distinct operational activities suitable for independent automation evaluation, without favoring an automation outcome.
+- Do not assess automation feasibility or assign RETAIN/REMOVE classifications.
+
+Effort Requirements:
+- Ensure every subtask has a positive, unnormalized relative_effort_weight on a consistent relative scale, not expressed in hours or percentages.
+- Estimate expected baseline human effort as typical occurrences per parent task × relative human effort per occurrence.
+- Account for complexity, coordination, and information availability in effort per occurrence, and conditional frequency in expected occurrences. Do not double-count workload.
+- Do not use business importance, risk, or decision authority as proxies for effort.
+- Ensure every subtask has a concise effort_rationale explaining the main frequency and effort-per-occurrence assumptions, distinguishing supplied facts from model estimates.
+- If a correction changes an activity's scope, frequency, or effort requirements, update its weight and rationale together as needed.
+- Do not require absolute units or invent measured data, benchmarks, citations, or claims of source consultation.
+
+Output:
+Return only the repaired JSON object conforming to the supplied output schema.
 """.strip()
 
 RETAIN_REMOVE_PROMPT = """

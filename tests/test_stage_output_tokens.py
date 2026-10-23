@@ -8,6 +8,13 @@ from task_decomposition.providers.openai import OpenAIProviderConfig
 
 CONFIGS = (OpenAIProviderConfig, GeminiProviderConfig, DeepSeekProviderConfig)
 
+# DeepSeek Flash spends output tokens on hidden reasoning before emitting JSON.
+DEFAULT_OUTPUT_TOKENS = {
+    OpenAIProviderConfig: 2000,
+    GeminiProviderConfig: 2000,
+    DeepSeekProviderConfig: 16000,
+}
+
 
 STAGES = (
     ProviderStage.OPERATIONAL_DECOMPOSITION.value,
@@ -23,7 +30,7 @@ def test_stage_token_overrides_and_global_fallback(config_type):
         stage_output_tokens={stage: index + 101 for index, stage in enumerate(STAGES)}
     )
     assert [config.output_tokens_for(stage) for stage in STAGES] == [101, 102, 103, 104]
-    assert config.output_tokens_for("unknown") == 2000
+    assert config.output_tokens_for("unknown") == DEFAULT_OUTPUT_TOKENS[config_type]
 
 
 @pytest.mark.parametrize("config_type", CONFIGS)
@@ -35,7 +42,10 @@ def test_stage_token_overrides_accept_provider_stage_enum(config_type):
         config.output_tokens_for(ProviderStage.RETAIN_REMOVE_CLASSIFICATION.value)
         == 321
     )
-    assert config.output_tokens_for(SEMANTIC_EVALUATION_STAGE) == 2000
+    assert (
+        config.output_tokens_for(SEMANTIC_EVALUATION_STAGE)
+        == DEFAULT_OUTPUT_TOKENS[config_type]
+    )
 
 
 @pytest.mark.parametrize("config_type", CONFIGS)

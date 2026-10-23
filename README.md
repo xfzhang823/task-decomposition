@@ -26,9 +26,18 @@ Transformation decomposition answers “What happens to that work under the spec
 
 The supported application entry points are:
 
-- `decompose_task(request, provider, *, evaluator=None)` for creating a reusable baseline.
-- `decompose_transformation(request, provider)` for evaluating a transformation against an existing baseline.
-- `decompose(request, provider, *, transformation_context, accounting_input)` for the complete two-step composition.
+- `decompose_task(request, provider, *, evaluator=None, model=None, max_output_tokens=None)` for creating a reusable baseline.
+- `decompose_transformation(request, provider, *, model=None, max_output_tokens=None)` for evaluating a transformation against an existing baseline.
+- `estimate_transformation(task_decomposition, provider, *, transformation_context=None, model=None, max_output_tokens=None)` for provider-assisted normalized transformation estimation from an existing task allocation.
+- `decompose(request, provider, *, transformation_context, accounting_input, model=None, max_output_tokens=None)` for the complete two-step composition.
+
+`provider` may be an already-constructed provider object or one of the built-in provider names (`"openai"`, `"gemini"`, or `"deepseek"`). When a name is supplied, `model` selects the model for that call; omitting it preserves the provider's configured default. For example:
+
+```python
+baseline = decompose_task(request, provider="openai", model="your-model-id")
+```
+
+The selected model and optional output-token cap are used across every stage of that run. Overrides cannot be combined with an already-constructed provider object; this prevents shared provider instances from being mutated. `max_output_tokens` is forwarded to the provider's existing output-token setting; omit it to preserve provider defaults.
 
 Added-work estimation supports `AI_INTERACTION` and `AI_VERIFICATION` rows with explicit causal REMOVE-subtask references and reference-class estimates. Baseline references are normalized by their estimated occurrences per parent execution; external references require a compatible quantitative per-occurrence anchor. Support selection defaults to host inputs and can be switched to `estimate` or `auto` through `SupportWorkMode`; canonical accounting remains deterministic and provider-independent.
 
@@ -47,6 +56,8 @@ The reusable baseline invariant is central: transformation decomposition consume
 ## Transformation decomposition
 
 `decompose_transformation(request, provider)` accepts a `TransformationDecompositionRequest` containing an existing `TaskDecomposition`, `transformation_context`, explicit `AbsoluteEffortInput` or `NormalizedAccountingInput`, and a `SupportWorkMode`. It asks a `TransformationDecompositionProvider` for RETAIN/REMOVE and added-work proposals, validates each stage, and returns a `TransformationDecompositionResult` containing the transformation facts and canonical impact.
+
+`estimate_transformation(task_decomposition, provider)` is an opt-in bridge for notebook and exploratory workflows that do not have host-supplied effort ratios. It applies the completed task decomposition's relative effort allocations to a 100-unit comparative baseline, uses the provider's RETAIN/REMOVE classifications to aggregate retained and gross-removed work, and then reuses the existing support-work resolver and deterministic accounting. The 100 units are not hours or measured productivity. The strict canonical APIs still require explicit accounting input.
 
 Every added-work row must identify one or more original subtasks in `source_removed_subtask_ids`; each source must exist and be classified `REMOVE`. This causal attribution explains why the added work exists and is independent of the reference used to estimate its effort. The reference may be a `RETAIN` or `REMOVE` baseline subtask, or an external analogous workflow. Python validates the references and computes the estimate; providers do not provide authoritative accounting amounts. A valid transformation may contain no added-work rows.
 

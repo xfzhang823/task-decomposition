@@ -45,8 +45,31 @@ from task_decomposition.providers.prompts import (
 )
 from task_decomposition.tracing import TraceLogger
 
-DEFAULT_DEEPSEEK_MODEL = "deepseek-chat"
+DEFAULT_DEEPSEEK_MODEL = "deepseek-flash"
 DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+
+
+def _truncation_message(response, stage, output_tokens) -> str | None:
+    """Describe a length-truncated response before JSON parsing can obscure it."""
+
+    choices = getattr(response, "choices", None) or ()
+    if not choices or getattr(choices[0], "finish_reason", None) != "length":
+        return None
+    stage_name = stage.value if isinstance(stage, ProviderStage) else stage
+    details = [
+        f"max_tokens={output_tokens}"
+        if output_tokens is not None
+        else "max_tokens unset"
+    ]
+    usage = getattr(response, "usage", None)
+    completion_details = getattr(usage, "completion_tokens_details", None)
+    reasoning_tokens = getattr(completion_details, "reasoning_tokens", None)
+    if reasoning_tokens is not None:
+        details.append(f"reasoning_tokens={reasoning_tokens}")
+    return (
+        f"DeepSeek output token limit reached during {stage_name} "
+        f"({', '.join(details)}); increase max_output_tokens"
+    )
 
 
 @dataclass(frozen=True)
@@ -57,7 +80,7 @@ class DeepSeekProviderConfig:
     api_key: str | None = field(default=None, repr=False)
     base_url: str = DEFAULT_DEEPSEEK_BASE_URL
     timeout: float | None = None
-    max_tokens: int | None = 2000
+    max_tokens: int | None = 16000
     stage_output_tokens: Mapping[str | ProviderStage, int] | None = None
 
     def __post_init__(self):
@@ -87,7 +110,9 @@ class DeepSeekDecompositionProvider:
             messages = [
                 {
                     "role": "system",
-                    "content": stage_text(SEMANTIC_EVALUATION_PROMPT, payload),
+                    "content": stage_text(
+                        SEMANTIC_EVALUATION_PROMPT, payload, schema=SemanticEvaluation
+                    ),
                 },
                 {"role": "user", "content": "Return the requested JSON object."},
             ]
@@ -128,6 +153,17 @@ class DeepSeekDecompositionProvider:
                 raw=response,
                 stage=SEMANTIC_EVALUATION_STAGE,
             )
+            truncation = _truncation_message(
+                response, SEMANTIC_EVALUATION_STAGE, output_tokens
+            )
+            if truncation is not None:
+                self.tracer.validation(
+                    phase="evaluation",
+                    stage=SEMANTIC_EVALUATION_STAGE,
+                    result="failure",
+                    errors=(truncation,),
+                )
+                raise ProviderOutputError(truncation)
             if content is None or content == "":
                 self.tracer.validation(
                     phase="evaluation",
@@ -223,7 +259,7 @@ class DeepSeekDecompositionProvider:
         messages = [
             {
                 "role": "system",
-                "content": stage_text(prompt, payload),
+                "content": stage_text(prompt, payload, schema=schema),
             },
             {"role": "user", "content": "Return the requested JSON object."},
         ]
@@ -263,6 +299,15 @@ class DeepSeekDecompositionProvider:
             )
             raise_provider_failure("DeepSeek", stage, exc)
         self.tracer.response(invocation, raw=response)
+        truncation = _truncation_message(response, stage, output_tokens)
+        if truncation is not None:
+            self.tracer.validation(
+                phase="structural",
+                stage=stage.value,
+                result="failure",
+                errors=(truncation,),
+            )
+            raise ProviderOutputError(truncation)
         if not content:
             self.tracer.validation(
                 phase="structural",

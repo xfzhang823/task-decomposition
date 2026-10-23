@@ -8,12 +8,9 @@
 This audit was performed from the current working tree without live LLM calls.
 The baseline commit is recorded for reproducibility, but the findings below
 reflect the source visible during the audit where relevant. In particular, the
-working tree contains uncommitted changes to
-`src/task_decomposition/application/task_decomposition.py` and
-`src/task_decomposition/providers/prompts.py`, and an untracked
-`notebooks/task_decomposition_end_to_end.ipynb`. The task-allocation changes in
-the working tree are material to this audit; the prompt working-tree change
-adds dependency-ID wording and does not change the effort instructions.
+working tree contains updated prompt, contract, rubric, test, and documentation
+changes, plus an untracked notebook. Those current changes are material to this
+updated audit.
 
 ## Executive summary
 
@@ -29,13 +26,13 @@ and `4` express a three-to-one relationship and normalize to the same ratio as
 `3` and `1`. The concern is not the arbitrary scale; it is whether the
 proportions are supported by explicit assumptions about human working time.
 
-The implementation has no formal baseline-effort rubric, calibration scale,
-reference subtask, uncertainty range, or structured assumption record. The
-prompt mentions duration, frequency, workload volume, occupational estimates,
-and benchmark sources, but the request supplies no structured values for those
-factors and the output stores no weight-specific rationale or estimate basis.
-Naming O*NET or other benchmark sources in the prompt does not establish that
-the provider retrieved or used them.
+The implementation has no formal baseline-effort calibration scale, reference
+subtask, uncertainty range, or structured assumption record. The prompt now
+requires a concise `effort_rationale` describing frequency and
+effort-per-occurrence assumptions, while still avoiding required absolute
+units, benchmark retrieval, or citations. Naming O*NET or other benchmark
+sources in the prompt does not establish that the provider retrieved or used
+them.
 
 ## Scope and end-to-end flow
 
@@ -91,22 +88,25 @@ All three provider adapters import the same
 
 The exact relevant prompt text is:
 
-> Assign each subtask a positive `relative_effort_weight` based on its estimated share of baseline human working time.
+> Assign each subtask a positive `relative_effort_weight` representing its estimated share of baseline human effort.
 
-> Consider typical duration, frequency, and workload volume.
+> Estimate expected effort as typical occurrences per parent task × relative human effort per occurrence.
 
-> Use supplied operational data or empirical benchmarks when available; otherwise rely on reasonable occupational estimates.
+> Use a consistent parent-task workload basis; do not double-count volume or assume conditional activities occur every time.
 
-> Relevant sources include O*NET, occupational time-use studies, and industry productivity benchmarks.
+> Provide a concise rationale for each subtask's relative_effort_weight.
 
 The repair template adds:
 
 > Ensure every subtask has a positive, unnormalized `relative_effort_weight` (no hours or percentages).
 
+It also requires a concise `effort_rationale` and preserves valid existing
+weights and rationales during repair.
+
 The same prompt also asks for concise names and descriptions, stable IDs, and
 valid dependencies. It says to use empty dependency and provenance arrays
-unless needed and to omit rationale and unnecessary metadata. It does not ask
-for weight-specific explanations.
+unless needed and to omit unnecessary metadata. It explicitly asks for an
+`effort_rationale` for each subtask's weight.
 
 ### Fully assembled provider messages
 
@@ -192,7 +192,7 @@ against the stage schema:
 [`providers/_shared.py`](../../src/task_decomposition/providers/_shared.py:118-137)
 
 `OperationalSubtask.relative_effort_weight` is a positive `Decimal` when
-present, or null:
+present, or null, and `effort_rationale` is a required non-empty string:
 
 [`contracts/stages.py`](../../src/task_decomposition/contracts/stages.py:29-40)
 
@@ -205,12 +205,14 @@ Structural validation enforces:
 
 [`validation/stages.py`](../../src/task_decomposition/validation/stages.py:23-70)
 
-It does not enforce a normalized sum, a bounded scale, an estimation basis, a
-reference activity, or plausibility of the proportions.
+It does not enforce a normalized sum, a bounded scale, or numeric frequency
+and effort-per-occurrence fields. The semantic evaluator assesses rationale
+transparency and directional plausibility instead of requiring absolute
+measurements or source citations.
 
 The semantic evaluator checks whether the decomposition represents operational
-work at a usable granularity. Its rubric has no explicit numerical
-relative-effort rubric:
+work at a usable granularity and whether effort assumptions are transparent and
+directionally consistent with the relative weights:
 
 [`evaluation/rubric.py`](../../src/task_decomposition/evaluation/rubric.py:5-28)
 
@@ -298,12 +300,11 @@ instruction to use them when available; it does not retrieve or attach them.
 
 - No formal baseline weighting rubric or calibration scale exists.
 - No structured duration, frequency, volume, case-mix, or exception-rate input exists.
-- No explicit operating assumptions are returned.
-- No weight-specific rationale, estimate basis, confidence, or uncertainty is retained.
+- No structured operating assumptions, estimate basis, confidence, or uncertainty are returned; the free-text rationale retains the required core assumptions.
 - No reference subtask or external quantitative anchor is required for baseline weights.
 - The model does not receive the optional measured parent effort in the notebook path.
 - A raw value such as `4` has meaning only relative to the other weights in that response.
-- Semantic validation does not test whether the proportions are plausible.
+- Semantic validation now reviews effort plausibility, rationale transparency, and consistency between stated frequency, effort per occurrence, and relative weights.
 - Provider differences can produce different proportions while satisfying the same contract.
 
 Tracing may preserve provider invocation messages, parsed responses, and
@@ -317,8 +318,8 @@ from the current source alone.
 
 ## Minimal proposed improvements
 
-These are recommendations only; they were not implemented as part of this
-documentation change.
+The remaining items below are recommendations for future refinement; they are
+not required by the current contract.
 
 1. Define the baseline quantity explicitly as aggregate active human effort per
    parent-task execution.
@@ -327,14 +328,14 @@ documentation change.
    rubric or examples.
 3. Decide whether exception work belongs in separate subtasks or in explicit
    frequency/case-mix assumptions.
-4. Retain minimal structured estimation metadata such as estimate basis,
-   duration assumption, frequency/volume assumption, case-mix assumption, and
-   confidence or uncertainty.
+4. Consider structured estimation metadata only if the free-text rationale
+   proves insufficient; the current contract intentionally avoids a second
+   rationale object or required absolute measurements.
 5. Clarify that baseline weights are ratio estimates and do not require an
    arbitrary universal numeric scale; the validation concern is unsupported
    proportions and hidden assumptions.
-6. Add an independent plausibility review criterion if effort plausibility is
-   intended to be a semantic quality dimension.
+6. Refine the existing semantic plausibility criterion with examples if
+   repeated provider evaluations show a need for calibration.
 7. Clarify in documentation that added-work reference-class estimates are
    separate from baseline `relative_effort_weight`.
 8. Preserve exact provider messages and returned weights in trace artifacts

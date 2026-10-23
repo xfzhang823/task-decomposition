@@ -1,5 +1,6 @@
 """Clean one-call composition of the two canonical application capabilities."""
 
+from task_decomposition.application.provider_factory import resolve_provider
 from task_decomposition.application.task_decomposition import decompose_task
 from task_decomposition.application.transformation_decomposition import (
     decompose_transformation,
@@ -20,16 +21,21 @@ from task_decomposition.tracing import TraceLogger, current_tracer
 
 def decompose(
     request: TaskDecompositionRequest,
-    provider: DecompositionProvider,
+    provider: DecompositionProvider | str,
     *,
     transformation_context: dict[str, str],
     accounting_input: AbsoluteEffortInput | NormalizedAccountingInput,
+    model: str | None = None,
+    max_output_tokens: int | None = None,
 ) -> TransformationDecompositionResult:
     """Compose task decomposition and transformation decomposition directly."""
     if accounting_input is None:
         raise MissingAccountingInputError(
             "provider-driven decomposition requires explicit Wave 1 accounting input"
         )
+    provider = resolve_provider(
+        provider, model=model, max_output_tokens=max_output_tokens
+    )
     if not isinstance(provider, DecompositionProvider):
         raise ProviderOutputError(
             "provider does not implement the DecompositionProvider protocol"

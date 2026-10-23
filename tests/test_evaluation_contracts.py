@@ -36,11 +36,13 @@ def operational_decomposition():
                 sequence_index=1,
                 subtask_id="review",
                 subtask_name="Review invoice against purchase order",
+                effort_rationale="Usually occurs once; matching records requires focused review.",
             ),
             OperationalSubtask(
                 sequence_index=2,
                 subtask_id="decide",
                 subtask_name="Determine whether the invoice meets approval criteria",
+                effort_rationale="Usually occurs once; resolving criteria and exceptions requires judgment.",
                 depends_on=("review",),
             ),
         ),
@@ -179,7 +181,7 @@ def test_finding_codes_and_categories_are_stable_enums():
 
 
 def test_rubric_is_versioned_and_contains_representative_guidance():
-    assert SEMANTIC_EVALUATION_RUBRIC_VERSION == "1.1"
+    assert SEMANTIC_EVALUATION_RUBRIC_VERSION == "1.2"
     for phrase in (
         "Authority and scope",
         "assigned operational responsibility",
@@ -213,6 +215,7 @@ def test_production_scheduling_activities_are_acceptable_without_procedures():
                 sequence_index=1,
                 subtask_id="schedule",
                 subtask_name="Develop Production Schedule",
+                effort_rationale="Usually occurs once; coordinating constraints requires substantial analysis.",
                 description=(
                     "Create a feasible production schedule based on reviewed orders, "
                     "inventory, machine capacity, and workforce availability."
@@ -223,6 +226,7 @@ def test_production_scheduling_activities_are_acceptable_without_procedures():
                 subtask_id="conflicts",
                 subtask_name="Resolve Scheduling Conflicts",
                 description="Identify and address conflicts in the proposed schedule.",
+                effort_rationale="Occurs for a subset of plans; exceptions require coordination and judgment.",
                 depends_on=("schedule",),
             ),
         ),
@@ -290,6 +294,7 @@ def test_scope_regressions_accept_required_activity_structures(
             sequence_index=1,
             subtask_id="plan",
             subtask_name="Plan production to meet customer demand",
+            effort_rationale="Usually occurs once; balancing demand and capacity requires analysis.",
         )
     ]
     if include_close:
@@ -298,6 +303,7 @@ def test_scope_regressions_accept_required_activity_structures(
                 sequence_index=2,
                 subtask_id="close",
                 subtask_name="Close completed customer orders",
+                effort_rationale="Usually occurs once per completed order; record updates are straightforward.",
                 depends_on=("plan",),
             )
         )
@@ -325,6 +331,7 @@ def test_explicit_order_closure_omission_remains_material():
                 sequence_index=1,
                 subtask_id="fulfill",
                 subtask_name="Coordinate order fulfillment",
+                effort_rationale="Usually occurs once; coordination spans several operational inputs.",
             ),
         ),
     )
@@ -372,6 +379,7 @@ def test_semantic_coverage_accepts_equivalent_activity_wording(
                 subtask_id="communicate",
                 subtask_name=activity_wording,
                 description=activity_wording + ".",
+                effort_rationale="Usually occurs once; communicating the result requires limited focused effort.",
             ),
         ),
     )
@@ -386,6 +394,18 @@ def test_semantic_coverage_accepts_equivalent_activity_wording(
 def test_rubric_preserves_blocking_for_missing_required_activity():
     assert "A missing activity is blocking only when" in SEMANTIC_EVALUATION_RUBRIC
     assert "Reserve reject for blocking findings" in SEMANTIC_EVALUATION_RUBRIC
+
+
+def test_rubric_covers_effort_plausibility_without_absolute_measurements():
+    assert "Effort plausibility and transparency" in SEMANTIC_EVALUATION_RUBRIC
+    assert (
+        "frequency and effort-per-occurrence assumptions" in SEMANTIC_EVALUATION_RUBRIC
+    )
+    assert "consistent with the relative weights" in SEMANTIC_EVALUATION_RUBRIC
+    assert (
+        "Do not require absolute minutes, hours, workload volumes"
+        in SEMANTIC_EVALUATION_RUBRIC
+    )
 
 
 def test_scope_regression_cases_preserve_acceptance_and_blocking_boundaries():

@@ -75,6 +75,7 @@ def operational():
                 subtask_id="sub-1",
                 subtask_name="Receive account request",
                 description="Log the incoming customer request.",
+                effort_rationale="Usually occurs once; straightforward logging requires limited effort.",
                 relative_effort_weight=Decimal("0.30"),
             ),
             OperationalSubtask(
@@ -82,6 +83,7 @@ def operational():
                 subtask_id="sub-2",
                 subtask_name="Verify requester identity",
                 description="Confirm the requester is authorized.",
+                effort_rationale="Usually occurs once; checking authorization is moderately complex.",
                 relative_effort_weight=Decimal("0.40"),
                 depends_on=("sub-1",),
             ),
@@ -90,6 +92,7 @@ def operational():
                 subtask_id="sub-3",
                 subtask_name="Update account record",
                 description="Apply the approved account change.",
+                effort_rationale="Usually occurs once; applying the change requires focused system interaction.",
                 relative_effort_weight=Decimal("0.30"),
                 depends_on=("sub-2",),
             ),

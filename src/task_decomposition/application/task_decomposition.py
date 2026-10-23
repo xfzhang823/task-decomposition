@@ -5,6 +5,7 @@ from task_decomposition.application._provider_stage import (
     provider_id,
     validate_operational_response,
 )
+from task_decomposition.application.provider_factory import resolve_provider
 from task_decomposition.contracts.effort import EffortQuantity, EffortUnit, TimeBasis
 from task_decomposition.contracts.provenance import ProviderStage
 from task_decomposition.contracts.provider import (
@@ -38,9 +39,11 @@ from task_decomposition.tracing import TraceLogger, current_tracer
 
 def decompose_task(
     request: TaskDecompositionRequest,
-    provider: TaskDecompositionProvider,
+    provider: TaskDecompositionProvider | str,
     *,
     evaluator=None,
+    model: str | None = None,
+    max_output_tokens: int | None = None,
 ) -> TaskDecomposition:
     """Generate and validate a reusable task decomposition.
 
@@ -49,6 +52,9 @@ def decompose_task(
     shares. A measured ``baseline_effort`` is optional; when supplied, the
     same normalized shares are also materialized as absolute allocations.
     """
+    provider = resolve_provider(
+        provider, model=model, max_output_tokens=max_output_tokens
+    )
     if not isinstance(provider, TaskDecompositionProvider):
         raise ProviderOutputError(
             "provider does not implement the TaskDecompositionProvider capability"

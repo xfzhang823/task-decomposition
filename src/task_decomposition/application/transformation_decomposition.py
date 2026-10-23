@@ -7,6 +7,7 @@ from task_decomposition.application._provider_stage import (
     validate_classification_response,
 )
 from task_decomposition.application.added_work_estimation import resolve_support_work
+from task_decomposition.application.provider_factory import resolve_provider
 from task_decomposition.application.staged_pipeline import _run_staged_pipeline
 from task_decomposition.contracts.accounting import AccountingMode
 from task_decomposition.contracts.effort import AbsoluteEffortInput
@@ -26,9 +27,15 @@ from task_decomposition.tracing import TraceLogger, current_tracer
 
 def decompose_transformation(
     request: TransformationDecompositionRequest,
-    provider: TransformationDecompositionProvider,
+    provider: TransformationDecompositionProvider | str,
+    *,
+    model: str | None = None,
+    max_output_tokens: int | None = None,
 ) -> TransformationDecompositionResult:
     """Classify and account for a supplied, reusable task decomposition."""
+    provider = resolve_provider(
+        provider, model=model, max_output_tokens=max_output_tokens
+    )
     if not isinstance(provider, TransformationDecompositionProvider):
         raise ProviderOutputError(
             "provider does not implement the TransformationDecompositionProvider capability"
@@ -42,6 +49,15 @@ def decompose_transformation(
 
 
 def _decompose_transformation(request, provider, provider_name):
+    classification, added, responses = _classify_transformation(
+        request, provider, provider_name
+    )
+    return _assemble_transformation_result(
+        request, provider, provider_name, classification, added, responses
+    )
+
+
+def _classify_transformation(request, provider, provider_name):
     baseline = request.task_decomposition.operational_decomposition
     classification_response = call_stage(
         provider_name,
@@ -65,6 +81,22 @@ def _decompose_transformation(request, provider, provider_name):
         ),
     )
     added = validate_added_response(baseline, classification, added_response)
+    return classification, added, (classification_response, added_response)
+
+
+def _assemble_transformation_result(
+    request,
+    provider,
+    provider_name,
+    classification,
+    added,
+    responses,
+    *,
+    normalized_work_estimates=(),
+    estimation_assumptions=(),
+):
+    classification_response, added_response = responses
+    baseline = request.task_decomposition.operational_decomposition
     support_work, support_resolution = resolve_support_work(
         added,
         classification,
@@ -103,6 +135,8 @@ def _decompose_transformation(request, provider, provider_name):
         ),
         provider_provenance=provider_provenance,
         support_work_resolution=support_resolution,
+        normalized_work_estimates=normalized_work_estimates,
+        estimation_assumptions=estimation_assumptions,
     )
 
 
@@ -113,9 +147,10 @@ def _apply_baseline_allocation(classification, request):
     }
     if not allocations:
         return classification
+    accounting_input = getattr(request, "accounting_input", None)
     mode = (
         AccountingMode.ABSOLUTE
-        if isinstance(request.accounting_input, AbsoluteEffortInput)
+        if isinstance(accounting_input, AbsoluteEffortInput)
         else AccountingMode.NORMALIZED
     )
     updated = []

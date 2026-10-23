@@ -19,8 +19,9 @@ Two kinds of module sit here:
 | --- | --- | --- | --- |
 | `decompose_task` | `task_decomposition.py` | task + provider → `TaskDecomposition` (operational only, optional baseline effort) | Yes |
 | `decompose_transformation` | `transformation_decomposition.py` | existing `TaskDecomposition` + provider → `TransformationDecompositionResult` | Yes |
+| `estimate_transformation` | `normalized_estimation.py` | existing `TaskDecomposition` + provider → normalized `TransformationDecompositionResult` | Yes |
 | `decompose` | `provider_service.py` | canonical task request + transformation context + provider + explicit accounting → `TransformationDecompositionResult` | Yes |
-Only the three decomposition functions are application entry points. The staged handoff is internal to transformation decomposition.
+The staged handoff is internal to transformation decomposition and normalized estimation.
 
 ## `staged_pipeline.py` — the provider-independent core
 
@@ -54,7 +55,7 @@ Load-bearing invariants:
 
 `decompose_task` runs only the first stage: a provider proposes operational subtasks, with no transformation context and no accounting. The result (`TaskDecomposition`) is the reusable input the transformation path consumes.
 
-Flow: check the provider implements `TaskDecompositionProvider` → `call_stage(OPERATIONAL_DECOMPOSITION)` → deterministic structural validation → `SemanticEvaluator` evaluation → bounded targeted repair through the provider's optional `repair_operational_decomposition` hook → structural revalidation and complete-decomposition re-evaluation → deterministic normalization of provider weights in `_allocate_baseline`. Only an accepted decomposition reaches allocation; evaluator capability is provider-default or explicit via `decompose_task(..., evaluator=...)`.
+Flow: resolve a built-in provider name through the provider factory (or preserve an already-constructed provider object) → check the provider implements `TaskDecompositionProvider` → `call_stage(OPERATIONAL_DECOMPOSITION)` → deterministic structural validation → `SemanticEvaluator` evaluation → bounded targeted repair through the provider's optional `repair_operational_decomposition` hook → structural revalidation and complete-decomposition re-evaluation → deterministic normalization of provider weights in `_allocate_baseline`. Only an accepted decomposition reaches allocation; evaluator capability is provider-default or explicit via `decompose_task(..., evaluator=...)`.
 
 `_allocate_baseline` uses provider-generated positive
 `relative_effort_weight` values as the sole allocation source. The
@@ -74,7 +75,9 @@ for the semantic boundary and evidence.
 
 ## `transformation_decomposition.py` — classify and account a reusable decomposition
 
-`decompose_transformation` mirrors `decompose_task`: it takes an existing `TaskDecomposition`, runs the two classification stages, and ends in accounting.
+`decompose_transformation` mirrors `decompose_task`: it takes an existing `TaskDecomposition`, resolves a provider name when requested, runs the two classification stages, and ends in accounting. Both application APIs accept an optional per-call `model`; provider objects are never mutated.
+
+`estimate_transformation` is an opt-in bridge for exploratory or notebook runs without host-supplied ratios. It uses the completed task allocation and provider RETAIN/REMOVE labels to construct a normalized 100-unit accounting input, records per-subtask estimate assumptions and rationales, and reuses the same support-work and deterministic accounting handoff. It does not change the strict explicit-input contract of `decompose_transformation`.
 
 Flow: check the provider implements `TransformationDecompositionProvider` → `classify_retain_remove` → `validate_classification_response` → `_apply_baseline_allocation` → `classify_added_work` → strict `validate_added_response` → resolve support work → internal `_run_staged_pipeline` (passing concrete resolved support) → assemble `TransformationDecompositionResult`.
 

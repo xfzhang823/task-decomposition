@@ -67,7 +67,10 @@ def operational():
         task=TASK,
         operational_subtasks=tuple(
             OperationalSubtask(
-                sequence_index=i, subtask_id=f"s{i}", subtask_name=f"Subtask {i}"
+                sequence_index=i,
+                subtask_id=f"s{i}",
+                subtask_name=f"Subtask {i}",
+                effort_rationale="Usually occurs once; the example represents a focused operational action.",
             )
             for i in range(1, 4)
         ),

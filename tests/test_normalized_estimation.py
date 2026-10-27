@@ -21,8 +21,13 @@ from task_decomposition import (
     TransformationClassification,
     estimate_transformation,
 )
+from task_decomposition.application.normalized_estimation import (
+    normalized_accounting_from_classification,
+)
+from task_decomposition.contracts.effort import EffortQuantity, EffortUnit, TimeBasis
 from task_decomposition.contracts.provider import TransformationProposalRequest
 from task_decomposition.contracts.stages import BaselineEffortAllocation
+from task_decomposition.domain.allocation import DEFAULT_TOLERANCE, allocate_effort
 from task_decomposition.errors import (
     AddedWorkEstimationError,
     MissingEffortAllocationError,
@@ -118,12 +123,69 @@ def test_normalized_estimation_scales_weights_to_100_and_reconciles():
     estimates = result.normalized_work_estimates
 
     assert all(isinstance(item, NormalizedWorkEstimate) for item in estimates)
+    assert [item.subtask_name for item in estimates] == [
+        "Check claim",
+        "Route claim",
+    ]
     assert sum(item.baseline_work_units for item in estimates) == Decimal(100)
     assert sum(item.retained_work_units for item in estimates) == Decimal(25)
     assert sum(item.gross_removed_work_units for item in estimates) == Decimal(75)
     assert result.accounting.w0 == Decimal(1)
     assert result.accounting.gross_removed_work_ratio == Decimal(".75")
     assert result.accounting.net_remaining_work_ratio == Decimal(".25")
+
+
+def test_normalized_estimation_accepts_allocator_rounding_within_tolerance():
+    task = baseline().operational_decomposition.model_copy(
+        update={
+            "operational_subtasks": (
+                *baseline().operational_decomposition.operational_subtasks,
+                OperationalSubtask(
+                    sequence_index=3,
+                    subtask_id="sub-3",
+                    subtask_name="Review exception",
+                    effort_rationale="Requires exception review.",
+                    relative_effort_weight=Decimal(1),
+                ),
+            )
+        }
+    )
+    allocated = allocate_effort(
+        EffortQuantity(
+            value=1, unit=EffortUnit.EFFORT, time_basis=TimeBasis.PER_OPERATION
+        ),
+        {"sub-1": 1, "sub-2": 1, "sub-3": 1},
+    )
+    task_decomposition = TaskDecomposition(
+        operational_decomposition=task,
+        baseline_effort_allocations=tuple(
+            BaselineEffortAllocation(
+                subtask_id=subtask_id, weight_ratio=allocation.value
+            )
+            for subtask_id, allocation in allocated.items()
+        ),
+    )
+    classified = RetainRemoveClassification(
+        task=TASK,
+        classified_subtasks=tuple(
+            {
+                "subtask_id": subtask_id,
+                "classification": TransformationClassification.REMOVE,
+                "rationale": "Automation can perform this step.",
+            }
+            for subtask_id in ("sub-1", "sub-2", "sub-3")
+        ),
+    )
+
+    accounting, estimates = normalized_accounting_from_classification(
+        task_decomposition, classified
+    )
+
+    assert (
+        abs(sum(item.baseline_work_units for item in estimates) - Decimal(100))
+        <= Decimal(100) * DEFAULT_TOLERANCE
+    )
+    assert accounting.gross_removed_work_ratio < Decimal(1)
 
 
 def test_estimation_uses_qualitative_stage_requests_before_accounting():

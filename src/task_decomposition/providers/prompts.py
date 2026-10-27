@@ -91,7 +91,10 @@ Return only the repaired JSON object conforming to the supplied output schema.
 RETAIN_REMOVE_PROMPT = """
 Classify each operational subtask as RETAIN or REMOVE based on automation potential using current AI-enabled technology, including software integrations, workflow automation, and optimization tools.
 
-Preserve task identity, subtask IDs, and ordering. Do not modify the decomposition.
+The supplied operational decomposition is frozen. Copy the task object exactly, and
+reference each subtask by its exact supplied subtask_id. Do not invent, rename,
+renumber, omit, duplicate, or reorder subtask references. Do not modify the
+decomposition; the application restores canonical names and sequence metadata.
 
 Classification Rules:
 - For each subtask, identify the core operational activity and assess it independently without inventing additional responsibilities.
@@ -114,15 +117,17 @@ Return only the requested JSON. No explanations, calculations, or fabricated eff
 """.strip()
 
 ADDED_WORK_PROMPT = """
-Identify only genuinely new human activities introduced by automating one or more baseline subtasks classified REMOVE. A removed subtask does not automatically require added work, and `added_work_rows` may be empty. Preserve the baseline RETAIN/REMOVE distinction: do not classify existing baseline work as added merely because AI is involved.
-- Valid Categories Only: AI_INTERACTION (instructing, guiding, clarifying, intervening in, redirecting, retrying, or otherwise interacting with AI during execution); AI_VERIFICATION (inspecting, validating, correcting, or approving AI-generated outputs).
-- Exclude AI system design, implementation, deployment, technical documentation development, guardrail construction, and infrastructure or model maintenance performed outside individual workflow executions. Include genuinely new human intervention, troubleshooting, or verification required during transformed workflow execution under AI_INTERACTION or AI_VERIFICATION, as appropriate. Exclude passive AI waiting time from human effort.
-- Causal Rules: For every added row, return one or more `source_removed_subtask_ids` identifying the REMOVE subtasks that cause the new work. Do not fabricate IDs. Before adding verification or interaction, compare against every RETAIN subtask and omit work already covered; estimate only incremental AI-specific work.
-- Reference-Class Effort Rules: Select exactly one closest human reference independently of classification status: a baseline `reference_subtask_id` (RETAIN or REMOVE), or an `external_reference`. Compare human action, complexity, frequency, and effort. For baseline references, estimate `reference_occurrences_per_parent_execution`; never assume one occurrence. For external references, provide a compatible quantitative `effort_per_occurrence` anchor or leave the estimate noncomputable. Estimate `occurrences_per_parent_execution` and `relative_effort_per_occurrence`, each with low/typical/high values. Prefer supplied measured or documented evidence; otherwise set `estimate_basis` to `assumed`. Never invent citations, empirical benchmarks, W0, W1, or accounting ratios. Keep each rationale to one concise sentence (20 words or fewer).
-- Subtask Rules: Provide a stable work ID and concise concrete name for each genuinely new row. Do not create a separate exception-handling or governance category, and do not disguise added work as RETAIN/REMOVE rows.
-- Complete Response Rules: Return the complete structured object with top-level `task`, `added_work_rows`, and `provenance_refs`. Set top-level `provenance_refs` to [] when unavailable.
-- Schema & Data Rules: Do not return accounting amounts. Set optional descriptions, dependencies, sequence_index, and row provenance_refs to empty/null values unless needed for disambiguation. Return only evidence and estimates; Python determines computability and all accounting amounts.
-- Prohibited: Do not calculate W0, W1, substitution, augmentation, effect, or readiness metrics.
+Identify genuinely new human work caused by automating baseline subtasks classified REMOVE. For each REMOVE subtask, assess incremental AI_INTERACTION and AI_VERIFICATION needs, including routine oversight, exceptions, missing inputs, ambiguity, failures, and rework. A removed subtask does not necessarily create added work; `added_work_rows` may be empty.
+
+- Identity: Copy the supplied task exactly. Use only frozen subtask IDs; never invent, rename, omit, duplicate, or remap them.
+- Categories: AI_INTERACTION covers human prompting, guidance, intervention, retries, and troubleshooting during execution. AI_VERIFICATION covers human inspection, validation, correction, and approval of AI outputs. Use no other categories.
+- Scope: Include only incremental human work during transformed workflow execution. Exclude existing RETAIN work, downstream activities, system development, deployment, maintenance, and passive waiting. Do not reclassify baseline work as added work.
+- Coverage & Consolidation: Assess every REMOVE subtask, but emit only distinct necessary activities. Combine overlapping work across subtasks to avoid double counting; separate activities with materially different triggers, frequencies, or human actions. List all causal REMOVE IDs in `source_removed_subtask_ids`.
+- Effort Reference: Select exactly one comparable baseline `reference_subtask_id` (RETAIN or REMOVE) or `external_reference` per row. Match the added activity's scope, action, complexity, and frequency; avoid arbitrarily narrow references. Do not automatically sum causal subtasks. External references require a quantitative `effort_per_occurrence` anchor; otherwise leave the estimate noncomputable.
+- Estimation: Provide low/typical/high values for `occurrences_per_parent_execution` and `relative_effort_per_occurrence`. For baseline references, also estimate `reference_occurrences_per_parent_execution`; do not assume one without justification. Reflect conditional frequencies and use measured/documented evidence when available; otherwise use `estimate_basis="assumed"`. Never fabricate evidence or benchmarks.
+- Rationale: In ≤40 words per row, explain the trigger, frequency, reference choice, relative effort, and key assumptions.
+- Output: Return the complete structured object with `task`, `added_work_rows`, and `provenance_refs` ([] if unavailable). Give each row a stable work ID and concise activity name. Leave optional descriptions, dependencies, sequence indexes, and row provenance empty/null unless needed.
+- Accounting: Return estimates only. Do not calculate W0, W1, accounting amounts, substitution, augmentation, effects, or readiness metrics; Python owns all calculations.
 """.strip()
 
 SEMANTIC_EVALUATION_PROMPT = f"""

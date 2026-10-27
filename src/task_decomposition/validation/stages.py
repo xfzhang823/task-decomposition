@@ -75,7 +75,7 @@ def validate_retain_remove_classification(
     value: RetainRemoveClassification | dict,
 ) -> RetainRemoveClassification:
     output = _validate_model(value, RetainRemoveClassification)
-    _require_same_task(operational.task, output.task)
+    _require_task_identity(operational.task, output.task)
     _require_unique(
         (item.subtask_id for item in output.classified_subtasks),
         "classified subtask IDs",
@@ -97,6 +97,28 @@ def validate_retain_remove_classification(
         raise CardinalityError(
             "classification count must equal operational subtask count"
         )
+    # Classification rows reference the frozen operational decomposition by ID.
+    # Names and sequence metadata are descriptive echoes, so never let a provider
+    # redefine them or cause downstream consumers to use a regenerated label.
+    canonical_by_id = {
+        item.subtask_id: item for item in operational.operational_subtasks
+    }
+    output = output.model_copy(
+        update={
+            "task": operational.task,
+            "classified_subtasks": tuple(
+                item.model_copy(
+                    update={
+                        "subtask_name": canonical_by_id[item.subtask_id].subtask_name,
+                        "sequence_index": canonical_by_id[
+                            item.subtask_id
+                        ].sequence_index,
+                    }
+                )
+                for item in output.classified_subtasks
+            ),
+        }
+    )
     classified_indexes = tuple(
         item.sequence_index for item in output.classified_subtasks
     )
@@ -124,7 +146,7 @@ def validate_added_work_classification(
     value: AddedWorkClassification | dict,
 ) -> AddedWorkClassification:
     output = _validate_model(value, AddedWorkClassification)
-    _require_same_task(operational.task, output.task)
+    _require_task_identity(operational.task, output.task)
     _require_unique((row.work_id for row in output.added_work_rows), "added-work IDs")
     known_subtasks = {item.subtask_id for item in operational.operational_subtasks}
     classified = {
@@ -170,7 +192,7 @@ def validate_added_work_classification(
                 f"added-work row {row.work_id!r} has an unknown estimate reference"
             )
     _validate_optional_sequence_indexes(output.added_work_rows, label="added-work")
-    return output
+    return output.model_copy(update={"task": operational.task})
 
 
 def validate_stage_chain(
@@ -200,8 +222,12 @@ def _validate_model(value, model):
         raise StageValidationError(f"invalid {model.__name__}: {exc}") from exc
 
 
-def _require_same_task(expected: TaskReference, actual: TaskReference) -> None:
-    if expected != actual:
+def _require_task_identity(expected: TaskReference, actual: TaskReference) -> None:
+    """Require the stable task identity while ignoring provider wording echoes."""
+    if (expected.task_id, expected.task_name) != (
+        actual.task_id,
+        actual.task_name,
+    ):
         raise IdentityMismatchError(
             "stage task identity does not match operational decomposition"
         )

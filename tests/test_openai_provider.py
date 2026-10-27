@@ -224,6 +224,21 @@ def test_openai_added_work_schema_omits_defaulted_compatibility_fields():
     assert "provenance_refs" not in schema["$defs"]["AddedWorkEstimate"]["properties"]
 
 
+def test_openai_added_work_schema_uses_numbers_for_decimal_fields():
+    schema = _provider_text_format(
+        ProviderStage.ADDED_WORK_CLASSIFICATION, type(make_added())
+    )["schema"]
+    assert schema["$defs"]["EffortQuantity"]["properties"]["value"] == {
+        "minimum": 0,
+        "type": "number",
+    }
+    assert all(
+        schema["$defs"]["EstimateRange"]["properties"][field]
+        == {"minimum": 0, "type": "number"}
+        for field in ("low", "typical", "high")
+    )
+
+
 def test_openai_added_work_incomplete_output_remains_an_explicit_failure():
     class IncompleteClient(FakeClient):
         def __init__(self):

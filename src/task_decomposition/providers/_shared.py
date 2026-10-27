@@ -191,8 +191,11 @@ def raise_provider_failure(
         raise ProviderAuthenticationError(
             f"{provider_name} authentication failed during {stage_name}"
         ) from exc
+    detail = str(exc).strip()
     raise ProviderExecutionError(
-        f"{provider_name} request failed during {stage_name} ({type(exc).__name__})"
+        f"{provider_name} request failed during {stage_name} "
+        f"({type(exc).__name__})"
+        + (f": {detail}" if detail else "")
     ) from exc
 
 

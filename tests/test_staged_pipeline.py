@@ -244,6 +244,32 @@ def test_wire_case_is_normalized_but_identity_is_preserved():
     ]
 
 
+def test_classification_uses_frozen_task_and_subtask_descriptions():
+    operational = make_operational()
+    classification = make_classification().model_copy(
+        update={
+            "task": TASK.model_copy(
+                update={"task_description": "Provider paraphrase."}
+            ),
+            "classified_subtasks": tuple(
+                row.model_copy(
+                    update={
+                        "subtask_name": f"Provider label for {row.subtask_id}",
+                        "sequence_index": None,
+                    }
+                )
+                for row in make_classification().classified_subtasks
+            ),
+        }
+    )
+    _, validated, _ = validate_stage_chain(operational, classification, make_added())
+    assert validated.task == operational.task
+    assert [row.subtask_name for row in validated.classified_subtasks] == [
+        item.subtask_name for item in operational.operational_subtasks
+    ]
+    assert [row.sequence_index for row in validated.classified_subtasks] == [1, 2, 3]
+
+
 def test_missing_extra_and_duplicate_classifications_are_rejected():
     operational = make_operational()
     classification = make_classification().model_copy(

@@ -1,0 +1,409 @@
+{
+  "run_id": "110a5b8bb776",
+  "timestamp": "2026-10-24T17:54:58.395668+00:00",
+  "case_key": "claims_triage",
+  "provider": "OpenAI",
+  "model": "gpt-6-luna",
+  "stage": "transformation",
+  "validation_status": "passed",
+  "assumptions": [
+    "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity."
+  ],
+  "result": {
+    "task_decomposition": {
+      "operational_decomposition": {
+        "task": {
+          "task_id": null,
+          "task_name": "Triage a personal auto collision claim",
+          "task_description": "You handle new auto insurance claims. A policyholder reports a two-car collision at an intersection and sends in their account of what happened, vehicle details, damage photos, the other driver's contact and insurance information, and a police report number. Some details might be missing or conflicting, and there may not be a repair estimate yet. Your task is to check the claim against the policy and available records, see whether there's enough information to move it forward, flag missing documents or possible coverage issues, and send it to the right claims team. Straightforward claims can go through the usual process. Claims involving injuries, conflicting accounts, signs of possible fraud, or complicated coverage questions need specialist attention. You're getting the claim ready for an adjuster, who will make the final coverage and liability decisions."
+        },
+        "operational_subtasks": [
+          {
+            "sequence_index": 1,
+            "subtask_id": "SUB001",
+            "subtask_name": "Review incident details and available records",
+            "description": "Review the policyholder\u2019s account, vehicle and party details, damage photos, and available incident records, including a police report if accessible, to establish the reported facts and identify inconsistencies.",
+            "relative_effort_weight": "1.2",
+            "effort_rationale": "Assumption: this review occurs once per claim. Comparing several submitted items with available records takes moderate effort; access to a police report may vary, but no supplied operational volume or timing is available.",
+            "depends_on": [],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 2,
+            "subtask_id": "SUB002",
+            "subtask_name": "Check policy and coverage information",
+            "description": "Review the policy and available insurer records for policy status, covered vehicle, and potentially relevant coverage terms; flag apparent coverage questions without making the adjuster\u2019s final coverage decision.",
+            "relative_effort_weight": "1.1",
+            "effort_rationale": "Assumption: one policy check is needed per claim. Reviewing policy records and relating applicable terms to the reported collision requires moderate effort, especially if records or terms are not straightforward.",
+            "depends_on": [],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 3,
+            "subtask_id": "SUB003",
+            "subtask_name": "Assess information sufficiency and identify gaps",
+            "description": "Determine whether the submitted information is sufficient to move the claim to adjuster handling, and identify missing or unresolved details or documents, such as a repair estimate if one is not yet available.",
+            "relative_effort_weight": "0.8",
+            "effort_rationale": "Assumption: one sufficiency assessment occurs per claim. A straightforward package requires a brief check; missing or unclear information increases review effort, but requesting or obtaining missing items is not included.",
+            "depends_on": [
+              "SUB001",
+              "SUB002"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 4,
+            "subtask_id": "SUB004",
+            "subtask_name": "Evaluate specialist-routing triggers",
+            "description": "Evaluate whether the claim involves injuries, conflicting accounts, signs of possible fraud, or complicated coverage questions, and determine whether it belongs in the usual claims process or requires specialist attention.",
+            "relative_effort_weight": "0.7",
+            "effort_rationale": "Assumption: this screen occurs once per claim, with specialist-triggering issues arising only in a subset of claims. Routine screening is brief; evaluating ambiguous indicators or complex coverage questions takes additional effort.",
+            "depends_on": [
+              "SUB001",
+              "SUB002"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 5,
+            "subtask_id": "SUB005",
+            "subtask_name": "Assign and hand off the claim",
+            "description": "Send the claim to the usual claims team or the appropriate specialist team, communicating the incident summary, available records, information gaps, and any coverage or routing flags for the adjuster.",
+            "relative_effort_weight": "0.4",
+            "effort_rationale": "Assumption: one handoff occurs per claim. Assigning the destination and sharing a concise triage summary is typically a short activity, with some added effort when specialist routing or multiple flags require explanation.",
+            "depends_on": [
+              "SUB003",
+              "SUB004"
+            ],
+            "provenance_refs": []
+          }
+        ],
+        "provenance_refs": []
+      },
+      "baseline_effort_allocations": [
+        {
+          "subtask_id": "SUB001",
+          "effort": null,
+          "weight_ratio": "0.2857142857142857142857142857",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB002",
+          "effort": null,
+          "weight_ratio": "0.2619047619047619047619047619",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB003",
+          "effort": null,
+          "weight_ratio": "0.1904761904761904761904761905",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB004",
+          "effort": null,
+          "weight_ratio": "0.1666666666666666666666666667",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB005",
+          "effort": null,
+          "weight_ratio": "0.09523809523809523809523809524",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        }
+      ],
+      "provenance_refs": [],
+      "provider_provenance": [
+        {
+          "provider_id": "openai",
+          "stage": "operational_decomposition",
+          "model_id": "gpt-6-luna",
+          "request_id": null,
+          "references": []
+        }
+      ]
+    },
+    "retain_remove_classification": {
+      "task": {
+        "task_id": null,
+        "task_name": "Triage a personal auto collision claim",
+        "task_description": "You handle new auto insurance claims. A policyholder reports a two-car collision at an intersection and sends in their account of what happened, vehicle details, damage photos, the other driver's contact and insurance information, and a police report number. Some details might be missing or conflicting, and there may not be a repair estimate yet. Your task is to check the claim against the policy and available records, see whether there's enough information to move it forward, flag missing documents or possible coverage issues, and send it to the right claims team. Straightforward claims can go through the usual process. Claims involving injuries, conflicting accounts, signs of possible fraud, or complicated coverage questions need specialist attention. You're getting the claim ready for an adjuster, who will make the final coverage and liability decisions."
+      },
+      "classified_subtasks": [
+        {
+          "subtask_id": "SUB001",
+          "subtask_name": "Review incident details and available records",
+          "sequence_index": 1,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.2857142857142857142857142857",
+          "rationale": "AI can extract and compare claim documents, photos, and available incident records to establish reported facts and flag inconsistencies with limited recurring human review."
+        },
+        {
+          "subtask_id": "SUB002",
+          "subtask_name": "Check policy and coverage information",
+          "sequence_index": 2,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.2619047619047619047619047619",
+          "rationale": "Policy systems and AI can check policy status, vehicle details, and relevant terms against the reported collision and flag apparent coverage questions."
+        },
+        {
+          "subtask_id": "SUB003",
+          "subtask_name": "Assess information sufficiency and identify gaps",
+          "sequence_index": 3,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1904761904761904761904761905",
+          "rationale": "Automated completeness checks can compare submitted information with claim requirements and identify missing or unresolved items for adjuster handling."
+        },
+        {
+          "subtask_id": "SUB004",
+          "subtask_name": "Evaluate specialist-routing triggers",
+          "sequence_index": 4,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1666666666666666666666666667",
+          "rationale": "AI screening can identify injury indicators, conflicting accounts, fraud signals, and complex coverage flags and route claims accordingly."
+        },
+        {
+          "subtask_id": "SUB005",
+          "subtask_name": "Assign and hand off the claim",
+          "sequence_index": 5,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.09523809523809523809523809524",
+          "rationale": "Workflow automation can assign the claim to the appropriate team and transmit the triage summary, records, and flags."
+        }
+      ],
+      "provenance_refs": []
+    },
+    "added_work_classification": {
+      "task": {
+        "task_id": null,
+        "task_name": "Triage a personal auto collision claim",
+        "task_description": "You handle new auto insurance claims. A policyholder reports a two-car collision at an intersection and sends in their account of what happened, vehicle details, damage photos, the other driver's contact and insurance information, and a police report number. Some details might be missing or conflicting, and there may not be a repair estimate yet. Your task is to check the claim against the policy and available records, see whether there's enough information to move it forward, flag missing documents or possible coverage issues, and send it to the right claims team. Straightforward claims can go through the usual process. Claims involving injuries, conflicting accounts, signs of possible fraud, or complicated coverage questions need specialist attention. You're getting the claim ready for an adjuster, who will make the final coverage and liability decisions."
+      },
+      "added_work_rows": [
+        {
+          "work_id": "AI_VERIFY_TRIAGE",
+          "workload_name": "Validate AI triage findings and routing",
+          "category": "AI_VERIFICATION",
+          "source_removed_subtask_ids": [
+            "SUB001",
+            "SUB002",
+            "SUB003",
+            "SUB004",
+            "SUB005"
+          ],
+          "description": null,
+          "estimate": {
+            "occurrences_per_parent_execution": {
+              "low": "1",
+              "typical": "1",
+              "high": "1"
+            },
+            "reference_occurrences_per_parent_execution": {
+              "low": "1",
+              "typical": "1",
+              "high": "1"
+            },
+            "relative_effort_per_occurrence": {
+              "low": "0.1",
+              "typical": "0.25",
+              "high": "0.5"
+            },
+            "reference_subtask_id": "SUB001",
+            "external_reference": null,
+            "rationale": "One human check of AI-generated facts, gaps, flags, and routing is assumed to take a fraction of the baseline record review.",
+            "estimate_basis": "assumed",
+            "provenance_refs": []
+          },
+          "depends_on_subtask_ids": [],
+          "sequence_index": null,
+          "provenance_refs": []
+        }
+      ],
+      "provenance_refs": []
+    },
+    "accounting": {
+      "accounting_mode": "normalized",
+      "baseline_human_effort": null,
+      "retained_human_work": null,
+      "gross_removed_work": null,
+      "ai_interaction_work": null,
+      "ai_verification_work": null,
+      "added_human_work": null,
+      "net_human_effort": null,
+      "w0": "1",
+      "w1": "0.07142857142857142857142857142",
+      "gross_removed_work_ratio": "1.000000000000000000000000000",
+      "added_human_work_ratio": "0.07142857142857142857142857142",
+      "net_remaining_work_ratio": "0.07142857142857142857142857142",
+      "net_substitution_ratio": "0.9285714285714285714285714286",
+      "net_augmentation_multiplier": "14.00000000000000000000000000",
+      "effect": "gain",
+      "provenance_refs": []
+    },
+    "provenance_refs": [],
+    "provider_provenance": [
+      {
+        "provider_id": "openai",
+        "stage": "operational_decomposition",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      },
+      {
+        "provider_id": "openai",
+        "stage": "retain_remove_classification",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      },
+      {
+        "provider_id": "openai",
+        "stage": "added_work_classification",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      }
+    ],
+    "support_work_resolution": {
+      "mode": "auto",
+      "source_by_category": {
+        "AI_INTERACTION": "estimate",
+        "AI_VERIFICATION": "estimate"
+      },
+      "host_support_work": null,
+      "estimated_support_work": {
+        "ai_interaction": {
+          "value": "0",
+          "basis": "normalized_contribution",
+          "unit": null,
+          "time_basis": null
+        },
+        "ai_verification": {
+          "value": "0.07142857142857142857142857142",
+          "basis": "normalized_contribution",
+          "unit": null,
+          "time_basis": null
+        }
+      },
+      "reconciliation": "not_applicable"
+    },
+    "normalized_work_estimates": [
+      {
+        "subtask_id": "SUB001",
+        "subtask_name": "Review incident details and available records",
+        "baseline_work_units": "28.57142857142857142857142857",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "28.57142857142857142857142857",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "AI can extract and compare claim documents, photos, and available incident records to establish reported facts and flag inconsistencies with limited recurring human review."
+      },
+      {
+        "subtask_id": "SUB002",
+        "subtask_name": "Check policy and coverage information",
+        "baseline_work_units": "26.19047619047619047619047619",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "26.19047619047619047619047619",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Policy systems and AI can check policy status, vehicle details, and relevant terms against the reported collision and flag apparent coverage questions."
+      },
+      {
+        "subtask_id": "SUB003",
+        "subtask_name": "Assess information sufficiency and identify gaps",
+        "baseline_work_units": "19.04761904761904761904761905",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "19.04761904761904761904761905",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Automated completeness checks can compare submitted information with claim requirements and identify missing or unresolved items for adjuster handling."
+      },
+      {
+        "subtask_id": "SUB004",
+        "subtask_name": "Evaluate specialist-routing triggers",
+        "baseline_work_units": "16.66666666666666666666666667",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "16.66666666666666666666666667",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "AI screening can identify injury indicators, conflicting accounts, fraud signals, and complex coverage flags and route claims accordingly."
+      },
+      {
+        "subtask_id": "SUB005",
+        "subtask_name": "Assign and hand off the claim",
+        "baseline_work_units": "9.523809523809523809523809524",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "9.523809523809523809523809524",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Workflow automation can assign the claim to the appropriate team and transmit the triage summary, records, and flags."
+      }
+    ],
+    "estimation_assumptions": [
+      "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity."
+    ]
+  },
+  "normalized_estimates": [
+    {
+      "subtask_id": "SUB001",
+      "subtask_name": "Review incident details and available records",
+      "baseline_work_units": "28.57142857142857142857142857",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "28.57142857142857142857142857",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "AI can extract and compare claim documents, photos, and available incident records to establish reported facts and flag inconsistencies with limited recurring human review."
+    },
+    {
+      "subtask_id": "SUB002",
+      "subtask_name": "Check policy and coverage information",
+      "baseline_work_units": "26.19047619047619047619047619",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "26.19047619047619047619047619",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Policy systems and AI can check policy status, vehicle details, and relevant terms against the reported collision and flag apparent coverage questions."
+    },
+    {
+      "subtask_id": "SUB003",
+      "subtask_name": "Assess information sufficiency and identify gaps",
+      "baseline_work_units": "19.04761904761904761904761905",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "19.04761904761904761904761905",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Automated completeness checks can compare submitted information with claim requirements and identify missing or unresolved items for adjuster handling."
+    },
+    {
+      "subtask_id": "SUB004",
+      "subtask_name": "Evaluate specialist-routing triggers",
+      "baseline_work_units": "16.66666666666666666666666667",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "16.66666666666666666666666667",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "AI screening can identify injury indicators, conflicting accounts, fraud signals, and complex coverage flags and route claims accordingly."
+    },
+    {
+      "subtask_id": "SUB005",
+      "subtask_name": "Assign and hand off the claim",
+      "baseline_work_units": "9.523809523809523809523809524",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "9.523809523809523809523809524",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Workflow automation can assign the claim to the appropriate team and transmit the triage summary, records, and flags."
+    }
+  ],
+  "input_case_id": "claims_triage"
+}

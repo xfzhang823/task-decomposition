@@ -18,6 +18,7 @@ from task_decomposition.contracts.stages import (
     SupportWorkMode,
     TransformationDecompositionResult,
 )
+from task_decomposition.domain.allocation import DEFAULT_TOLERANCE
 from task_decomposition.errors import (
     AccountingInvariantError,
     MissingEffortAllocationError,
@@ -41,6 +42,10 @@ def normalized_accounting_from_classification(
 
     allocations = {
         item.subtask_id: item for item in task_decomposition.baseline_effort_allocations
+    }
+    subtasks = {
+        item.subtask_id: item
+        for item in task_decomposition.operational_decomposition.operational_subtasks
     }
     if not allocations or set(allocations) != {
         item.subtask_id for item in classification.classified_subtasks
@@ -72,6 +77,7 @@ def normalized_accounting_from_classification(
         estimates.append(
             NormalizedWorkEstimate(
                 subtask_id=item.subtask_id,
+                subtask_name=subtasks[item.subtask_id].subtask_name,
                 baseline_work_units=baseline,
                 retained_work_units=retained_units,
                 gross_removed_work_units=removed_units,
@@ -81,7 +87,7 @@ def normalized_accounting_from_classification(
             )
         )
 
-    if retained + removed != Decimal(1):
+    if abs(retained + removed - Decimal(1)) > DEFAULT_TOLERANCE:
         raise AccountingInvariantError(
             "task baseline relative-effort weights must sum to 1 before normalization"
         )

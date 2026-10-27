@@ -147,6 +147,18 @@ def _provider_text_format(stage, schema) -> Any:
             "type": "number",
         }
     elif stage is ProviderStage.ADDED_WORK_CLASSIFICATION:
+        # OpenAI's structured-output schema validator rejects the regex
+        # lookaround emitted by Pydantic for Decimal string alternatives.
+        # Added-work estimates contain both effort quantities and ranges.
+        definitions["EffortQuantity"]["properties"]["value"] = {
+            "minimum": 0,
+            "type": "number",
+        }
+        for field in ("low", "typical", "high"):
+            definitions["EstimateRange"]["properties"][field] = {
+                "minimum": 0,
+                "type": "number",
+            }
         definitions["SupportWorkInput"]["properties"]["value"] = {
             "minimum": 0,
             "type": "number",

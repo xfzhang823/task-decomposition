@@ -247,6 +247,7 @@ class NormalizedWorkEstimate(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     subtask_id: str = Field(min_length=1)
+    subtask_name: str = Field(min_length=1)
     baseline_work_units: Decimal = Field(ge=0)
     retained_work_units: Decimal = Field(ge=0)
     gross_removed_work_units: Decimal = Field(ge=0)

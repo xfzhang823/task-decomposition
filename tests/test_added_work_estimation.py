@@ -136,6 +136,42 @@ def test_repeated_reference_is_normalized_and_retained_reference_is_valid():
     assert diagnostic.estimated_support_work == resolved
 
 
+@pytest.mark.parametrize(
+    ("occurrences", "expected"),
+    (
+        (Decimal("0.4"), Decimal(2)),
+        (Decimal(1), Decimal(5)),
+        (Decimal(3), Decimal(15)),
+    ),
+)
+def test_expected_support_work_scales_by_occurrences_per_parent(occurrences, expected):
+    row_estimate = estimate().model_copy(
+        update={
+            "occurrences_per_parent_execution": EstimateRange(
+                low=occurrences, typical=occurrences, high=occurrences
+            )
+        }
+    )
+    added = AddedWorkClassification(
+        task=TASK,
+        added_work_rows=(
+            AddedWorkItem(
+                work_id="w1",
+                workload_name="Guide AI",
+                category=AddedWorkCategory.AI_INTERACTION,
+                source_removed_subtask_ids=("s1", "s3"),
+                estimate=row_estimate,
+            ),
+        ),
+    )
+
+    resolved, _ = resolve_support_work(
+        added, classification(), accounting(), mode=SupportWorkMode.ESTIMATE
+    )
+
+    assert resolved.ai_interaction.value == expected
+
+
 def test_causal_validation_rejects_missing_and_retain_sources():
     base = operational()
     classified = classification()

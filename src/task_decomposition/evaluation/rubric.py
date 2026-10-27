@@ -1,6 +1,6 @@
 """Versioned, provider-neutral semantic evaluation rubric."""
 
-SEMANTIC_EVALUATION_RUBRIC_VERSION = "1.2"
+SEMANTIC_EVALUATION_RUBRIC_VERSION = "1.3"
 
 SEMANTIC_EVALUATION_RUBRIC = """
 Evaluate whether the supplied operational decomposition adequately represents the work required by the original task, at a granularity suitable for independent automation assessment.
@@ -20,7 +20,10 @@ Coverage and boundaries:
 
 Effort plausibility and transparency:
 - Treat `relative_effort_weight` as a provider-generated estimate of each subtask's share of baseline human effort; Python performs the authoritative normalization.
-- Assess whether the relative weights are directionally plausible for the described work and whether each `effort_rationale` makes its main frequency and effort-per-occurrence assumptions transparent.
+- Assess whether all subtasks use one parent-output denominator and whether each rationale separates expected occurrences from active human effort per occurrence.
+- Check that conditional, repeated, and rework activities are represented through expected occurrences rather than an assumption that every subtask runs once.
+- Check that internal workload is represented once and that external parent-output volume, passive waiting, queueing, and unattended processing are not treated as subtask effort.
+- Assess whether the relative weights are directionally plausible for the described work and whether each `effort_rationale` makes its frequency and effort-per-occurrence assumptions transparent, including the parent output, complexity, and information-availability assumptions.
 - When a rationale gives frequency or occurrence assumptions and effort-per-occurrence comparisons, check that their implied ordering is consistent with the relative weights. Flag material contradictions, such as a frequently occurring and effort-intensive activity receiving a much smaller weight without an explanation.
 - Accept qualitative or approximate assumptions. Do not require absolute minutes, hours, workload volumes, external benchmark retrieval, citations, formal calibration scales, or numeric frequency ranges.
 - Distinguish supplied operational facts from model-generated estimates and assumptions. Do not treat an unverified benchmark claim or citation as required evidence.

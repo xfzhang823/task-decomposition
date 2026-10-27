@@ -22,6 +22,7 @@ from task_decomposition.evaluation import (
     SemanticFindingSeverity,
 )
 from task_decomposition.interfaces import SemanticEvaluator
+from task_decomposition.providers.prompts import OPERATIONAL_DECOMPOSITION_PROMPT
 
 
 def operational_decomposition():
@@ -181,12 +182,16 @@ def test_finding_codes_and_categories_are_stable_enums():
 
 
 def test_rubric_is_versioned_and_contains_representative_guidance():
-    assert SEMANTIC_EVALUATION_RUBRIC_VERSION == "1.2"
+    assert SEMANTIC_EVALUATION_RUBRIC_VERSION == "1.3"
     for phrase in (
         "Authority and scope",
         "assigned operational responsibility",
         "reasonable alternative decompositions",
         "overlap, duplication, fragmentation",
+        "one parent-output denominator",
+        "conditional, repeated, and rework activities",
+        "internal workload is represented once",
+        "passive waiting, queueing, and unattended processing",
         "Do not use keyword matching",
         "A missing activity is blocking only when",
         "explicitly required by the assigned task or operationally necessary",
@@ -406,6 +411,17 @@ def test_rubric_covers_effort_plausibility_without_absolute_measurements():
         "Do not require absolute minutes, hours, workload volumes"
         in SEMANTIC_EVALUATION_RUBRIC
     )
+
+
+def test_operational_prompt_defines_parent_output_and_effort_boundaries():
+    for phrase in (
+        "one defined parent output unit",
+        "different native work units",
+        "Include internal workload once",
+        "external parent-output volume",
+        "passive waiting",
+    ):
+        assert phrase in OPERATIONAL_DECOMPOSITION_PROMPT
 
 
 def test_scope_regression_cases_preserve_acceptance_and_blocking_boundaries():

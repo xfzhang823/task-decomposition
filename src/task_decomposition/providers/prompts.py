@@ -31,10 +31,10 @@ Subtask Structure:
 - Use empty dependency and provenance arrays unless needed; omit unnecessary metadata.
 
 Relative Effort Estimation:
-- Assign each subtask a positive relative_effort_weight proportional to its expected baseline human effort per parent task.
-- Estimate expected effort as typical occurrences per parent task × relative human effort per occurrence.
-- Estimate effort per occurrence from the work involved, including complexity, coordination, and information availability. Account for exception frequency in expected occurrences.
-- Use a consistent parent-task workload basis; do not double-count volume or effort across subtasks, or assume conditional activities occur every time.
+- Treat one parent-task execution as producing one defined parent output unit. Use that same denominator for every subtask, while allowing subtasks to have different native work units.
+- Estimate expected subtask effort per parent output as expected occurrences per parent output × active human effort per occurrence. Occurrences may be zero, fractional, one, or greater than one; include conditional work, repetition, and active rework without assuming every subtask occurs once.
+- Estimate effort per occurrence from the work involved, including representative complexity, coordination, information availability, and internal workload. Include internal workload once; do not double-count it in both occurrences and effort per occurrence.
+- Keep external parent-output volume (for example, claims per month) outside this decomposition. Exclude passive waiting, queueing, and unattended processing time.
 - Use supplied operational facts when available; otherwise make reasonable occupational estimates informed by general knowledge, frameworks such as O*NET, and relevant industry practices.
 - Use a consistent relative scale across all subtasks; the application performs authoritative normalization.
 - Do not require absolute minutes, hours, or workload volumes from the user.
@@ -42,7 +42,7 @@ Relative Effort Estimation:
 
 Effort Rationale:
 - Provide a concise rationale for each subtask's relative_effort_weight.
-- Explain the main frequency and effort-per-occurrence assumptions, including relevant complexity, coordination, or information availability factors.
+- Explain the parent output basis, frequency and effort-per-occurrence assumptions, and relevant complexity, coordination, information availability, or internal-workload assumptions.
 - Distinguish supplied operational facts from model-generated estimates and assumptions.
 - State the assumed occurrence frequency clearly. For conditional work, provide an approximate frequency or range labeled as an assumption when none is supplied.
 - Do not invent measured data, benchmarks, or citations. Do not claim to have consulted specific sources unless they were actually provided or retrieved.
@@ -120,13 +120,13 @@ ADDED_WORK_PROMPT = """
 Identify genuinely new human work caused by automating baseline subtasks classified REMOVE. For each REMOVE subtask, assess incremental AI_INTERACTION and AI_VERIFICATION needs, including routine oversight, exceptions, missing inputs, ambiguity, failures, and rework. A removed subtask does not necessarily create added work; `added_work_rows` may be empty.
 
 - Identity: Copy the supplied task exactly. Use only frozen subtask IDs; never invent, rename, omit, duplicate, or remap them.
-- Categories: AI_INTERACTION covers human prompting, guidance, intervention, retries, and troubleshooting during execution. AI_VERIFICATION covers human inspection, validation, correction, and approval of AI outputs. Use no other categories.
-- Scope: Include only incremental human work during transformed workflow execution. Exclude existing RETAIN work, downstream activities, system development, deployment, maintenance, and passive waiting. Do not reclassify baseline work as added work.
+- Categories: AI_INTERACTION covers human prompting, guidance, intervention, retrying, and troubleshooting during execution. AI_VERIFICATION covers human inspection, validation, correction, and approving AI-generated outputs. Use no other categories.
+- Scope: Include only incremental human work during transformed workflow execution. Exclude existing RETAIN work, downstream activities, system implementation, deployment, infrastructure or model maintenance, passive AI waiting time, and other passive waiting. Do not reclassify baseline work as added work.
 - Coverage & Consolidation: Assess every REMOVE subtask, but emit only distinct necessary activities. Combine overlapping work across subtasks to avoid double counting; separate activities with materially different triggers, frequencies, or human actions. List all causal REMOVE IDs in `source_removed_subtask_ids`.
 - Effort Reference: Select exactly one comparable baseline `reference_subtask_id` (RETAIN or REMOVE) or `external_reference` per row. Match the added activity's scope, action, complexity, and frequency; avoid arbitrarily narrow references. Do not automatically sum causal subtasks. External references require a quantitative `effort_per_occurrence` anchor; otherwise leave the estimate noncomputable.
 - Estimation: Provide low/typical/high values for `occurrences_per_parent_execution` and `relative_effort_per_occurrence`. For baseline references, also estimate `reference_occurrences_per_parent_execution`; do not assume one without justification. Reflect conditional frequencies and use measured/documented evidence when available; otherwise use `estimate_basis="assumed"`. Never fabricate evidence or benchmarks.
 - Rationale: In ≤40 words per row, explain the trigger, frequency, reference choice, relative effort, and key assumptions.
-- Output: Return the complete structured object with `task`, `added_work_rows`, and `provenance_refs` ([] if unavailable). Give each row a stable work ID and concise activity name. Leave optional descriptions, dependencies, sequence indexes, and row provenance empty/null unless needed.
+- Output: Return the complete structured object with top-level `task`, `added_work_rows`, and `provenance_refs` ([] if unavailable). Give each row a stable work ID and concise activity name. Set optional descriptions, dependencies, sequence indexes, and row provenance to empty/null unless needed.
 - Accounting: Return estimates only. Do not calculate W0, W1, accounting amounts, substitution, augmentation, effects, or readiness metrics; Python owns all calculations.
 """.strip()
 

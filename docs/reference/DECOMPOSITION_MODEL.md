@@ -8,6 +8,28 @@ Task decomposition answers “What work exists?” Its canonical input is `TaskD
 
 Baseline `relative_effort_weight` values are provider-generated ratio estimates of each subtask's share of aggregate baseline human working time. Each subtask also carries an `effort_rationale` describing its frequency and effort-per-occurrence assumptions. Their overall numeric scale is arbitrary: normalization treats `12` as three times `4`. Semantic validation assesses whether the assumptions are transparent and directionally consistent with the weights, without requiring absolute units, workload volumes, external benchmark retrieval, or citations. See the detailed [baseline effort weighting audit](../audits/baseline-effort-weighting.md) for the prompt, provider-message, parsing, validation, and normalization evidence.
 
+### Effort estimation semantics
+
+One parent-task execution represents one defined parent output unit, such as one claim triaged, one ticket resolved, or one invoice reviewed. Every subtask estimates its contribution per that same parent output unit, even when subtasks use different native work units such as documents, messages, requests, or escalations.
+
+For each subtask, the intended semantic relationship is:
+
+```text
+expected_subtask_effort_per_parent_output
+    = expected_occurrences_per_parent_output
+      × active_human_effort_per_occurrence
+```
+
+Expected occurrences may be zero, fractional, one, or greater than one. They represent the average number of executions per parent output and include conditional work, repetition, and active rework; they are not necessarily probabilities. Expected parent effort is the sum of expected subtask effort, and `relative_effort_weight` remains the provider-generated raw estimate of each subtask's share of that total. Python normalizes those weights deterministically; it does not invent absolute duration.
+
+The baseline includes active human effort such as analysis, review, communication, coordination, execution, and active rework. It excludes passive waiting, queueing, and unattended processing. Internal workload, such as documents per claim, belongs inside the per-parent estimate and must not be multiplied again. External workload volume, such as claims per month, belongs to downstream workload and capacity systems, not relative task decomposition.
+
+Baseline relative effort is dimensionless. When a measured parent effort per output is supplied, the existing `EffortQuantity` and `allocate_effort()` utility materialize compatible absolute subtask allocations using the normalized shares. Without measured or externally supplied absolute effort, normalized weights must not be interpreted as hours, FTE, capacity, or staffing requirements.
+
+The conceptual downstream work requirement is compatible with a representation such as `work_unit`, `effort_per_unit`, and `effort_time_unit`, for example one claim requiring 1.5 hours of active human effort. Resource identity, FTE allocation, labor calendars, availability, throughput, and capacity conversion remain outside this package. `EffortQuantity.time_basis` preserves the existing period/execution semantics for absolute quantities and is not reinterpreted as external workload volume.
+
+Assumptions about parent output basis, typical internal workload, conditional or repeated occurrences, effort per occurrence, complexity, information availability, and unknowns should be stated in `effort_rationale`. Supplied facts and model-inferred assumptions remain distinguishable through the rationale and available provenance; no additional assumption schema is required by the current contract.
+
 The result is a frozen `TaskDecomposition` containing `OperationalDecomposition`, `OperationalSubtask` rows, and `BaselineEffortAllocation` rows when supplied or allocated. Each baseline allocation is attached to a subtask by stable `subtask_id` and contains explicit absolute effort, normalized weight, or both as allowed by the contract.
 
 The key invariant is that transformation decomposition consumes an existing `TaskDecomposition`; it does not perform task decomposition itself. A reviewed baseline can therefore be retained and reused by a host for later transformation evaluations without regeneration in this library.

@@ -20,7 +20,10 @@ from task_decomposition import (
     TimeBasis,
     validate_added_work_classification,
 )
-from task_decomposition.application.added_work_estimation import resolve_support_work
+from task_decomposition.application.added_work_estimation import (
+    resolve_support_work,
+    resolve_support_work_with_details,
+)
 from task_decomposition.contracts.stages import (
     ClassifiedSubtask,
     OperationalDecomposition,
@@ -133,6 +136,35 @@ def test_repeated_reference_is_normalized_and_retained_reference_is_valid():
     )
     assert resolved.ai_interaction.value == Decimal(10)
     assert resolved.ai_verification.value == Decimal(0)
+    assert diagnostic.estimated_support_work == resolved
+
+
+def test_added_work_details_expose_reference_and_calculated_contribution():
+    added = AddedWorkClassification(
+        task=TASK,
+        added_work_rows=(
+            AddedWorkItem(
+                work_id="w1",
+                workload_name="Guide AI",
+                category=AddedWorkCategory.AI_INTERACTION,
+                source_removed_subtask_ids=("s1", "s3"),
+                estimate=estimate(),
+            ),
+        ),
+    )
+
+    resolved, diagnostic, details = resolve_support_work_with_details(
+        added, classification(), accounting(), mode=SupportWorkMode.ESTIMATE
+    )
+
+    detail = details[0]
+    assert detail.reference_source == "baseline_subtask"
+    assert detail.reference_subtask_id == "s2"
+    assert detail.reference_effort.value == Decimal(40)
+    assert detail.reference_occurrences_per_parent_execution.typical == Decimal(2)
+    assert detail.reference_effort_per_occurrence.value == Decimal(20)
+    assert detail.calculated_added_effort.value == Decimal(10)
+    assert detail.estimate_basis == "assumed"
     assert diagnostic.estimated_support_work == resolved
 
 

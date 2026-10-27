@@ -333,4 +333,27 @@ Remaining open findings:
 
 Deferred integration considerations: downstream systems may combine absolute effort per parent output with resource capacity and labor-calendar data, but this repository does not add a runtime dependency, resource-capacity model, FTE logic, external workload volume, or throughput calculation.
 
-Validation results: `pytest -q` passed with 303 tests passed and 6 skipped. Changed-file Ruff checks and formatting checks passed. Source compilation via read-only `compile()` checks passed. Repository-wide `ruff check src tests` remains non-zero because of 64 pre-existing findings outside the changed files; repository-wide `ruff format --check src tests` remains non-zero because `src/task_decomposition/providers/_shared.py` is pre-existingly unformatted. The requested `python -m compileall -q src` command was attempted but could not overwrite pre-existing permission-restricted `__pycache__` files; no source compilation errors were reported by the read-only compile check. `git diff --check` passed.
+Validation results: the full `pytest -q` suite passed with 304 tests passed and 6 skipped. Changed-file Ruff checks and formatting checks passed. Source compilation via read-only `compile()` checks passed. Repository-wide `ruff check src tests` remains non-zero because of 64 pre-existing findings outside the changed files; repository-wide `ruff format --check src tests` remains non-zero because `src/task_decomposition/providers/_shared.py` is pre-existingly unformatted. The requested `python -m compileall -q src` command was attempted but could not overwrite pre-existing permission-restricted `__pycache__` files; no source compilation errors were reported by the read-only compile check. `git diff --check` passed.
+
+### Phase 3 resolution tracking
+
+Phase 3 addressed the auditability gap identified in F-10 without changing estimation behavior, reference selection, provider prompts, baseline allocation, or canonical W0/W1 accounting. The resolver now retains one `AddedWorkEstimateDetail` per computable added-work row and the transformation result exposes those details. Each detail carries the proposal identity and category, parent-output occurrence range, relative effort-per-occurrence range, reference source and identity, reference effort and occurrence range where available, derived reference effort per occurrence, calculated added effort, estimate basis, rationale, and provenance.
+
+The existing resolver remains the calculation owner. The new detail values are built from the same occurrence, relative-effort, reference, and accounting-input values used for support-work resolution. Existing `resolve_support_work` callers retain the original two-value return contract; the detail-aware resolver is used by transformation orchestration to populate the result field. Host-selected support work can still have no per-row calculated details, and the notebook explicitly reports that limitation rather than inventing values.
+
+The evaluation notebook now renders an added-work calculation table with explicit parent-output denominators, typical values plus low/high ranges, normalized-versus-absolute quantity metadata, references, assumptions, rationale, and provenance. It also renders reconciliation lines using canonical category support-work outputs and canonical W1. Normalized values remain explicitly identified as baseline-relative units and are not presented as time or capacity.
+
+Files modified in Phase 3:
+
+- `src/task_decomposition/contracts/stages.py`
+- `src/task_decomposition/contracts/__init__.py`
+- `src/task_decomposition/__init__.py`
+- `src/task_decomposition/application/added_work_estimation.py`
+- `src/task_decomposition/application/transformation_decomposition.py`
+- `notebooks/task_decomposition_end_to_end.ipynb`
+- `tests/test_added_work_estimation.py`
+- this audit file
+
+Remaining findings: F-05 remains open because canonical accounting intentionally uses typical values rather than changing point-accounting semantics to ranges. F-06 remains open because decomposition-specific reference anchors can vary with baseline granularity. F-09 remains unrelated and open. F-10 is addressed for transformation results and notebook reporting, while host-supplied support work and broader provider tracing remain limited by existing contracts.
+
+Phase 3 validation: focused added-work, normalized-estimation, and provider-application tests passed (`26 passed`); the full suite passed (`304 passed, 6 skipped`). Changed-file lint, formatting, read-only source compilation, notebook JSON/code compilation, and `git diff --check` passed. Repository-wide lint, repository-wide format checking, and `compileall` retain the pre-existing failures described above.

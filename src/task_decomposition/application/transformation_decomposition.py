@@ -6,7 +6,9 @@ from task_decomposition.application._provider_stage import (
     validate_added_response,
     validate_classification_response,
 )
-from task_decomposition.application.added_work_estimation import resolve_support_work
+from task_decomposition.application.added_work_estimation import (
+    resolve_support_work_with_details,
+)
 from task_decomposition.application.provider_factory import resolve_provider
 from task_decomposition.application.staged_pipeline import _run_staged_pipeline
 from task_decomposition.contracts.accounting import AccountingMode
@@ -97,11 +99,13 @@ def _assemble_transformation_result(
 ):
     classification_response, added_response = responses
     baseline = request.task_decomposition.operational_decomposition
-    support_work, support_resolution = resolve_support_work(
-        added,
-        classification,
-        request.accounting_input,
-        mode=request.support_work_mode,
+    support_work, support_resolution, estimate_details = (
+        resolve_support_work_with_details(
+            added,
+            classification,
+            request.accounting_input,
+            mode=request.support_work_mode,
+        )
     )
     accounting_input = request.accounting_input.model_copy(
         update={"support_work": support_work}
@@ -135,6 +139,7 @@ def _assemble_transformation_result(
         ),
         provider_provenance=provider_provenance,
         support_work_resolution=support_resolution,
+        added_work_estimate_details=estimate_details,
         normalized_work_estimates=normalized_work_estimates,
         estimation_assumptions=estimation_assumptions,
     )

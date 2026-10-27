@@ -241,6 +241,30 @@ class AddedWorkClassification(BaseModel):
     provenance_refs: tuple[ProvenanceRef, ...] = ()
 
 
+class AddedWorkEstimateDetail(BaseModel):
+    """Auditable calculation inputs and contribution for one added-work row."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    work_id: str = Field(min_length=1)
+    workload_name: str = Field(min_length=1)
+    description: str | None = None
+    category: AddedWorkCategory
+    source_removed_subtask_ids: tuple[str, ...] = ()
+    occurrences_per_parent_execution: EstimateRange
+    relative_effort_per_occurrence: EstimateRange
+    reference_source: Literal["baseline_subtask", "external_reference"]
+    reference_subtask_id: str | None = None
+    external_reference_activity: str | None = None
+    reference_effort: EffortQuantity | SupportWorkInput | None = None
+    reference_occurrences_per_parent_execution: EstimateRange | None = None
+    reference_effort_per_occurrence: EffortQuantity | SupportWorkInput | None = None
+    calculated_added_effort: SupportWorkInput
+    estimate_basis: Literal["measured", "documented", "assumed"]
+    rationale: str
+    provenance_refs: tuple[ProvenanceRef, ...] = ()
+
+
 class NormalizedWorkEstimate(BaseModel):
     """Auditable 100-unit baseline estimate for one classified subtask."""
 
@@ -286,6 +310,7 @@ class TransformationDecompositionResult(BaseModel):
     provenance_refs: tuple[ProvenanceRef, ...] = ()
     provider_provenance: tuple[ProviderProvenance, ...] = ()
     support_work_resolution: SupportWorkResolution | None = None
+    added_work_estimate_details: tuple[AddedWorkEstimateDetail, ...] = ()
     normalized_work_estimates: tuple[NormalizedWorkEstimate, ...] = ()
     estimation_assumptions: tuple[str, ...] = ()
 
@@ -294,6 +319,7 @@ __all__ = [
     "AddedWorkCategory",
     "AddedWorkClassification",
     "AddedWorkEstimate",
+    "AddedWorkEstimateDetail",
     "AddedWorkItem",
     "BaselineEffortAllocation",
     "ClassifiedSubtask",

@@ -14,6 +14,7 @@ from task_decomposition.contracts.effort import (
 from task_decomposition.contracts.stages import (
     AddedWorkCategory,
     AddedWorkClassification,
+    AddedWorkEstimateDetail,
     SupportWorkMode,
     SupportWorkResolution,
 )
@@ -31,12 +32,31 @@ def resolve_support_work(
     *,
     mode: SupportWorkMode,
 ) -> tuple[SupportWorkInputs, SupportWorkResolution]:
+    selected, resolution, _ = resolve_support_work_with_details(
+        added, classification, accounting_input, mode=mode
+    )
+    return selected, resolution
+
+
+def resolve_support_work_with_details(
+    added: AddedWorkClassification,
+    classification,
+    accounting_input: AbsoluteEffortInput | NormalizedAccountingInput,
+    *,
+    mode: SupportWorkMode,
+) -> tuple[
+    SupportWorkInputs,
+    SupportWorkResolution,
+    tuple[AddedWorkEstimateDetail, ...],
+]:
     host = accounting_input.support_work
     estimates = None
+    details = ()
     if mode is SupportWorkMode.ESTIMATE or (
         mode is SupportWorkMode.AUTO and host is None
     ):
-        estimates = _derive_estimates(added, classification, accounting_input)
+        details = _derive_estimate_details(added, classification, accounting_input)
+        estimates = _support_inputs_from_details(details, accounting_input)
     if mode is SupportWorkMode.HOST:
         if host is None:
             raise MissingAccountingInputError("host support work is required")
@@ -54,20 +74,24 @@ def resolve_support_work(
     reconciliation = "not_applicable"
     if host is not None and estimates is not None:
         reconciliation = "match" if _support_equal(host, estimates) else "difference"
-    return selected, SupportWorkResolution(
-        mode=mode,
-        source_by_category={
-            AddedWorkCategory.AI_INTERACTION: source,
-            AddedWorkCategory.AI_VERIFICATION: source,
-        },
-        host_support_work=host,
-        estimated_support_work=estimates,
-        reconciliation=reconciliation,
+    return (
+        selected,
+        SupportWorkResolution(
+            mode=mode,
+            source_by_category={
+                AddedWorkCategory.AI_INTERACTION: source,
+                AddedWorkCategory.AI_VERIFICATION: source,
+            },
+            host_support_work=host,
+            estimated_support_work=estimates,
+            reconciliation=reconciliation,
+        ),
+        details,
     )
 
 
-def _derive_estimates(added, classification, accounting_input):
-    rows = defaultdict(list)
+def _derive_estimate_details(added, classification, accounting_input):
+    details = []
     by_id = {item.subtask_id: item for item in classification.classified_subtasks}
     for row in added.added_work_rows:
         if row.estimate is None:
@@ -88,16 +112,57 @@ def _derive_estimates(added, classification, accounting_input):
             reference = by_id[estimate.reference_subtask_id]
             aggregate = _baseline_effort(reference, accounting_input, row.work_id)
             anchor = aggregate / reference_count
+            reference_source = "baseline_subtask"
+            reference_effort = _effort_representation(aggregate, accounting_input)
+            reference_effort_per_occurrence = _effort_representation(
+                anchor, accounting_input
+            )
+            external_reference_activity = None
         else:
             external = estimate.external_reference
             if external is None or external.effort_per_occurrence is None:
                 raise AddedWorkEstimationError(
                     f"added-work row {row.work_id!r} lacks a quantitative external anchor"
                 )
-            anchor = _external_effort(
-                external.effort_per_occurrence, accounting_input, row.work_id
+            external_anchor = external.effort_per_occurrence
+            anchor = _external_effort(external_anchor, accounting_input, row.work_id)
+            reference_source = "external_reference"
+            reference_effort = None
+            reference_effort_per_occurrence = external_anchor
+            external_reference_activity = external.activity
+        details.append(
+            AddedWorkEstimateDetail(
+                work_id=row.work_id,
+                workload_name=row.workload_name,
+                description=row.description,
+                category=row.category,
+                source_removed_subtask_ids=row.source_removed_subtask_ids,
+                occurrences_per_parent_execution=estimate.occurrences_per_parent_execution,
+                relative_effort_per_occurrence=estimate.relative_effort_per_occurrence,
+                reference_source=reference_source,
+                reference_subtask_id=estimate.reference_subtask_id,
+                external_reference_activity=external_reference_activity,
+                reference_effort=reference_effort,
+                reference_occurrences_per_parent_execution=estimate.reference_occurrences_per_parent_execution,
+                reference_effort_per_occurrence=reference_effort_per_occurrence,
+                calculated_added_effort=_support_value(
+                    occurrences * relative * anchor, accounting_input
+                ),
+                estimate_basis=estimate.estimate_basis,
+                rationale=estimate.rationale,
+                provenance_refs=(
+                    *row.provenance_refs,
+                    *estimate.provenance_refs,
+                ),
             )
-        rows[row.category].append(occurrences * relative * anchor)
+        )
+    return tuple(details)
+
+
+def _support_inputs_from_details(details, accounting_input):
+    rows = defaultdict(list)
+    for detail in details:
+        rows[detail.category].append(detail.calculated_added_effort.value)
     zero = _zero_support(accounting_input)
     return (
         SupportWorkInputs(
@@ -110,9 +175,20 @@ def _derive_estimates(added, classification, accounting_input):
                 accounting_input,
             ),
         )
-        if added.added_work_rows
+        if details
         else zero
     )
+
+
+def _effort_representation(value, accounting_input):
+    if isinstance(accounting_input, AbsoluteEffortInput):
+        baseline = accounting_input.baseline_human_effort
+        return EffortQuantity(
+            value=value,
+            unit=baseline.unit,
+            time_basis=baseline.time_basis,
+        )
+    return SupportWorkInput(value=value, basis=RatioBasis.NORMALIZED_CONTRIBUTION)
 
 
 def _baseline_effort(item, accounting_input, work_id):
@@ -185,4 +261,4 @@ def _support_equal(left, right):
     )
 
 
-__all__ = ["resolve_support_work"]
+__all__ = ["resolve_support_work", "resolve_support_work_with_details"]

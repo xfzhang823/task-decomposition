@@ -14,6 +14,8 @@ from task_decomposition.contracts.provider import (
 )
 from task_decomposition.contracts.stages import (
     BaselineEffortAllocation,
+    BaselineEffortEstimation,
+    ParentOutputContract,
     TaskDecomposition,
 )
 from task_decomposition.domain.allocation import allocate_effort
@@ -77,9 +79,12 @@ def decompose_task(
             response,
             evaluator=evaluator,
         )
+        baseline_estimation = _baseline_effort_estimation(operational)
         allocations = _allocate_baseline(request, operational)
         return TaskDecomposition(
             operational_decomposition=operational,
+            parent_output_contract=_parent_output_contract(request, operational),
+            baseline_effort_estimation=baseline_estimation,
             baseline_effort_allocations=allocations,
             provenance_refs=operational.provenance_refs
             + response.provenance.references,
@@ -91,7 +96,7 @@ def _validate_or_repair_operational(
     provider, provider_name, request, response, *, evaluator=None
 ):
     tracer = current_tracer() or getattr(provider, "tracer", TraceLogger.from_env())
-    operational = validate_operational_response(response)
+    operational = _prepare_operational(request, validate_operational_response(response))
     requires_relative_weights = all(
         item.relative_effort_weight is not None
         for item in operational.operational_subtasks
@@ -135,7 +140,9 @@ def _validate_or_repair_operational(
             do_repair,
             OperationalDecompositionRequest(request=request),
         )
-        operational = validate_operational_response(repaired, attempt=attempt)
+        operational = _prepare_operational(
+            request, validate_operational_response(repaired, attempt=attempt)
+        )
         if requires_relative_weights and any(
             item.relative_effort_weight is None
             for item in operational.operational_subtasks
@@ -285,6 +292,76 @@ def _allocate_baseline(request, operational):
             allocation_source="estimated",
         )
         for subtask in subtasks
+    )
+
+
+def _prepare_operational(request, operational):
+    """Derive relative weights from validated absolute estimates."""
+    estimates = operational.baseline_effort_estimates
+    if not estimates:
+        return operational
+    total = sum(
+        estimate.expected_effort_per_parent_output.value for estimate in estimates
+    )
+    if total == 0:
+        return operational.model_copy(
+            update={
+                "operational_subtasks": tuple(
+                    subtask.model_copy(update={"relative_effort_weight": None})
+                    for subtask in operational.operational_subtasks
+                )
+            }
+        )
+    estimate_by_id = {estimate.subtask_id: estimate for estimate in estimates}
+    return operational.model_copy(
+        update={
+            "operational_subtasks": tuple(
+                subtask.model_copy(
+                    update={
+                        "relative_effort_weight": estimate_by_id[
+                            subtask.subtask_id
+                        ].expected_effort_per_parent_output.value
+                        / total
+                    }
+                )
+                for subtask in operational.operational_subtasks
+            )
+        }
+    )
+
+
+def _parent_output_contract(request, operational):
+    """Resolve additive parent-output metadata without rewriting provider output."""
+    if request.parent_output_contract is not None:
+        return request.parent_output_contract.model_copy(update={"source": "supplied"})
+    if operational.parent_output_contract is not None:
+        return operational.parent_output_contract
+    return ParentOutputContract(
+        output_unit=f"One completed {request.task.task_name}",
+        completion_boundary=(
+            request.task.task_description or f"Completion of {request.task.task_name}."
+        ),
+        source="application_inferred",
+    )
+
+
+def _baseline_effort_estimation(operational):
+    """Build the public bottom-up estimate record from validated subtasks."""
+    estimates = operational.baseline_effort_estimates
+    if not estimates:
+        return None
+    first = estimates[0].expected_effort_per_parent_output
+    total = sum(
+        estimate.expected_effort_per_parent_output.value for estimate in estimates
+    )
+    return BaselineEffortEstimation(
+        task=operational.task,
+        estimates=estimates,
+        total_effort_per_parent_output=first.model_copy(update={"value": total}),
+        estimation_method="bottom_up",
+        provenance_refs=tuple(
+            ref for estimate in estimates for ref in estimate.provenance_refs
+        ),
     )
 
 

@@ -204,6 +204,33 @@ def test_expected_support_work_scales_by_occurrences_per_parent(occurrences, exp
     assert resolved.ai_interaction.value == expected
 
 
+def test_conditional_added_activity_is_per_parent_output_not_every_execution():
+    row_estimate = estimate().model_copy(
+        update={
+            "occurrences_per_parent_execution": EstimateRange(
+                low="0.2", typical="0.2", high="0.2"
+            )
+        }
+    )
+    row = AddedWorkItem(
+        work_id="w1",
+        workload_name="Guide AI when needed",
+        category=AddedWorkCategory.AI_INTERACTION,
+        source_removed_subtask_ids=("s1",),
+        estimate=row_estimate,
+    )
+
+    resolved, _ = resolve_support_work(
+        AddedWorkClassification(task=TASK, added_work_rows=(row,)),
+        classification(),
+        accounting(),
+        mode=SupportWorkMode.ESTIMATE,
+    )
+
+    # 0.2 occurrences × (0.25 × (40 / 2)) effort per occurrence.
+    assert resolved.ai_interaction.value == Decimal(1)
+
+
 def test_causal_validation_rejects_missing_and_retain_sources():
     base = operational()
     classified = classification()

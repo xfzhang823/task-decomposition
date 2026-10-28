@@ -13,6 +13,7 @@ from task_decomposition import (
     InvalidDenominatorError,
     NormalizedAccountingInput,
     RatioBasis,
+    RatioBasisError,
     SupportWorkInput,
     SupportWorkInputs,
     TimeBasis,
@@ -254,6 +255,34 @@ def test_allocation_to_accounting_consistency():
     assert removed == Decimal("30")
     assert result.w0 == Decimal("100")
     assert result.w1 == Decimal("70")
+
+
+def test_absolute_calibration_preserves_relative_proportions():
+    normalized = allocate_effort(effort(1), {"a": 1, "b": 3})
+    calibrated = allocate_effort(effort(200), {"a": 1, "b": 3})
+
+    assert [item.value / Decimal(200) for item in calibrated.values()] == [
+        item.value for item in normalized.values()
+    ]
+
+
+def test_normalized_support_is_not_interpreted_as_absolute_time():
+    with pytest.raises(RatioBasisError):
+        account_normalized(
+            NormalizedAccountingInput(
+                retained_work_ratio="0.75",
+                gross_removed_work_ratio="0.25",
+                support_work=SupportWorkInputs(
+                    ai_interaction=SupportWorkInput(
+                        value=5,
+                        basis=RatioBasis.ABSOLUTE_EFFORT,
+                        unit=EffortUnit.HOURS,
+                        time_basis=PER_OPERATION,
+                    ),
+                    ai_verification=support(0, RatioBasis.NORMALIZED_CONTRIBUTION),
+                ),
+            )
+        )
 
 
 def test_allocation_accounting_handles_all_retained_and_all_removed():

@@ -134,8 +134,8 @@ def estimate_transformation(
         current_tracer() or getattr(provider, "tracer", None) or TraceLogger.from_env()
     )
     with tracer.session(request_id):
-        classification, added, responses = _classify_transformation(
-            proposal_request, provider, provider_name
+        classification, synthesis, activities, estimation, added, responses = (
+            _classify_transformation(proposal_request, provider, provider_name)
         )
         accounting_input, estimates = normalized_accounting_from_classification(
             task_decomposition, classification
@@ -152,6 +152,9 @@ def estimate_transformation(
             provider,
             provider_name,
             classification,
+            synthesis,
+            activities,
+            estimation,
             added,
             responses,
             normalized_work_estimates=estimates,

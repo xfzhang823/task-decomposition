@@ -10,7 +10,10 @@ from task_decomposition.errors import (
 )
 from task_decomposition.tracing import current_tracer
 from task_decomposition.validation.stages import (
+    validate_activity_effort_estimation,
     validate_added_work_classification,
+    validate_agentic_task_synthesis,
+    validate_human_agent_activity_model,
     validate_operational_decomposition,
     validate_retain_remove_classification,
 )
@@ -143,10 +146,88 @@ def validate_added_response(operational, classification, response):
         raise ProviderContractValidationError(str(exc)) from exc
 
 
+def validate_agentic_response(operational, classification, response):
+    try:
+        result = validate_agentic_task_synthesis(
+            operational, classification, response.payload
+        )
+        if current_tracer():
+            current_tracer().validation(
+                phase="structural",
+                stage="agentic_task_synthesis",
+                result="success",
+                response=result,
+            )
+        return result
+    except StageValidationError as exc:
+        if current_tracer():
+            current_tracer().validation(
+                phase="structural",
+                stage="agentic_task_synthesis",
+                result="failure",
+                errors=(str(exc),),
+                response=response.payload,
+            )
+        raise ProviderContractValidationError(str(exc)) from exc
+
+
+def validate_human_activity_response(operational, classification, synthesis, response):
+    try:
+        result = validate_human_agent_activity_model(
+            operational, classification, synthesis, response.payload
+        )
+        if current_tracer():
+            current_tracer().validation(
+                phase="structural",
+                stage="human_agent_activity_modeling",
+                result="success",
+                response=result,
+            )
+        return result
+    except StageValidationError as exc:
+        if current_tracer():
+            current_tracer().validation(
+                phase="structural",
+                stage="human_agent_activity_modeling",
+                result="failure",
+                errors=(str(exc),),
+                response=response.payload,
+            )
+        raise ProviderContractValidationError(str(exc)) from exc
+
+
+def validate_activity_effort_response(operational, activities, response):
+    try:
+        result = validate_activity_effort_estimation(
+            operational, activities, response.payload
+        )
+        if current_tracer():
+            current_tracer().validation(
+                phase="structural",
+                stage="activity_effort_estimation",
+                result="success",
+                response=result,
+            )
+        return result
+    except StageValidationError as exc:
+        if current_tracer():
+            current_tracer().validation(
+                phase="structural",
+                stage="activity_effort_estimation",
+                result="failure",
+                errors=(str(exc),),
+                response=response.payload,
+            )
+        raise ProviderContractValidationError(str(exc)) from exc
+
+
 __all__ = [
     "call_stage",
     "provider_id",
+    "validate_activity_effort_response",
     "validate_added_response",
+    "validate_agentic_response",
     "validate_classification_response",
+    "validate_human_activity_response",
     "validate_operational_response",
 ]

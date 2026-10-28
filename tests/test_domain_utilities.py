@@ -26,6 +26,13 @@ def test_effort_allocation_is_deterministic_and_balanced():
     assert result["b"].value == Decimal("75")
 
 
+def test_relative_weight_scale_does_not_change_allocation_proportions():
+    first = allocate_effort(effort(1), {"a": 2, "b": 3, "c": 5})
+    second = allocate_effort(effort(1), {"a": 20, "b": 30, "c": 50})
+
+    assert [first[key].value for key in first] == [second[key].value for key in second]
+
+
 def test_rows_aggregate_retain_and_gross_remove_only():
     rows = [
         TransformationRow(

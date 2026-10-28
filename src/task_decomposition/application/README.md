@@ -11,7 +11,7 @@ Two kinds of module sit here:
 - **Provider-driven services** call a provider through an interface and validate the result — `task_decomposition.py`, `transformation_decomposition.py`, `provider_service.py`.
 - **The provider-independent accounting handoff** validates already-typed stages and delegates all arithmetic to canonical accounting — internal `staged_pipeline.py`.
 
-`_provider_stage.py` holds the shared helpers for the provider-driven side: the `provider_id` guard, `call_stage`, and the three `validate_*_response` wrappers.
+`_provider_stage.py` holds the shared helpers for the provider-driven side: the `provider_id` guard, `call_stage`, and the stage validation wrappers. Optional agentic synthesis, human-agent activity modeling, and activity-effort estimation are dispatched only when the provider implements the corresponding capability.
 
 ## Entry points
 
@@ -75,10 +75,10 @@ for the semantic boundary and evidence.
 
 ## `transformation_decomposition.py` — classify and account a reusable decomposition
 
-`decompose_transformation` mirrors `decompose_task`: it takes an existing `TaskDecomposition`, resolves a provider name when requested, runs the two classification stages, and ends in accounting. Both application APIs accept an optional per-call `model`; provider objects are never mutated.
+`decompose_transformation` mirrors `decompose_task`: it takes an existing `TaskDecomposition`, resolves a provider name when requested, runs RETAIN/REMOVE classification, optionally synthesizes agentic tasks, models human-agent activities, estimates activity effort, and ends in accounting. The built-in OpenAI, Gemini, and DeepSeek providers support these optional stages; external providers may omit them. When all activity stages are available, activity-based estimates replace the legacy added-work proposal/resolver for that transformation. Otherwise the legacy path remains in use. The paths are mutually exclusive, and invalid output on a selected activity path fails validation rather than falling back. Both application APIs accept an optional per-call `model`; provider objects are never mutated.
 
 `estimate_transformation` is an opt-in bridge for exploratory or notebook runs without host-supplied ratios. It uses the completed task allocation and provider RETAIN/REMOVE labels to construct a normalized 100-unit accounting input, records per-subtask estimate assumptions and rationales, and reuses the same support-work and deterministic accounting handoff. It does not change the strict explicit-input contract of `decompose_transformation`.
 
-Flow: check the provider implements `TransformationDecompositionProvider` → `classify_retain_remove` → `validate_classification_response` → `_apply_baseline_allocation` → `classify_added_work` → strict `validate_added_response` → resolve support work → internal `_run_staged_pipeline` (passing concrete resolved support) → assemble `TransformationDecompositionResult`.
+Flow: check the provider implements `TransformationDecompositionProvider` → `classify_retain_remove` → `validate_classification_response` → `_apply_baseline_allocation` → optional synthesis and activity modeling → optional activity-effort estimation → either deterministic activity conversion or the legacy `classify_added_work`/resolver path → internal `_run_staged_pipeline` (passing concrete resolved support) → assemble `TransformationDecompositionResult`. Activity estimates are semantic inputs plus deterministic products; they are converted to existing support-work categories before the accounting boundary. Human-agent activities themselves are not independently added to W1.
 
 `_apply_baseline_allocation` injects the baseline effort already carried by the incoming decomposition into each classified subtask, so the provider need not restate it: absolute mode sets `effort`, normalized mode sets `baseline_effort_ratio`. `decompose_task` → `decompose_transformation` is the intended two-call composition.

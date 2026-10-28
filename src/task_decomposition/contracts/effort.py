@@ -12,6 +12,7 @@ class EffortUnit(str, Enum):
     """Generic effort units; the domain does not require hours."""
 
     EFFORT = "effort"
+    MINUTES = "minutes"
     HOURS = "hours"
     DAYS = "days"
     FTE = "fte"
@@ -36,7 +37,7 @@ class RatioBasis(str, Enum):
     ABSOLUTE_EFFORT = "absolute_effort"
 
 
-def _decimal(value: Decimal | int | float | str) -> Decimal:
+def _decimal(value: Decimal | float | str) -> Decimal:
     result = value if isinstance(value, Decimal) else Decimal(str(value))
     if not result.is_finite():
         raise ContractValidationError("effort values must be finite")
@@ -64,11 +65,42 @@ class EffortQuantity(BaseModel):
 
     @field_validator("value", mode="before")
     @classmethod
-    def non_negative(cls, value: Decimal | int | float | str) -> Decimal:
+    def non_negative(cls, value: Decimal | float | str) -> Decimal:
         result = _decimal(value)
         if result < 0:
             raise NegativeEffortError("effort quantities cannot be negative")
         return result
+
+
+_DURATION_TO_MINUTES = {
+    EffortUnit.MINUTES: Decimal(1),
+    EffortUnit.HOURS: Decimal(60),
+    EffortUnit.DAYS: Decimal(1440),
+}
+
+
+def convert_effort_quantity(
+    quantity: EffortQuantity, target_unit: EffortUnit
+) -> EffortQuantity:
+    """Convert compatible duration units while preserving the time basis.
+
+    Generic relative ``EFFORT`` and resource ``FTE`` quantities are not
+    durations and cannot be converted to minutes, hours, or days.
+    """
+    if quantity.unit is target_unit:
+        return quantity
+    source_factor = _DURATION_TO_MINUTES.get(quantity.unit)
+    target_factor = _DURATION_TO_MINUTES.get(target_unit)
+    if source_factor is None or target_factor is None:
+        raise ContractValidationError(
+            f"effort units {quantity.unit.value!r} and {target_unit.value!r} "
+            "are not compatible for conversion"
+        )
+    return EffortQuantity(
+        value=quantity.value * source_factor / target_factor,
+        unit=target_unit,
+        time_basis=quantity.time_basis,
+    )
 
 
 class SupportWorkInput(BaseModel):
@@ -100,7 +132,7 @@ class SupportWorkInput(BaseModel):
 
     @field_validator("value", mode="before")
     @classmethod
-    def non_negative(cls, value: Decimal | int | float | str) -> Decimal:
+    def non_negative(cls, value: Decimal | float | str) -> Decimal:
         result = _decimal(value)
         if result < 0:
             raise NegativeEffortError("support contributions cannot be negative")
@@ -214,7 +246,7 @@ class NormalizedAccountingInput(BaseModel):
 
     @field_validator("retained_work_ratio", "gross_removed_work_ratio", mode="before")
     @classmethod
-    def decimal_ratio(cls, value: Decimal | int | float | str) -> Decimal:
+    def decimal_ratio(cls, value: Decimal | float | str) -> Decimal:
         result = _decimal(value)
         if result < 0:
             raise NegativeEffortError(

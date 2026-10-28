@@ -5,12 +5,19 @@ from pydantic import ValidationError
 
 from task_decomposition import (
     AbsoluteEffortInput,
+    ActivityEffortEstimate,
+    ActivityEffortEstimation,
     AddedWorkCategory,
     AddedWorkClassification,
     AddedWorkItem,
+    AgenticTask,
+    AgenticTaskSynthesis,
     ClassifiedSubtask,
     EffortQuantity,
     EffortUnit,
+    HumanAgentActivity,
+    HumanAgentActivityCategory,
+    HumanAgentActivityModel,
     NormalizedAccountingInput,
     OperationalDecomposition,
     OperationalSubtask,
@@ -141,6 +148,62 @@ def make_added(*, normalized=False):
                 sequence_index=3,
             ),
         ),
+    )
+
+
+def make_agentic():
+    return AgenticTaskSynthesis(
+        task=TASK,
+        agentic_tasks=(
+            AgenticTask(
+                agentic_task_id="AGT001",
+                agentic_task_name="Prepare account update assessment",
+                description="Assess the account update request for automated processing.",
+                source_subtask_ids=("sub-2",),
+                required_inputs=("account update request",),
+                expected_outputs=("validated update assessment",),
+            ),
+        ),
+    )
+
+
+def make_human_activities():
+    return HumanAgentActivityModel(
+        task=TASK,
+        activities=(
+            HumanAgentActivity(
+                activity_id="HAA001",
+                activity_name="Verify account assessment",
+                description="Review the agent assessment for material errors.",
+                category=HumanAgentActivityCategory.AI_VERIFICATION,
+                agentic_task_ids=("AGT001",),
+                trigger="The agent completes its assessment.",
+                expected_action="Accept the assessment or flag discrepancies.",
+            ),
+        ),
+    )
+
+
+def make_activity_effort_estimation():
+    return ActivityEffortEstimation(
+        task=TASK,
+        activity_effort_estimates=(
+            ActivityEffortEstimate(
+                activity_id="HAA001",
+                expected_occurrences_per_parent_output=1,
+                active_effort_per_occurrence=EffortQuantity(
+                    value=14, unit=UNIT, time_basis=PER_OPERATION
+                ),
+                expected_effort_per_parent_output=EffortQuantity(
+                    value=14, unit=UNIT, time_basis=PER_OPERATION
+                ),
+                rationale="One review per parent output.",
+            ),
+        ),
+        estimated_baseline_effort_per_parent_output=EffortQuantity(
+            value=100, unit=UNIT, time_basis=PER_OPERATION
+        ),
+        baseline_rationale="Planning calibration for the parent output.",
     )
 
 

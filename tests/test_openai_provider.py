@@ -5,11 +5,21 @@ from types import SimpleNamespace
 import pytest
 from test_provider_application import account_input, request
 from test_semantic_evaluator_providers import evaluation_request
-from test_staged_pipeline import make_added, make_classification, make_operational
+from test_staged_pipeline import (
+    make_activity_effort_estimation,
+    make_added,
+    make_agentic,
+    make_classification,
+    make_human_activities,
+    make_operational,
+)
 
 from task_decomposition import (
     AddedWorkEstimate,
     AddedWorkItem,
+    BaselineSubtaskEffortEstimate,
+    EffortQuantity,
+    EffortUnit,
     EstimateRange,
     ProviderAuthenticationError,
     ProviderExecutionError,
@@ -17,11 +27,15 @@ from task_decomposition import (
     ProviderStage,
     SemanticEvaluation,
     TaskDecomposition,
+    TimeBasis,
     decompose,
 )
 from task_decomposition.contracts.decomposition import TransformationClassification
 from task_decomposition.contracts.provider import (
+    ActivityEffortEstimationRequest,
     AddedWorkClassificationRequest,
+    AgenticTaskSynthesisRequest,
+    HumanAgentActivityModelingRequest,
     OperationalDecompositionRequest,
     RetainRemoveClassificationRequest,
     TransformationDecompositionRequest,
@@ -35,7 +49,10 @@ from task_decomposition.providers.openai import (
     _strict_text_format,
 )
 from task_decomposition.providers.prompts import (
+    ACTIVITY_EFFORT_ESTIMATION_PROMPT,
     ADDED_WORK_PROMPT,
+    AGENTIC_TASK_SYNTHESIS_PROMPT,
+    HUMAN_AGENT_ACTIVITY_MODELING_PROMPT,
     OPERATIONAL_DECOMPOSITION_PROMPT,
     OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT,
     RETAIN_REMOVE_PROMPT,
@@ -110,6 +127,24 @@ def stage_requests():
             operational_decomposition=operational,
             retain_remove_classification=classification,
         ),
+        AgenticTaskSynthesisRequest(
+            request=transformation_request,
+            operational_decomposition=operational,
+            retain_remove_classification=classification,
+        ),
+        HumanAgentActivityModelingRequest(
+            request=transformation_request,
+            operational_decomposition=operational,
+            retain_remove_classification=classification,
+            agentic_task_synthesis=make_agentic(),
+        ),
+        ActivityEffortEstimationRequest(
+            request=transformation_request,
+            operational_decomposition=operational,
+            retain_remove_classification=classification,
+            agentic_task_synthesis=make_agentic(),
+            human_agent_activity_modeling=make_human_activities(),
+        ),
     )
 
 
@@ -119,6 +154,9 @@ def test_each_openai_stage_uses_structured_output_and_maps_provenance():
             type(make_operational()): make_operational(),
             type(make_classification()): make_classification(),
             type(make_added()): make_added(),
+            type(make_agentic()): make_agentic(),
+            type(make_human_activities()): make_human_activities(),
+            type(make_activity_effort_estimation()): make_activity_effort_estimation(),
             SemanticEvaluation: {
                 "decision": "accept",
                 "rubric_version": SEMANTIC_EVALUATION_RUBRIC_VERSION,
@@ -129,21 +167,34 @@ def test_each_openai_stage_uses_structured_output_and_maps_provenance():
         OpenAIProviderConfig(model="test-structured-model", max_output_tokens=321),
         client=client,
     )
-    operational_request, classification_request, added_request = stage_requests()
+    (
+        operational_request,
+        classification_request,
+        added_request,
+        synthesis_request,
+        activity_request,
+        effort_request,
+    ) = stage_requests()
 
     operational_response = provider.generate_operational_decomposition(
         operational_request
     )
     classification_response = provider.classify_retain_remove(classification_request)
     added_response = provider.classify_added_work(added_request)
+    synthesis_response = provider.synthesize_agentic_tasks(synthesis_request)
+    activity_response = provider.model_human_agent_activities(activity_request)
+    effort_response = provider.estimate_activity_effort(effort_request)
 
     assert operational_response.stage is ProviderStage.OPERATIONAL_DECOMPOSITION
     assert classification_response.stage is ProviderStage.RETAIN_REMOVE_CLASSIFICATION
     assert added_response.stage is ProviderStage.ADDED_WORK_CLASSIFICATION
+    assert synthesis_response.stage is ProviderStage.AGENTIC_TASK_SYNTHESIS
+    assert activity_response.stage is ProviderStage.HUMAN_AGENT_ACTIVITY_MODELING
+    assert effort_response.stage is ProviderStage.ACTIVITY_EFFORT_ESTIMATION
     assert operational_response.provenance.provider_id == "openai"
     assert operational_response.provenance.model_id == "test-structured-model"
     assert operational_response.provenance.request_id == "request-1"
-    assert len(client.responses.calls) == 3
+    assert len(client.responses.calls) == 6
     assert all(
         call["model"] == "test-structured-model" for call in client.responses.calls
     )
@@ -159,6 +210,17 @@ def test_each_openai_stage_uses_structured_output_and_maps_provenance():
     assert RETAIN_REMOVE_PROMPT in client.responses.calls[1]["input"][0]["content"]
     assert "JSON Output Rules" in RETAIN_REMOVE_PROMPT
     assert ADDED_WORK_PROMPT in client.responses.calls[2]["input"][0]["content"]
+    assert (
+        AGENTIC_TASK_SYNTHESIS_PROMPT
+        in client.responses.calls[3]["input"][0]["content"]
+    )
+    assert (
+        client.responses.calls[4]["text"]["format"]["name"] == "HumanAgentActivityModel"
+    )
+    assert (
+        client.responses.calls[5]["text"]["format"]["name"]
+        == "ActivityEffortEstimation"
+    )
 
 
 def test_openai_added_work_parses_expanded_estimate_schema():
@@ -239,6 +301,20 @@ def test_openai_added_work_schema_uses_numbers_for_decimal_fields():
     )
 
 
+def test_openai_activity_effort_schema_uses_numbers_for_decimal_fields():
+    schema = _provider_text_format(
+        ProviderStage.ACTIVITY_EFFORT_ESTIMATION,
+        type(make_activity_effort_estimation()),
+    )["schema"]
+    assert schema["$defs"]["ActivityEffortEstimate"]["properties"][
+        "expected_occurrences_per_parent_output"
+    ] == {"minimum": 0, "type": "number"}
+    assert schema["$defs"]["EffortQuantity"]["properties"]["value"] == {
+        "minimum": 0,
+        "type": "number",
+    }
+
+
 def test_openai_added_work_incomplete_output_remains_an_explicit_failure():
     class IncompleteClient(FakeClient):
         def __init__(self):
@@ -306,6 +382,53 @@ def test_openai_operational_provider_schema_uses_numeric_effort_weight():
     }
     assert schema["effort_rationale"]["type"] == "string"
     assert schema["effort_rationale"]["minLength"] == 1
+
+
+def test_openai_operational_schema_uses_numeric_baseline_estimate_fields():
+    schema = _provider_text_format(
+        ProviderStage.OPERATIONAL_DECOMPOSITION, type(make_operational())
+    )["schema"]
+    estimate = schema["$defs"]["BaselineSubtaskEffortEstimate"]
+    assert estimate["properties"]["expected_occurrences_per_parent_output"] == {
+        "minimum": 0,
+        "type": "number",
+    }
+    assert schema["$defs"]["EffortQuantity"]["properties"]["value"] == {
+        "minimum": 0,
+        "type": "number",
+    }
+
+
+def test_openai_operational_output_preserves_bottom_up_estimates():
+    operational = make_operational()
+    estimates = tuple(
+        BaselineSubtaskEffortEstimate(
+            subtask_id=subtask.subtask_id,
+            expected_occurrences_per_parent_output=1,
+            active_effort_per_occurrence=EffortQuantity(
+                value=index,
+                unit=EffortUnit.HOURS,
+                time_basis=TimeBasis.PER_OPERATION,
+            ),
+            rationale="Planning estimate for one parent output.",
+        )
+        for index, subtask in enumerate(operational.operational_subtasks, start=1)
+    )
+    operational = operational.model_copy(
+        update={"baseline_effort_estimates": estimates}
+    )
+    provider = OpenAIDecompositionProvider(
+        client=FakeClient(outputs={type(operational): operational})
+    )
+
+    response = provider.generate_operational_decomposition(
+        OperationalDecompositionRequest(request=request())
+    )
+
+    assert (
+        response.payload.baseline_effort_estimates[1].expected_effort_per_parent_output
+        is None
+    )
 
 
 def test_operational_provider_preserves_effort_rationale():
@@ -496,6 +619,21 @@ def test_retain_remove_prompt_assesses_current_ai_potential_without_context():
     assert "one concise sentence" in RETAIN_REMOVE_PROMPT
 
 
+def test_activity_prompts_preserve_parent_scope_and_independent_calibration():
+    assert "Preserve the original parent-task boundary" in AGENTIC_TASK_SYNTHESIS_PROMPT
+    assert "downstream adjudication" in HUMAN_AGENT_ACTIVITY_MODELING_PROMPT
+    assert "downstream adjudication" in ADDED_WORK_PROMPT
+    assert (
+        "only the human action needed to complete the original parent-task output"
+        in ACTIVITY_EFFORT_ESTIMATION_PROMPT
+    )
+    assert (
+        "Estimate the pre-AI baseline independently from post-AI activity effort"
+        in ACTIVITY_EFFORT_ESTIMATION_PROMPT
+    )
+    assert "target a W1/W0 percentage" in ACTIVITY_EFFORT_ESTIMATION_PROMPT
+
+
 def test_retain_remove_rationale_is_public_and_traced_without_changing_labels(
     tmp_path,
 ):
@@ -543,6 +681,10 @@ def test_operational_prompt_preserves_supplied_task_scope():
         "Do not add documentation, monitoring, feedback, or follow-up"
         in OPERATIONAL_DECOMPOSITION_PROMPT
     )
+    assert "Parent Output Contract" in OPERATIONAL_DECOMPOSITION_PROMPT
+    assert "baseline_effort_estimates" in OPERATIONAL_DECOMPOSITION_PROMPT
+    assert "occurrences × effort per occurrence" in OPERATIONAL_DECOMPOSITION_PROMPT
+    assert "W1/W0 targets" in OPERATIONAL_DECOMPOSITION_PROMPT
 
 
 @pytest.mark.parametrize(
@@ -636,6 +778,9 @@ def test_openai_adapter_runs_full_validated_application():
             type(make_operational()): make_operational(),
             type(make_classification()): make_classification(),
             type(make_added()): make_added(),
+            type(make_agentic()): make_agentic(),
+            type(make_human_activities()): make_human_activities(),
+            type(make_activity_effort_estimation()): make_activity_effort_estimation(),
             SemanticEvaluation: {
                 "decision": "accept",
                 "rubric_version": SEMANTIC_EVALUATION_RUBRIC_VERSION,
@@ -652,7 +797,7 @@ def test_openai_adapter_runs_full_validated_application():
     )
     assert result.accounting.w1 == 74
     assert result.accounting.net_substitution_ratio == Decimal("0.26")
-    assert len(result.provider_provenance) == 3
+    assert len(result.provider_provenance) == 5
 
 
 def test_missing_structured_response_is_rejected():

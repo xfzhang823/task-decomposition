@@ -201,6 +201,8 @@ def test_rubric_is_versioned_and_contains_representative_guidance():
         "cannot be resolved through local repair",
         "presume it is acceptable unless a demonstrable defect",
         "missing activity is blocking only when",
+        "downstream roles, handoffs, or later decisions mentioned as context",
+        "adjuster's later adjudication or final decision",
     ):
         assert phrase in SEMANTIC_EVALUATION_RUBRIC
 
@@ -411,6 +413,8 @@ def test_rubric_covers_effort_plausibility_without_absolute_measurements():
         "Do not require absolute minutes, hours, workload volumes"
         in SEMANTIC_EVALUATION_RUBRIC
     )
+    assert "normalized relative weights as minutes, hours" in SEMANTIC_EVALUATION_RUBRIC
+    assert "unsupported precision" in SEMANTIC_EVALUATION_RUBRIC
 
 
 def test_operational_prompt_defines_parent_output_and_effort_boundaries():
@@ -420,6 +424,8 @@ def test_operational_prompt_defines_parent_output_and_effort_boundaries():
         "Include internal workload once",
         "external parent-output volume",
         "passive waiting",
+        "dimensionless comparison values",
+        "unsupported precision",
     ):
         assert phrase in OPERATIONAL_DECOMPOSITION_PROMPT
 

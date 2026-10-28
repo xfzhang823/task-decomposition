@@ -1,0 +1,596 @@
+{
+  "run_id": "6f213c67f941",
+  "timestamp": "2026-10-28T21:17:34.677347+00:00",
+  "case_key": "invoice_review",
+  "provider": "OpenAI",
+  "model": "gpt-6-luna",
+  "stage": "transformation",
+  "validation_status": "passed",
+  "assumptions": [
+    "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity."
+  ],
+  "result": {
+    "task_decomposition": {
+      "operational_decomposition": {
+        "task": {
+          "task_id": null,
+          "task_name": "Review and approve a supplier invoice",
+          "task_description": "Check a supplier invoice for authenticity, accuracy, and consistency with what the company ordered and received; resolve discrepancies with relevant parties; and approve it for payment under company policy."
+        },
+        "operational_subtasks": [
+          {
+            "sequence_index": 1,
+            "subtask_id": "SUB001",
+            "subtask_name": "Verify supplier and invoice legitimacy",
+            "description": "Review the supplier details and invoice identifiers against company supplier records and available invoice evidence to assess whether the invoice appears to come from a legitimate supplier.",
+            "relative_effort_weight": "0.8",
+            "effort_rationale": "Per parent output of one invoice, assume this check occurs once and requires a brief review against supplier records and invoice details, with some variation in how readily records can be found. The frequency and effort are model-generated estimates; no operational time data was supplied.",
+            "depends_on": [],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 2,
+            "subtask_id": "SUB002",
+            "subtask_name": "Check for duplicate invoice",
+            "description": "Search invoice or accounts-payable records for a prior invoice with the same or potentially matching supplier, invoice number, amount, or other identifying details.",
+            "relative_effort_weight": "0.6",
+            "effort_rationale": "Assume one duplicate search per invoice, usually involving a targeted lookup and comparison of identifying details. This frequency and effort are estimates; the task provides no system or workload data.",
+            "depends_on": [],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 3,
+            "subtask_id": "SUB003",
+            "subtask_name": "Match invoice to purchase order",
+            "description": "Confirm that a purchase order is present and compare the invoice's ordered items, prices, and applicable terms with the purchase order; identify missing or inconsistent order details.",
+            "relative_effort_weight": "1.2",
+            "effort_rationale": "Assume this comparison occurs once per invoice and requires locating the order and checking several corresponding fields; missing or unclear order information can add review effort. These are model-generated assumptions, as no frequency or time data was supplied.",
+            "depends_on": [],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 4,
+            "subtask_id": "SUB004",
+            "subtask_name": "Verify received quantities",
+            "description": "Compare the quantities billed with warehouse receiving records for the raw materials and identify differences between invoiced and recorded receipts.",
+            "relative_effort_weight": "1.0",
+            "effort_rationale": "Assume one review of receiving evidence per invoice, with effort driven by finding the relevant receipt records and comparing quantities across line items. Frequency and effort are estimates; no receiving-process details were provided.",
+            "depends_on": [],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 5,
+            "subtask_id": "SUB005",
+            "subtask_name": "Check invoice calculations and charges",
+            "description": "Recalculate or verify line extensions, subtotals, taxes, and invoice total, and assess whether taxes and any additional charges shown are consistent with the supporting order or invoice information.",
+            "relative_effort_weight": "0.9",
+            "effort_rationale": "Assume one calculation and charge review per invoice; the number of line items and any unclear tax or additional-charge details affect effort. This is a model-generated estimate, not a measured workload.",
+            "depends_on": [],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 6,
+            "subtask_id": "SUB006",
+            "subtask_name": "Resolve invoice discrepancies",
+            "description": "For identified missing or inconsistent details, investigate the relevant order, receipt, or charge with purchasing, the warehouse, or the supplier as appropriate; obtain clarification or a correction and determine whether the discrepancy is resolved.",
+            "relative_effort_weight": "1.3",
+            "effort_rationale": "Assume discrepancy resolution is needed for roughly 20\u201340% of invoices, with one or more contacts and review of the response taking more effort than a routine check. The conditional frequency and effort are estimates because the task gives no exception-rate or coordination data.",
+            "depends_on": [
+              "SUB001",
+              "SUB002",
+              "SUB003",
+              "SUB004",
+              "SUB005"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 7,
+            "subtask_id": "SUB007",
+            "subtask_name": "Approve invoice under company policy",
+            "description": "After checks and any necessary discrepancy resolution, determine whether the invoice satisfies company approval requirements and submit the approval for payment through the applicable process.",
+            "relative_effort_weight": "0.7",
+            "effort_rationale": "Assume an approval decision and submission occur once per invoice that is ready for approval, requiring a brief policy and status review plus the approval action. The frequency and effort are estimates; no approval workflow details were supplied.",
+            "depends_on": [
+              "SUB006"
+            ],
+            "provenance_refs": []
+          }
+        ],
+        "provenance_refs": []
+      },
+      "baseline_effort_allocations": [
+        {
+          "subtask_id": "SUB001",
+          "effort": null,
+          "weight_ratio": "0.1230769230769230769230769231",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB002",
+          "effort": null,
+          "weight_ratio": "0.09230769230769230769230769231",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB003",
+          "effort": null,
+          "weight_ratio": "0.1846153846153846153846153846",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB004",
+          "effort": null,
+          "weight_ratio": "0.1538461538461538461538461538",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB005",
+          "effort": null,
+          "weight_ratio": "0.1384615384615384615384615385",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB006",
+          "effort": null,
+          "weight_ratio": "0.2",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB007",
+          "effort": null,
+          "weight_ratio": "0.1076923076923076923076923077",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        }
+      ],
+      "provenance_refs": [],
+      "provider_provenance": [
+        {
+          "provider_id": "openai",
+          "stage": "operational_decomposition",
+          "model_id": "gpt-6-luna",
+          "request_id": null,
+          "references": []
+        }
+      ]
+    },
+    "retain_remove_classification": {
+      "task": {
+        "task_id": null,
+        "task_name": "Review and approve a supplier invoice",
+        "task_description": "Check a supplier invoice for authenticity, accuracy, and consistency with what the company ordered and received; resolve discrepancies with relevant parties; and approve it for payment under company policy."
+      },
+      "classified_subtasks": [
+        {
+          "subtask_id": "SUB001",
+          "subtask_name": "Verify supplier and invoice legitimacy",
+          "sequence_index": 1,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1230769230769230769230769231",
+          "rationale": "Supplier records and invoice evidence can be cross-checked automatically to assess whether supplier details and identifiers are legitimate."
+        },
+        {
+          "subtask_id": "SUB002",
+          "subtask_name": "Check for duplicate invoice",
+          "sequence_index": 2,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.09230769230769230769230769231",
+          "rationale": "Accounts-payable systems can search and compare invoice identifiers, suppliers, and amounts to detect duplicates."
+        },
+        {
+          "subtask_id": "SUB003",
+          "subtask_name": "Match invoice to purchase order",
+          "sequence_index": 3,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1846153846153846153846153846",
+          "rationale": "Document extraction and workflow rules can compare invoice items, prices, and terms with purchase-order records."
+        },
+        {
+          "subtask_id": "SUB004",
+          "subtask_name": "Verify received quantities",
+          "sequence_index": 4,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1538461538461538461538461538",
+          "rationale": "Integrated invoice and receiving records can be matched to compare billed quantities with recorded receipts."
+        },
+        {
+          "subtask_id": "SUB005",
+          "subtask_name": "Check invoice calculations and charges",
+          "sequence_index": 5,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1384615384615384615384615385",
+          "rationale": "Software can recalculate invoice totals and check taxes and additional charges against available supporting information."
+        },
+        {
+          "subtask_id": "SUB006",
+          "subtask_name": "Resolve invoice discrepancies",
+          "sequence_index": 6,
+          "classification": "retain",
+          "effort": null,
+          "baseline_effort_ratio": "0.2",
+          "rationale": "Automation can gather records and route inquiries, but resolving varied discrepancies with suppliers and internal parties still requires substantial recurring human follow-up."
+        },
+        {
+          "subtask_id": "SUB007",
+          "subtask_name": "Approve invoice under company policy",
+          "sequence_index": 7,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1076923076923076923076923077",
+          "rationale": "Workflow systems can check invoice status against configured approval requirements and submit eligible invoices for payment."
+        }
+      ],
+      "provenance_refs": []
+    },
+    "agentic_task_synthesis": {
+      "task": {
+        "task_id": null,
+        "task_name": "Review and approve a supplier invoice",
+        "task_description": "Check a supplier invoice for authenticity, accuracy, and consistency with what the company ordered and received; resolve discrepancies with relevant parties; and approve it for payment under company policy."
+      },
+      "agentic_tasks": [
+        {
+          "agentic_task_id": "AGT001",
+          "agentic_task_name": "Validate supplier legitimacy and detect duplicate invoices",
+          "description": "Assess supplier and invoice identifiers against supplier records and available invoice evidence, and compare the invoice with accounts-payable records to identify prior or potentially matching invoices.",
+          "source_subtask_ids": [
+            "SUB001",
+            "SUB002"
+          ],
+          "required_inputs": [
+            "Supplier details and invoice identifiers",
+            "Supplier records and available invoice evidence",
+            "Accounts-payable invoice records"
+          ],
+          "expected_outputs": [
+            "Supplier and invoice legitimacy assessment",
+            "Potential duplicate match findings"
+          ]
+        },
+        {
+          "agentic_task_id": "AGT002",
+          "agentic_task_name": "Match invoice items and quantities to order and receipt records",
+          "description": "Compare invoice items, prices, and applicable terms with the purchase order, and compare billed quantities with warehouse receiving records to identify missing or inconsistent details.",
+          "source_subtask_ids": [
+            "SUB003",
+            "SUB004"
+          ],
+          "required_inputs": [
+            "Invoice line items, prices, terms, and billed quantities",
+            "Purchase-order records",
+            "Warehouse receiving records"
+          ],
+          "expected_outputs": [
+            "Purchase-order match results, including missing or inconsistent order details",
+            "Billed-versus-received quantity comparison and identified differences"
+          ]
+        },
+        {
+          "agentic_task_id": "AGT003",
+          "agentic_task_name": "Validate invoice calculations and charges",
+          "description": "Recalculate or verify invoice line extensions, subtotals, taxes, and total, and assess taxes and additional charges against available supporting information.",
+          "source_subtask_ids": [
+            "SUB005"
+          ],
+          "required_inputs": [
+            "Invoice line items, amounts, taxes, and additional charges",
+            "Supporting order or invoice information"
+          ],
+          "expected_outputs": [
+            "Calculation verification results",
+            "Findings on the consistency of taxes and additional charges"
+          ]
+        },
+        {
+          "agentic_task_id": "AGT004",
+          "agentic_task_name": "Assess invoice approval eligibility under company policy",
+          "description": "Assess whether an invoice satisfies applicable company approval requirements based on its review status and submit eligible invoices for payment.",
+          "source_subtask_ids": [
+            "SUB007"
+          ],
+          "required_inputs": [
+            "Invoice review results and status",
+            "Applicable company approval requirements"
+          ],
+          "expected_outputs": [
+            "Assessment of whether the invoice meets approval requirements",
+            "Approval submission for payment when eligible"
+          ]
+        }
+      ],
+      "provenance_refs": []
+    },
+    "human_agent_activity_modeling": {
+      "task": {
+        "task_id": null,
+        "task_name": "Review and approve a supplier invoice",
+        "task_description": "Check a supplier invoice for authenticity, accuracy, and consistency with what the company ordered and received; resolve discrepancies with relevant parties; and approve it for payment under company policy."
+      },
+      "activities": [
+        {
+          "activity_id": "ACT001",
+          "activity_name": "Investigate and resolve invoice exceptions",
+          "description": "When automated checks identify a potential duplicate, supplier concern, or mismatch with order or receipt records, investigate the finding, coordinate with the relevant internal parties or supplier, obtain clarification or correction, and determine whether the discrepancy is resolved.",
+          "category": "EXCEPTION_HANDLING",
+          "agentic_task_ids": [
+            "AGT001",
+            "AGT002",
+            "AGT003"
+          ],
+          "trigger": "An agentic check reports a potential duplicate, supplier concern, or inconsistency in invoice, order, receipt, calculation, tax, or charge details.",
+          "expected_action": "Investigate the reported exception, contact relevant parties as needed, obtain supporting information or a correction, and establish whether the invoice discrepancy is resolved."
+        }
+      ],
+      "provenance_refs": []
+    },
+    "activity_effort_estimation": {
+      "task": {
+        "task_id": null,
+        "task_name": "Review and approve a supplier invoice",
+        "task_description": "Check a supplier invoice for authenticity, accuracy, and consistency with what the company ordered and received; resolve discrepancies with relevant parties; and approve it for payment under company policy."
+      },
+      "activity_effort_estimates": [
+        {
+          "activity_id": "ACT001",
+          "expected_occurrences_per_parent_output": "0.3",
+          "active_effort_per_occurrence": {
+            "value": "0.5",
+            "unit": "hours",
+            "time_basis": "per_operation"
+          },
+          "expected_effort_per_parent_output": {
+            "value": "0.15",
+            "unit": "hours",
+            "time_basis": "per_operation"
+          },
+          "rationale": "Assume exceptions require human investigation and coordination on 30% of invoices. A typical occurrence is estimated to involve about 30 minutes of active review, communication, and assessment of the response; passive waiting is excluded.",
+          "assumptions": [
+            "The exception frequency is modeled as 30% of parent outputs, within the supplied approximate 20\u201340% range.",
+            "Effort per occurrence is a planning estimate, not a measured observation."
+          ],
+          "provenance_refs": []
+        }
+      ],
+      "estimated_baseline_effort_per_parent_output": {
+        "value": "0.75",
+        "unit": "hours",
+        "time_basis": "per_operation"
+      },
+      "baseline_rationale": "Planning estimate of 45 minutes of active human work for a complete invoice review and approval before the described automation, including routine checks, expected discrepancy follow-up, and approval. This is an explicit absolute estimate and is not derived from normalized relative weights.",
+      "baseline_assumptions": [
+        "The estimate represents one invoice and excludes passive waiting and machine processing.",
+        "Invoice complexity and the amount of supporting documentation vary; 45 minutes is a planning assumption rather than an observed average."
+      ],
+      "provenance_refs": []
+    },
+    "estimation_method": "activity_based",
+    "added_work_classification": {
+      "task": {
+        "task_id": null,
+        "task_name": "Review and approve a supplier invoice",
+        "task_description": "Check a supplier invoice for authenticity, accuracy, and consistency with what the company ordered and received; resolve discrepancies with relevant parties; and approve it for payment under company policy."
+      },
+      "added_work_rows": [],
+      "provenance_refs": []
+    },
+    "accounting": {
+      "accounting_mode": "normalized",
+      "baseline_human_effort": null,
+      "retained_human_work": null,
+      "gross_removed_work": null,
+      "ai_interaction_work": null,
+      "ai_verification_work": null,
+      "added_human_work": null,
+      "net_human_effort": null,
+      "w0": "1",
+      "w1": "0.4",
+      "gross_removed_work_ratio": "0.8000000000000000000000000000",
+      "added_human_work_ratio": "0.2",
+      "net_remaining_work_ratio": "0.4",
+      "net_substitution_ratio": "0.6",
+      "net_augmentation_multiplier": "2.5",
+      "effect": "gain",
+      "provenance_refs": []
+    },
+    "provenance_refs": [],
+    "provider_provenance": [
+      {
+        "provider_id": "openai",
+        "stage": "operational_decomposition",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      },
+      {
+        "provider_id": "openai",
+        "stage": "retain_remove_classification",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      },
+      {
+        "provider_id": "openai",
+        "stage": "agentic_task_synthesis",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      },
+      {
+        "provider_id": "openai",
+        "stage": "human_agent_activity_modeling",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      },
+      {
+        "provider_id": "openai",
+        "stage": "activity_effort_estimation",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      }
+    ],
+    "support_work_resolution": null,
+    "added_work_estimate_details": [],
+    "normalized_work_estimates": [
+      {
+        "subtask_id": "SUB001",
+        "subtask_name": "Verify supplier and invoice legitimacy",
+        "baseline_work_units": "12.30769230769230769230769231",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "12.30769230769230769230769231",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Supplier records and invoice evidence can be cross-checked automatically to assess whether supplier details and identifiers are legitimate."
+      },
+      {
+        "subtask_id": "SUB002",
+        "subtask_name": "Check for duplicate invoice",
+        "baseline_work_units": "9.230769230769230769230769231",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "9.230769230769230769230769231",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Accounts-payable systems can search and compare invoice identifiers, suppliers, and amounts to detect duplicates."
+      },
+      {
+        "subtask_id": "SUB003",
+        "subtask_name": "Match invoice to purchase order",
+        "baseline_work_units": "18.46153846153846153846153846",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "18.46153846153846153846153846",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Document extraction and workflow rules can compare invoice items, prices, and terms with purchase-order records."
+      },
+      {
+        "subtask_id": "SUB004",
+        "subtask_name": "Verify received quantities",
+        "baseline_work_units": "15.38461538461538461538461538",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "15.38461538461538461538461538",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Integrated invoice and receiving records can be matched to compare billed quantities with recorded receipts."
+      },
+      {
+        "subtask_id": "SUB005",
+        "subtask_name": "Check invoice calculations and charges",
+        "baseline_work_units": "13.84615384615384615384615385",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "13.84615384615384615384615385",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Software can recalculate invoice totals and check taxes and additional charges against available supporting information."
+      },
+      {
+        "subtask_id": "SUB006",
+        "subtask_name": "Resolve invoice discrepancies",
+        "baseline_work_units": "20.0",
+        "retained_work_units": "20.0",
+        "gross_removed_work_units": "0",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Automation can gather records and route inquiries, but resolving varied discrepancies with suppliers and internal parties still requires substantial recurring human follow-up."
+      },
+      {
+        "subtask_id": "SUB007",
+        "subtask_name": "Approve invoice under company policy",
+        "baseline_work_units": "10.76923076923076923076923077",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "10.76923076923076923076923077",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Workflow systems can check invoice status against configured approval requirements and submit eligible invoices for payment."
+      }
+    ],
+    "estimation_assumptions": [
+      "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity."
+    ]
+  },
+  "normalized_estimates": [
+    {
+      "subtask_id": "SUB001",
+      "subtask_name": "Verify supplier and invoice legitimacy",
+      "baseline_work_units": "12.30769230769230769230769231",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "12.30769230769230769230769231",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Supplier records and invoice evidence can be cross-checked automatically to assess whether supplier details and identifiers are legitimate."
+    },
+    {
+      "subtask_id": "SUB002",
+      "subtask_name": "Check for duplicate invoice",
+      "baseline_work_units": "9.230769230769230769230769231",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "9.230769230769230769230769231",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Accounts-payable systems can search and compare invoice identifiers, suppliers, and amounts to detect duplicates."
+    },
+    {
+      "subtask_id": "SUB003",
+      "subtask_name": "Match invoice to purchase order",
+      "baseline_work_units": "18.46153846153846153846153846",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "18.46153846153846153846153846",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Document extraction and workflow rules can compare invoice items, prices, and terms with purchase-order records."
+    },
+    {
+      "subtask_id": "SUB004",
+      "subtask_name": "Verify received quantities",
+      "baseline_work_units": "15.38461538461538461538461538",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "15.38461538461538461538461538",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Integrated invoice and receiving records can be matched to compare billed quantities with recorded receipts."
+    },
+    {
+      "subtask_id": "SUB005",
+      "subtask_name": "Check invoice calculations and charges",
+      "baseline_work_units": "13.84615384615384615384615385",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "13.84615384615384615384615385",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Software can recalculate invoice totals and check taxes and additional charges against available supporting information."
+    },
+    {
+      "subtask_id": "SUB006",
+      "subtask_name": "Resolve invoice discrepancies",
+      "baseline_work_units": "20.0",
+      "retained_work_units": "20.0",
+      "gross_removed_work_units": "0",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Automation can gather records and route inquiries, but resolving varied discrepancies with suppliers and internal parties still requires substantial recurring human follow-up."
+    },
+    {
+      "subtask_id": "SUB007",
+      "subtask_name": "Approve invoice under company policy",
+      "baseline_work_units": "10.76923076923076923076923077",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "10.76923076923076923076923077",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Workflow systems can check invoice status against configured approval requirements and submit eligible invoices for payment."
+    }
+  ],
+  "input_case_id": "invoice_review"
+}

@@ -4,7 +4,14 @@ from types import SimpleNamespace
 
 import pytest
 from test_provider_application import account_input, request
-from test_staged_pipeline import make_added, make_classification, make_operational
+from test_staged_pipeline import (
+    make_activity_effort_estimation,
+    make_added,
+    make_agentic,
+    make_classification,
+    make_human_activities,
+    make_operational,
+)
 
 from task_decomposition import (
     DecompositionProvider,
@@ -16,7 +23,10 @@ from task_decomposition import (
     decompose,
 )
 from task_decomposition.contracts.provider import (
+    ActivityEffortEstimationRequest,
     AddedWorkClassificationRequest,
+    AgenticTaskSynthesisRequest,
+    HumanAgentActivityModelingRequest,
     OperationalDecompositionRequest,
     RetainRemoveClassificationRequest,
     TransformationDecompositionRequest,
@@ -71,6 +81,24 @@ def stage_requests():
             operational_decomposition=operational,
             retain_remove_classification=classification,
         ),
+        AgenticTaskSynthesisRequest(
+            request=transformation_request,
+            operational_decomposition=operational,
+            retain_remove_classification=classification,
+        ),
+        HumanAgentActivityModelingRequest(
+            request=transformation_request,
+            operational_decomposition=operational,
+            retain_remove_classification=classification,
+            agentic_task_synthesis=make_agentic(),
+        ),
+        ActivityEffortEstimationRequest(
+            request=transformation_request,
+            operational_decomposition=operational,
+            retain_remove_classification=classification,
+            agentic_task_synthesis=make_agentic(),
+            human_agent_activity_modeling=make_human_activities(),
+        ),
     )
 
 
@@ -80,6 +108,9 @@ def provider():
             "OperationalDecomposition": make_operational(),
             "RetainRemoveClassification": make_classification(),
             "AddedWorkClassification": make_added(),
+            "AgenticTaskSynthesis": make_agentic(),
+            "HumanAgentActivityModel": make_human_activities(),
+            "ActivityEffortEstimation": make_activity_effort_estimation(),
             "SemanticEvaluation": {
                 "decision": "accept",
                 "rubric_version": SEMANTIC_EVALUATION_RUBRIC_VERSION,
@@ -100,16 +131,22 @@ def test_gemini_implements_port_and_maps_all_stages():
         provider_instance.generate_operational_decomposition(requests[0]),
         provider_instance.classify_retain_remove(requests[1]),
         provider_instance.classify_added_work(requests[2]),
+        provider_instance.synthesize_agentic_tasks(requests[3]),
+        provider_instance.model_human_agent_activities(requests[4]),
+        provider_instance.estimate_activity_effort(requests[5]),
     )
     assert [response.stage for response in responses] == [
         ProviderStage.OPERATIONAL_DECOMPOSITION,
         ProviderStage.RETAIN_REMOVE_CLASSIFICATION,
         ProviderStage.ADDED_WORK_CLASSIFICATION,
+        ProviderStage.AGENTIC_TASK_SYNTHESIS,
+        ProviderStage.HUMAN_AGENT_ACTIVITY_MODELING,
+        ProviderStage.ACTIVITY_EFFORT_ESTIMATION,
     ]
     assert responses[0].provenance.provider_id == "gemini"
     assert responses[0].provenance.model_id == "gemini-test-model"
     assert responses[0].provenance.request_id == "request-1"
-    assert len(client.models.calls) == 3
+    assert len(client.models.calls) == 6
     assert all(call["model"] == "gemini-test-model" for call in client.models.calls)
     assert all(
         call["config"]["response_mime_type"] == "application/json"

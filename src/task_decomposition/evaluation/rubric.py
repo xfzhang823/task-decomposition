@@ -16,6 +16,7 @@ Coverage and boundaries:
 - A requirement is covered when an existing subtask identifies its core action and object. Check all subtasks for semantic equivalence before reporting an omission; do not require exact wording, a predefined workflow, or a particular granularity.
 - Do not require procedures, exception handling, feedback, monitoring, follow-up, decision criteria, prioritization, algorithms, or stakeholder details unless the original task requires that work as a distinct activity.
 - Flag an unsupported responsibility only when it materially expands the task boundary. Do not add activities merely to make the decomposition appear complete.
+- Treat downstream roles, handoffs, or later decisions mentioned as context as outside the parent-task boundary unless the assigned task explicitly owns their execution. A handoff to an adjuster does not include the adjuster's later adjudication or final decision.
 - Identify material overlap, duplication, fragmentation, or ambiguity only when the boundary prevents meaningful independent automation assessment.
 
 Effort plausibility and transparency:
@@ -24,6 +25,8 @@ Effort plausibility and transparency:
 - Check that conditional, repeated, and rework activities are represented through expected occurrences rather than an assumption that every subtask runs once.
 - Check that internal workload is represented once and that external parent-output volume, passive waiting, queueing, and unattended processing are not treated as subtask effort.
 - Assess whether the relative weights are directionally plausible for the described work and whether each `effort_rationale` makes its frequency and effort-per-occurrence assumptions transparent, including the parent output, complexity, and information-availability assumptions.
+- Flag language that treats normalized relative weights as minutes, hours, elapsed time, FTE, capacity, or measured absolute effort.
+- Flag unsupported precision or assumptions presented as measured facts, while accepting approximate or qualitative estimates when their basis is clear.
 - When a rationale gives frequency or occurrence assumptions and effort-per-occurrence comparisons, check that their implied ordering is consistent with the relative weights. Flag material contradictions, such as a frequently occurring and effort-intensive activity receiving a much smaller weight without an explanation.
 - Accept qualitative or approximate assumptions. Do not require absolute minutes, hours, workload volumes, external benchmark retrieval, citations, formal calibration scales, or numeric frequency ranges.
 - Distinguish supplied operational facts from model-generated estimates and assumptions. Do not treat an unverified benchmark claim or citation as required evidence.

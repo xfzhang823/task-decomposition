@@ -4,7 +4,14 @@ from types import SimpleNamespace
 
 import pytest
 from test_provider_application import account_input, request
-from test_staged_pipeline import make_added, make_classification, make_operational
+from test_staged_pipeline import (
+    make_activity_effort_estimation,
+    make_added,
+    make_agentic,
+    make_classification,
+    make_human_activities,
+    make_operational,
+)
 
 from task_decomposition import (
     DecompositionProvider,
@@ -16,7 +23,10 @@ from task_decomposition import (
     decompose,
 )
 from task_decomposition.contracts.provider import (
+    ActivityEffortEstimationRequest,
     AddedWorkClassificationRequest,
+    AgenticTaskSynthesisRequest,
+    HumanAgentActivityModelingRequest,
     OperationalDecompositionRequest,
     RetainRemoveClassificationRequest,
     TransformationDecompositionRequest,
@@ -109,6 +119,24 @@ def stage_requests():
             operational_decomposition=operational,
             retain_remove_classification=classification,
         ),
+        AgenticTaskSynthesisRequest(
+            request=transformation_request,
+            operational_decomposition=operational,
+            retain_remove_classification=classification,
+        ),
+        HumanAgentActivityModelingRequest(
+            request=transformation_request,
+            operational_decomposition=operational,
+            retain_remove_classification=classification,
+            agentic_task_synthesis=make_agentic(),
+        ),
+        ActivityEffortEstimationRequest(
+            request=transformation_request,
+            operational_decomposition=operational,
+            retain_remove_classification=classification,
+            agentic_task_synthesis=make_agentic(),
+            human_agent_activity_modeling=make_human_activities(),
+        ),
     )
 
 
@@ -117,6 +145,9 @@ def provider():
     outputs = [
         make_operational().model_dump_json(),
         make_classification().model_dump_json(),
+        make_agentic().model_dump_json(),
+        make_human_activities().model_dump_json(),
+        make_activity_effort_estimation().model_dump_json(),
         make_added().model_dump_json(),
     ]
     client = FakeDeepSeekClient(outputs=outputs)
@@ -133,16 +164,22 @@ def test_deepseek_implements_port_and_maps_all_stages():
     responses = (
         provider_instance.generate_operational_decomposition(requests[0]),
         provider_instance.classify_retain_remove(requests[1]),
+        provider_instance.synthesize_agentic_tasks(requests[3]),
+        provider_instance.model_human_agent_activities(requests[4]),
+        provider_instance.estimate_activity_effort(requests[5]),
         provider_instance.classify_added_work(requests[2]),
     )
     assert [response.stage for response in responses] == [
         ProviderStage.OPERATIONAL_DECOMPOSITION,
         ProviderStage.RETAIN_REMOVE_CLASSIFICATION,
+        ProviderStage.AGENTIC_TASK_SYNTHESIS,
+        ProviderStage.HUMAN_AGENT_ACTIVITY_MODELING,
+        ProviderStage.ACTIVITY_EFFORT_ESTIMATION,
         ProviderStage.ADDED_WORK_CLASSIFICATION,
     ]
     assert responses[0].provenance.provider_id == "deepseek"
     assert responses[0].provenance.model_id == "deepseek-test-model"
-    assert len(client.chat.completions.calls) == 3
+    assert len(client.chat.completions.calls) == 6
     assert all(
         call["model"] == "deepseek-test-model" for call in client.chat.completions.calls
     )
@@ -157,6 +194,9 @@ def test_deepseek_requests_include_the_contract_schema():
     requests = stage_requests()
     provider_instance.generate_operational_decomposition(requests[0])
     provider_instance.classify_retain_remove(requests[1])
+    provider_instance.synthesize_agentic_tasks(requests[3])
+    provider_instance.model_human_agent_activities(requests[4])
+    provider_instance.estimate_activity_effort(requests[5])
     provider_instance.classify_added_work(requests[2])
 
     prompts = [call["messages"][0]["content"] for call in client.chat.completions.calls]
@@ -167,7 +207,10 @@ def test_deepseek_requests_include_the_contract_schema():
     )
     assert '"operational_subtasks"' in prompts[0]
     assert '"classified_subtasks"' in prompts[1]
-    assert '"added_work_rows"' in prompts[2]
+    assert '"agentic_tasks"' in prompts[2]
+    assert '"activities"' in prompts[3]
+    assert '"activity_effort_estimates"' in prompts[4]
+    assert '"added_work_rows"' in prompts[5]
 
 
 def test_deepseek_mapping_failure_reports_field_details():

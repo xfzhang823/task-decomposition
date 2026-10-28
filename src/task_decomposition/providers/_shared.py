@@ -6,7 +6,10 @@ from typing import Any
 
 from task_decomposition.contracts.provenance import ProviderProvenance, ProviderStage
 from task_decomposition.contracts.provider import (
+    ActivityEffortEstimationRequest,
     AddedWorkClassificationRequest,
+    AgenticTaskSynthesisRequest,
+    HumanAgentActivityModelingRequest,
     ProviderStageResponse,
     RetainRemoveClassificationRequest,
     TaskDecompositionRequest,
@@ -23,6 +26,9 @@ OUTPUT_TOKEN_STAGES = frozenset(
     {
         ProviderStage.OPERATIONAL_DECOMPOSITION.value,
         ProviderStage.RETAIN_REMOVE_CLASSIFICATION.value,
+        ProviderStage.AGENTIC_TASK_SYNTHESIS.value,
+        ProviderStage.HUMAN_AGENT_ACTIVITY_MODELING.value,
+        ProviderStage.ACTIVITY_EFFORT_ESTIMATION.value,
         ProviderStage.ADDED_WORK_CLASSIFICATION.value,
         "semantic_evaluation",
     }
@@ -62,8 +68,15 @@ def stage_payload(stage_request: Any) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "task": request.task.model_dump(mode="json"),
             "task_context": context,
+            "parent_output_contract": (
+                request.parent_output_contract.model_dump(mode="json")
+                if request.parent_output_contract
+                else None
+            ),
         }
-    elif isinstance(request, (TransformationDecompositionRequest, TransformationProposalRequest)):
+    elif isinstance(
+        request, (TransformationDecompositionRequest, TransformationProposalRequest)
+    ):
         context = request.transformation_context
         payload = {
             "task": request.task_decomposition.operational_decomposition.task.model_dump(
@@ -73,14 +86,44 @@ def stage_payload(stage_request: Any) -> dict[str, Any]:
         }
     if isinstance(
         stage_request,
-        (RetainRemoveClassificationRequest, AddedWorkClassificationRequest),
+        (
+            RetainRemoveClassificationRequest,
+            AddedWorkClassificationRequest,
+            AgenticTaskSynthesisRequest,
+            HumanAgentActivityModelingRequest,
+            ActivityEffortEstimationRequest,
+        ),
     ):
         payload["operational_decomposition"] = (
             stage_request.operational_decomposition.model_dump(mode="json")
         )
-    if isinstance(stage_request, AddedWorkClassificationRequest):
+    if isinstance(
+        stage_request,
+        (
+            AddedWorkClassificationRequest,
+            AgenticTaskSynthesisRequest,
+            HumanAgentActivityModelingRequest,
+            ActivityEffortEstimationRequest,
+        ),
+    ):
         payload["retain_remove_classification"] = (
             stage_request.retain_remove_classification.model_dump(mode="json")
+        )
+    if isinstance(stage_request, HumanAgentActivityModelingRequest):
+        payload["agentic_task_synthesis"] = (
+            stage_request.agentic_task_synthesis.model_dump(mode="json")
+        )
+    if isinstance(stage_request, ActivityEffortEstimationRequest):
+        payload["accounting_input"] = getattr(request, "accounting_input", None)
+        if payload["accounting_input"] is not None:
+            payload["accounting_input"] = payload["accounting_input"].model_dump(
+                mode="json"
+            )
+        payload["agentic_task_synthesis"] = (
+            stage_request.agentic_task_synthesis.model_dump(mode="json")
+        )
+        payload["human_agent_activity_modeling"] = (
+            stage_request.human_agent_activity_modeling.model_dump(mode="json")
         )
     return payload
 
@@ -194,8 +237,7 @@ def raise_provider_failure(
     detail = str(exc).strip()
     raise ProviderExecutionError(
         f"{provider_name} request failed during {stage_name} "
-        f"({type(exc).__name__})"
-        + (f": {detail}" if detail else "")
+        f"({type(exc).__name__})" + (f": {detail}" if detail else "")
     ) from exc
 
 

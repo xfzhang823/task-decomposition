@@ -7,13 +7,19 @@ from typing import Any
 
 from task_decomposition.contracts.provenance import ProviderStage
 from task_decomposition.contracts.provider import (
+    ActivityEffortEstimationRequest,
     AddedWorkClassificationRequest,
+    AgenticTaskSynthesisRequest,
+    HumanAgentActivityModelingRequest,
     OperationalDecompositionRequest,
     ProviderStageResponse,
     RetainRemoveClassificationRequest,
 )
 from task_decomposition.contracts.stages import (
+    ActivityEffortEstimation,
     AddedWorkClassification,
+    AgenticTaskSynthesis,
+    HumanAgentActivityModel,
     OperationalDecomposition,
     RetainRemoveClassification,
 )
@@ -38,7 +44,10 @@ from task_decomposition.providers._shared import (
     validate_stage_output_tokens,
 )
 from task_decomposition.providers.prompts import (
+    ACTIVITY_EFFORT_ESTIMATION_PROMPT,
     ADDED_WORK_PROMPT,
+    AGENTIC_TASK_SYNTHESIS_PROMPT,
+    HUMAN_AGENT_ACTIVITY_MODELING_PROMPT,
     OPERATIONAL_DECOMPOSITION_PROMPT,
     OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT,
     RETAIN_REMOVE_PROMPT,
@@ -201,6 +210,36 @@ class GeminiDecompositionProvider:
             ProviderStage.ADDED_WORK_CLASSIFICATION,
             ADDED_WORK_PROMPT,
             AddedWorkClassification,
+        )
+
+    def synthesize_agentic_tasks(
+        self, request: AgenticTaskSynthesisRequest
+    ) -> ProviderStageResponse:
+        return self._generate(
+            request,
+            ProviderStage.AGENTIC_TASK_SYNTHESIS,
+            AGENTIC_TASK_SYNTHESIS_PROMPT,
+            AgenticTaskSynthesis,
+        )
+
+    def model_human_agent_activities(
+        self, request: HumanAgentActivityModelingRequest
+    ) -> ProviderStageResponse:
+        return self._generate(
+            request,
+            ProviderStage.HUMAN_AGENT_ACTIVITY_MODELING,
+            HUMAN_AGENT_ACTIVITY_MODELING_PROMPT,
+            HumanAgentActivityModel,
+        )
+
+    def estimate_activity_effort(
+        self, request: ActivityEffortEstimationRequest
+    ) -> ProviderStageResponse:
+        return self._generate(
+            request,
+            ProviderStage.ACTIVITY_EFFORT_ESTIMATION,
+            ACTIVITY_EFFORT_ESTIMATION_PROMPT,
+            ActivityEffortEstimation,
         )
 
     def _generate(self, request, stage, prompt, schema, repair_context=None):

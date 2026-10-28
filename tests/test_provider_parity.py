@@ -3,7 +3,14 @@ from types import SimpleNamespace
 
 import pytest
 from test_provider_application import account_input, request
-from test_staged_pipeline import make_added, make_classification, make_operational
+from test_staged_pipeline import (
+    make_activity_effort_estimation,
+    make_added,
+    make_agentic,
+    make_classification,
+    make_human_activities,
+    make_operational,
+)
 
 from task_decomposition import decompose
 from task_decomposition.evaluation.rubric import SEMANTIC_EVALUATION_RUBRIC_VERSION
@@ -40,6 +47,9 @@ class OpenAIResponses:
             "OperationalDecomposition": make_operational(),
             "RetainRemoveClassification": classification_with_rationales(),
             "AddedWorkClassification": make_added(),
+            "AgenticTaskSynthesis": make_agentic(),
+            "HumanAgentActivityModel": make_human_activities(),
+            "ActivityEffortEstimation": make_activity_effort_estimation(),
         }
         value = values[kwargs["text"]["format"]["name"]]
         return SimpleNamespace(
@@ -60,6 +70,9 @@ class GeminiModels:
                 "OperationalDecomposition": make_operational(),
                 "RetainRemoveClassification": classification_with_rationales(),
                 "AddedWorkClassification": make_added(),
+                "AgenticTaskSynthesis": make_agentic(),
+                "HumanAgentActivityModel": make_human_activities(),
+                "ActivityEffortEstimation": make_activity_effort_estimation(),
                 "SemanticEvaluation": {
                     "decision": "accept",
                     "rubric_version": SEMANTIC_EVALUATION_RUBRIC_VERSION,
@@ -77,6 +90,9 @@ class DeepSeekCompletions:
         self.outputs = [
             make_operational().model_dump_json(),
             classification_with_rationales().model_dump_json(),
+            make_agentic().model_dump_json(),
+            make_human_activities().model_dump_json(),
+            make_activity_effort_estimation().model_dump_json(),
             make_added().model_dump_json(),
         ]
 

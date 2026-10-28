@@ -30,6 +30,18 @@ Subtask Structure:
 - Keep names and descriptions concise, stating the activity and its object or decision.
 - Use empty dependency and provenance arrays unless needed; omit unnecessary metadata.
 
+Parent Output Contract:
+- Define one parent output unit, the completion boundary, and any downstream work excluded from that output.
+- Infer this contract from the supplied task description when the request does not provide one. A downstream handoff is not completion of downstream adjudication, approval, settlement, or later-process work.
+
+Bottom-Up Baseline Effort:
+- When the supplied schema supports `baseline_effort_estimates`, provide exactly one estimate for every operational subtask.
+- Estimate expected occurrences per parent output and active human effort per occurrence under the pre-AI operating model only.
+- Use explicit compatible effort units with `per_operation` time basis. Exclude passive waiting, machine execution, staffing, capacity, and external workflow volume.
+- Provide rationale and assumptions, distinguishing supplied facts from model-generated planning estimates.
+- Do not provide `expected_effort_per_parent_output` as an independently invented number; the application calculates it as occurrences × effort per occurrence and validates any supplied value.
+- Do not use transformation classifications, agentic tasks, human-agent activities, desired productivity, or W1/W0 targets. If absolute baseline estimates cannot be responsibly produced, omit the estimate collection and preserve the legacy relative-weight behavior.
+
 Relative Effort Estimation:
 - Treat one parent-task execution as producing one defined parent output unit. Use that same denominator for every subtask, while allowing subtasks to have different native work units.
 - Estimate expected subtask effort per parent output as expected occurrences per parent output × active human effort per occurrence. Occurrences may be zero, fractional, one, or greater than one; include conditional work, repetition, and active rework without assuming every subtask occurs once.
@@ -37,7 +49,9 @@ Relative Effort Estimation:
 - Keep external parent-output volume (for example, claims per month) outside this decomposition. Exclude passive waiting, queueing, and unattended processing time.
 - Use supplied operational facts when available; otherwise make reasonable occupational estimates informed by general knowledge, frameworks such as O*NET, and relevant industry practices.
 - Use a consistent relative scale across all subtasks; the application performs authoritative normalization.
+- Treat relative weights as normalized, dimensionless comparison values, not minutes, hours, elapsed time, FTE, capacity, or measured precision.
 - Do not require absolute minutes, hours, or workload volumes from the user.
+- Do not present unsupported precision, measured frequencies, durations, benchmarks, or capacity assumptions as facts.
 - Do not use business importance, risk, or decision authority as proxies for human effort.
 
 Effort Rationale:
@@ -51,7 +65,7 @@ Effort Rationale:
 
 Output:
 Return only the requested JSON object, conforming to the supplied output schema.
-Include relative_effort_weight and effort_rationale for each subtask.
+Include relative_effort_weight and effort_rationale for each subtask. When bottom-up estimates are returned, relative_effort_weight is derived by the application from expected effort per parent output.
 No readiness analysis, implementation plans, recommendations, transformation commentary, scoring, or accounting.
 """.strip()
 
@@ -83,6 +97,7 @@ Effort Requirements:
 - Ensure every subtask has a concise effort_rationale explaining the main frequency and effort-per-occurrence assumptions, distinguishing supplied facts from model estimates.
 - If a correction changes an activity's scope, frequency, or effort requirements, update its weight and rationale together as needed.
 - Do not require absolute units or invent measured data, benchmarks, citations, or claims of source consultation.
+- Preserve any valid parent output contract and baseline effort estimates. If estimates are present, keep one estimate per operational subtask, use pre-AI scope only, and do not independently invent the calculated expected-effort product.
 
 Output:
 Return only the repaired JSON object conforming to the supplied output schema.
@@ -122,12 +137,65 @@ Identify genuinely new human work caused by automating baseline subtasks classif
 - Identity: Copy the supplied task exactly. Use only frozen subtask IDs; never invent, rename, omit, duplicate, or remap them.
 - Categories: AI_INTERACTION covers human prompting, guidance, intervention, retrying, and troubleshooting during execution. AI_VERIFICATION covers human inspection, validation, correction, and approving AI-generated outputs. Use no other categories.
 - Scope: Include only incremental human work during transformed workflow execution. Exclude existing RETAIN work, downstream activities, system implementation, deployment, infrastructure or model maintenance, passive AI waiting time, and other passive waiting. Do not reclassify baseline work as added work.
+- Parent boundary: keep added work within the original parent-task output. Treat downstream roles and later decisions as context only; do not include downstream adjudication, final decisions, settlement, or later-process execution unless the parent task explicitly owns them.
 - Coverage & Consolidation: Assess every REMOVE subtask, but emit only distinct necessary activities. Combine overlapping work across subtasks to avoid double counting; separate activities with materially different triggers, frequencies, or human actions. List all causal REMOVE IDs in `source_removed_subtask_ids`.
 - Effort Reference: Select exactly one comparable baseline `reference_subtask_id` (RETAIN or REMOVE) or `external_reference` per row. Match the added activity's scope, action, complexity, and frequency; avoid arbitrarily narrow references. Do not automatically sum causal subtasks. External references require a quantitative `effort_per_occurrence` anchor; otherwise leave the estimate noncomputable.
 - Estimation: Provide low/typical/high values for `occurrences_per_parent_execution` and `relative_effort_per_occurrence`. For baseline references, also estimate `reference_occurrences_per_parent_execution`; do not assume one without justification. Reflect conditional frequencies and use measured/documented evidence when available; otherwise use `estimate_basis="assumed"`. Never fabricate evidence or benchmarks.
 - Rationale: In ≤40 words per row, explain the trigger, frequency, reference choice, relative effort, and key assumptions.
 - Output: Return the complete structured object with top-level `task`, `added_work_rows`, and `provenance_refs` ([] if unavailable). Give each row a stable work ID and concise activity name. Set optional descriptions, dependencies, sequence indexes, and row provenance to empty/null unless needed.
 - Accounting: Return estimates only. Do not calculate W0, W1, accounting amounts, substitution, augmentation, effects, or readiness metrics; Python owns all calculations.
+""".strip()
+
+AGENTIC_TASK_SYNTHESIS_PROMPT = """
+Group the frozen baseline subtasks classified REMOVE into coherent agentic tasks that describe what AI is responsible for in the transformed workflow.
+
+- Use only source subtask IDs from the supplied decomposition, and only IDs classified REMOVE.
+- Assign every REMOVE subtask to exactly one agentic task. Assign no RETAIN subtask.
+- Group subtasks when they share a coherent responsibility, required inputs, and expected deliverables; keep meaningfully distinct responsibilities separate.
+- Preserve the required work and deliverables of every replaced subtask across the combined agentic tasks. Do not invent responsibilities unrelated to the transformation.
+- Preserve the original parent-task boundary. Treat downstream roles, handoffs, or later decisions mentioned in the task description as context unless the supplied baseline explicitly assigns their execution to this parent task.
+- Do not claim ownership of RETAIN work; human-owned approval, escalation, accountability, or exception responsibilities remain outside the agentic task.
+- Describe semantic responsibility and expected deliverables only. Do not describe tools, execution graphs, orchestration, staffing, time, savings, capacity, or human added work.
+- Do not estimate human interaction time, verification time, agent execution time, human-effort reduction, throughput, capacity, or financial impact.
+- Each agentic task must have a stable ID, nonempty name and description, at least one required input, and at least one expected output.
+- Return zero agentic tasks when there are no REMOVE subtasks.
+
+Return only the requested JSON object. Do not calculate accounting or added human effort.
+""".strip()
+
+HUMAN_AGENT_ACTIVITY_MODELING_PROMPT = """
+Model the new human activities required to operate, supervise, verify, and handle exceptions around the supplied agentic tasks.
+
+- Reference only supplied agentic task IDs. Do not reconstruct or regroup baseline subtasks.
+- Model a human activity only when a plausible human action is required; autonomous agent operation is not a human activity.
+- Use categories AI_INTERACTION, AI_VERIFICATION, or EXCEPTION_HANDLING.
+- One activity may reference multiple agentic tasks when it is a shared human action. Do not create one activity per task automatically.
+- Preserve the original parent-task boundary. A downstream recipient may be mentioned as context for a handoff, but downstream adjudication, final decisions, settlement, or later-process execution must not become a human activity unless the parent task explicitly owns it.
+- Do not recreate REMOVE work, duplicate RETAIN responsibilities, or invent unrelated responsibilities. Retained approval, escalation, accountability, and exception responsibilities remain human-owned.
+- Preserve meaningful differences in triggers and human responsibilities, and avoid duplicate shared coordination, verification, or exception activities.
+- Define semantic activities only. Do not estimate occurrences, minutes, hours, effort, savings, capacity, throughput, or financial impact. Do not create added-work estimates.
+- Return zero activities when the synthesis contains zero agentic tasks or no additional human activity is plausibly required.
+
+Return only the requested JSON object.
+""".strip()
+
+ACTIVITY_EFFORT_ESTIMATION_PROMPT = """
+Estimate active human effort for the supplied human-agent activities. Return numerical inputs only; Python performs the arithmetic and accounting.
+
+- Use one parent task output as the common denominator for expected occurrences.
+- Estimate expected occurrences across all parent outputs. For conditional work, include the probability/frequency once; do not multiply it again.
+- Estimate active human effort per occurrence, excluding passive waiting, autonomous agent execution, and machine processing time.
+- Consider the associated agentic responsibilities, inputs, outputs, retained human work, and shared activities. Do not estimate separately per removed baseline subtask.
+- Estimate only the human action needed to complete the original parent-task output. Exclude downstream adjudication, final decisions, settlement, or later-process execution mentioned as context but outside that output.
+- Estimate each modeled activity exactly once, including EXCEPTION_HANDLING when applicable. Shared activities remain one estimate.
+- Set expected_effort_per_parent_output to the exact product of expected_occurrences_per_parent_output and active_effort_per_occurrence. Do not round or substitute a conditional value; for example, 0.2 occurrences × 5 minutes per occurrence = 1.0 minute per parent output.
+- Provide an explicit effort unit and per-operation time basis. Do not present assumptions as measured observations.
+- If normalized accounting has no supplied absolute baseline, provide an auditable estimated baseline effort per parent output with rationale and assumptions. A supplied baseline takes precedence in application accounting.
+- Estimate the pre-AI baseline independently from post-AI activity effort and any desired reduction. Do not choose either baseline calibration or activity estimates to target a W1/W0 percentage; the resulting ratio is computed by Python.
+- For the estimated baseline calibration, use the original parent-task description, operational decomposition, and baseline relative weights as pre-AI evidence. Do not infer the calibration from agentic-task scope, human-agent activity effort, added effort, or a desired productivity result, even though those fields are present for context.
+- Do not estimate capacity, throughput, staffing, savings, or financial impact.
+
+Return only the requested JSON object.
 """.strip()
 
 SEMANTIC_EVALUATION_PROMPT = f"""
@@ -145,7 +213,10 @@ RUBRIC:
 """.strip()
 
 __all__ = [
+    "ACTIVITY_EFFORT_ESTIMATION_PROMPT",
     "ADDED_WORK_PROMPT",
+    "AGENTIC_TASK_SYNTHESIS_PROMPT",
+    "HUMAN_AGENT_ACTIVITY_MODELING_PROMPT",
     "OPERATIONAL_DECOMPOSITION_PROMPT",
     "OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT",
     "RETAIN_REMOVE_PROMPT",

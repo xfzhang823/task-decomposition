@@ -8,13 +8,19 @@ from typing import Any
 
 from task_decomposition.contracts.provenance import ProviderProvenance, ProviderStage
 from task_decomposition.contracts.provider import (
+    ActivityEffortEstimationRequest,
     AddedWorkClassificationRequest,
+    AgenticTaskSynthesisRequest,
+    HumanAgentActivityModelingRequest,
     OperationalDecompositionRequest,
     ProviderStageResponse,
     RetainRemoveClassificationRequest,
 )
 from task_decomposition.contracts.stages import (
+    ActivityEffortEstimation,
     AddedWorkClassification,
+    AgenticTaskSynthesis,
+    HumanAgentActivityModel,
     OperationalDecomposition,
     RetainRemoveClassification,
 )
@@ -41,7 +47,10 @@ from task_decomposition.providers._shared import (
     validate_stage_output_tokens,
 )
 from task_decomposition.providers.prompts import (
+    ACTIVITY_EFFORT_ESTIMATION_PROMPT,
     ADDED_WORK_PROMPT,
+    AGENTIC_TASK_SYNTHESIS_PROMPT,
+    HUMAN_AGENT_ACTIVITY_MODELING_PROMPT,
     OPERATIONAL_DECOMPOSITION_PROMPT,
     OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT,
     RETAIN_REMOVE_PROMPT,
@@ -135,6 +144,16 @@ def _provider_text_format(stage, schema) -> Any:
                 {"type": "null"},
             ]
         }
+        definitions["BaselineSubtaskEffortEstimate"]["properties"][
+            "expected_occurrences_per_parent_output"
+        ] = {
+            "minimum": 0,
+            "type": "number",
+        }
+        definitions["EffortQuantity"]["properties"]["value"] = {
+            "minimum": 0,
+            "type": "number",
+        }
     elif stage is ProviderStage.RETAIN_REMOVE_CLASSIFICATION:
         definitions["ClassifiedSubtask"]["properties"]["baseline_effort_ratio"] = {
             "anyOf": [
@@ -178,6 +197,20 @@ def _provider_text_format(stage, schema) -> Any:
         estimate = definitions["AddedWorkEstimate"]
         estimate["properties"].pop("provenance_refs", None)
         estimate["required"].remove("provenance_refs")
+    elif stage is ProviderStage.ACTIVITY_EFFORT_ESTIMATION:
+        # The Responses API does not accept the lookaround regex that Pydantic
+        # emits for Decimal string alternatives. Keep the public Decimal
+        # contracts, but submit provider-facing numeric JSON fields.
+        definitions["ActivityEffortEstimate"]["properties"][
+            "expected_occurrences_per_parent_output"
+        ] = {
+            "minimum": 0,
+            "type": "number",
+        }
+        definitions["EffortQuantity"]["properties"]["value"] = {
+            "minimum": 0,
+            "type": "number",
+        }
     return text_format
 
 
@@ -422,6 +455,49 @@ class OpenAIDecompositionProvider:
             prompt=ADDED_WORK_PROMPT,
             payload=payload,
             schema=AddedWorkClassification,
+        )
+
+    def synthesize_agentic_tasks(
+        self, request: AgenticTaskSynthesisRequest
+    ) -> ProviderStageResponse:
+        """Group removed subtasks into semantic AI responsibilities."""
+        payload = stage_payload(request)
+        request_id, references = request_metadata(request)
+        return self._structured_stage(
+            stage=ProviderStage.AGENTIC_TASK_SYNTHESIS,
+            request_id=request_id,
+            references=references,
+            prompt=AGENTIC_TASK_SYNTHESIS_PROMPT,
+            payload=payload,
+            schema=AgenticTaskSynthesis,
+        )
+
+    def model_human_agent_activities(
+        self, request: HumanAgentActivityModelingRequest
+    ) -> ProviderStageResponse:
+        payload = stage_payload(request)
+        request_id, references = request_metadata(request)
+        return self._structured_stage(
+            stage=ProviderStage.HUMAN_AGENT_ACTIVITY_MODELING,
+            request_id=request_id,
+            references=references,
+            prompt=HUMAN_AGENT_ACTIVITY_MODELING_PROMPT,
+            payload=payload,
+            schema=HumanAgentActivityModel,
+        )
+
+    def estimate_activity_effort(
+        self, request: ActivityEffortEstimationRequest
+    ) -> ProviderStageResponse:
+        payload = stage_payload(request)
+        request_id, references = request_metadata(request)
+        return self._structured_stage(
+            stage=ProviderStage.ACTIVITY_EFFORT_ESTIMATION,
+            request_id=request_id,
+            references=references,
+            prompt=ACTIVITY_EFFORT_ESTIMATION_PROMPT,
+            payload=payload,
+            schema=ActivityEffortEstimation,
         )
 
     # pylint: disable-next=too-many-arguments

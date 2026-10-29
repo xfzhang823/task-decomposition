@@ -131,7 +131,8 @@ class AgenticTaskSynthesisRequest(BaseModel):
 class HumanAgentActivityModelingRequest(BaseModel):
     """Input for modeling new human activities around validated AI tasks.
 
-    Activities describe interaction, verification, or exception handling that
+    Activities describe interaction or verification, including exception
+    triggers that require either kind of human action, that
     humans may perform because of the proposed AI responsibilities. They are
     semantic records only and do not contain occurrences, durations, effort,
     or accounting contributions.
@@ -150,10 +151,11 @@ class ActivityEffortEstimationRequest(BaseModel):
 
     The provider estimates expected occurrences per parent output and active
     human effort per occurrence for each modeled activity, with explicit units,
-    rationale, and assumptions. It may also provide an explicit baseline
-    calibration when normalized accounting lacks a supplied absolute baseline.
-    Python validates the products and converts the result into existing
-    support-work inputs; the provider does not calculate W0 or W1.
+    rationale, and assumptions. Baseline calibration is supplied by the
+    application from caller input or bottom-up decomposition; this stage does
+    not generate it. Python derives and validates effort products and converts
+    the result into existing support-work inputs; the provider does not
+    calculate W0 or W1.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)

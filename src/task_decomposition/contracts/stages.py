@@ -242,7 +242,6 @@ class HumanAgentActivityCategory(str, Enum):
 
     AI_INTERACTION = "AI_INTERACTION"
     AI_VERIFICATION = "AI_VERIFICATION"
-    EXCEPTION_HANDLING = "EXCEPTION_HANDLING"
 
 
 class HumanAgentActivity(BaseModel):
@@ -303,7 +302,7 @@ class ActivityEffortEstimate(BaseModel):
     activity_id: str = Field(min_length=1)
     expected_occurrences_per_parent_output: Decimal = Field(ge=0)
     active_effort_per_occurrence: EffortQuantity
-    expected_effort_per_parent_output: EffortQuantity
+    expected_effort_per_parent_output: EffortQuantity | None = None
     rationale: str = Field(min_length=1)
     assumptions: tuple[str, ...] = ()
     provenance_refs: tuple[ProvenanceRef, ...] = ()

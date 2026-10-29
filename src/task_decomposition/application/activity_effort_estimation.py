@@ -34,8 +34,8 @@ def resolve_activity_support_work(
 ) -> SupportWorkInputs:
     """Convert validated per-parent activity effort into support inputs.
 
-    ``EXCEPTION_HANDLING`` is preserved in the activity model and mapped to
-    ``AI_INTERACTION`` for the existing two-category accounting boundary.
+    Exception triggers are already represented by the canonical interaction or
+    verification category; there is no separate exception category here.
     """
     by_id = {item.activity_id: item for item in activities.activities}
     totals = defaultdict(Decimal)
@@ -52,10 +52,7 @@ def resolve_activity_support_work(
     for estimate in estimation.activity_effort_estimates:
         activity = by_id[estimate.activity_id]
         category = activity.category
-        if category is HumanAgentActivityCategory.AI_VERIFICATION:
-            target = HumanAgentActivityCategory.AI_VERIFICATION
-        else:
-            target = HumanAgentActivityCategory.AI_INTERACTION
+        target = category
         expected_effort = estimate.expected_effort_per_parent_output
         if selected_baseline is not None:
             try:

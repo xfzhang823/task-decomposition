@@ -335,26 +335,44 @@ def validate_activity_effort_estimation(
             "activity effort estimates must use one compatible unit/time basis"
         )
     for estimate in output.activity_effort_estimates:
-        if (
-            estimate.expected_effort_per_parent_output.unit
-            is not estimate.active_effort_per_occurrence.unit
-            or estimate.expected_effort_per_parent_output.time_basis
+        expected = (
+            estimate.expected_occurrences_per_parent_output
+            * estimate.active_effort_per_occurrence.value
+        )
+        supplied = estimate.expected_effort_per_parent_output
+        if supplied is not None and (
+            supplied.unit is not estimate.active_effort_per_occurrence.unit
+            or supplied.time_basis
             is not estimate.active_effort_per_occurrence.time_basis
         ):
             raise StageValidationError(
                 f"activity {estimate.activity_id!r} expected effort must use the "
                 "same unit/time basis as effort per occurrence"
             )
-        expected = (
-            estimate.expected_occurrences_per_parent_output
-            * estimate.active_effort_per_occurrence.value
-        )
-        if expected != estimate.expected_effort_per_parent_output.value:
+        if supplied is not None and expected != supplied.value:
             raise StageValidationError(
                 f"activity {estimate.activity_id!r} expected effort does not equal "
                 "occurrences multiplied by effort per occurrence"
             )
-    return output.model_copy(update={"task": operational.task})
+    canonical = tuple(
+        estimate.model_copy(
+            update={
+                "expected_effort_per_parent_output": EffortQuantity(
+                    value=estimate.expected_occurrences_per_parent_output
+                    * estimate.active_effort_per_occurrence.value,
+                    unit=estimate.active_effort_per_occurrence.unit,
+                    time_basis=estimate.active_effort_per_occurrence.time_basis,
+                )
+            }
+        )
+        for estimate in output.activity_effort_estimates
+    )
+    return output.model_copy(
+        update={
+            "task": operational.task,
+            "activity_effort_estimates": canonical,
+        }
+    )
 
 
 def validate_stage_chain(

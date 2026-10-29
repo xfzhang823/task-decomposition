@@ -106,7 +106,7 @@ def test_independent_agentic_tasks_can_have_distinct_activities():
             (
                 activity("HAA001", ("AGT001",)),
                 activity(
-                    "HAA002", ("AGT002",), HumanAgentActivityCategory.EXCEPTION_HANDLING
+                    "HAA002", ("AGT002",), HumanAgentActivityCategory.AI_INTERACTION
                 ),
             )
         ),

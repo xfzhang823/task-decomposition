@@ -30,7 +30,7 @@ Subtask Structure:
 - Omit unnecessary metadata; use empty dependency and provenance arrays unless needed.
 
 Parent Output Contract:
-- Define one parent output unit, its completion boundary, and excluded downstream work.
+- Define one defined parent output unit, its completion boundary, and excluded downstream work.
 - Infer the contract from the task description when not supplied.
 - Do not include downstream adjudication, approval, settlement, or other work beyond the parent-task completion boundary.
 
@@ -43,7 +43,7 @@ Bottom-Up Baseline Effort:
 - Do not use transformation classifications, agentic tasks, human-agent activities, productivity targets, or W0/W1 outcomes.
 
 Effort Estimation Principles:
-- Use the same parent output denominator for every subtask, even when subtasks have different native work units.
+- Use the same parent output denominator for every subtask, even when subtasks have different native work units. Include internal workload once and exclude external parent-output volume.
 - Expected occurrences may be zero, fractional, one, or greater than one. Account for conditional work, repetition, and active rework without assuming every subtask occurs once.
 - Distinguish routine assessments performed for every output from conditional follow-up work. Apply conditional frequencies only to work actually triggered by the condition.
 - Estimate each subtask's marginal active effort within the complete parent-task workflow, not the time required to perform it independently from scratch.
@@ -62,7 +62,7 @@ Effort Estimation Principles:
 Relative Effort:
 - The application derives `relative_effort_weight` from each subtask's expected effort per parent output divided by total baseline effort.
 - Do not independently estimate, assign, or optimize relative weights.
-- Relative weights are normalized, dimensionless comparisons—not time, FTE, capacity, or measured precision.
+- Relative weights are normalized, dimensionless comparison values—not time, FTE, capacity, or measured precision.
 
 Effort Rationale:
 - Provide a concise rationale for each subtask's occurrence frequency and active effort per occurrence, typically 1–2 sentences.
@@ -70,7 +70,7 @@ Effort Rationale:
 - Distinguish supplied facts from model-generated planning assumptions.
 - For conditional work, state an approximate expected frequency when not supplied and label it as an assumption.
 - Ensure estimates reflect only work attributable to the subtask, without double-counting shared activities.
-- Do not fabricate measured data, benchmarks, citations, or claims of source consultation.
+- Do not fabricate measured data, benchmarks, citations, or claims of source consultation or unsupported precision.
 - Do not justify effort using vague statements such as "important," "integral," or "frequency varies."
 
 Validation:
@@ -183,38 +183,78 @@ Return only the requested JSON object. Do not calculate accounting or added huma
 """.strip()
 
 HUMAN_AGENT_ACTIVITY_MODELING_PROMPT = """
-Model the new human activities required to operate, supervise, verify, and handle exceptions around the supplied agentic tasks.
+Identify the human activities required to interact with agentic tasks and verify their outputs under the intended post-AI operating model.
 
+Activity Identification:
 - Reference only supplied agentic task IDs. Do not reconstruct or regroup baseline subtasks.
-- Model a human activity only when a plausible human action is required; autonomous agent operation is not a human activity.
-- Use categories AI_INTERACTION, AI_VERIFICATION, or EXCEPTION_HANDLING.
-- One activity may reference multiple agentic tasks when it is a shared human action. Do not create one activity per task automatically.
-- Preserve the original parent-task boundary. A downstream recipient may be mentioned as context for a handoff, but downstream adjudication, final decisions, settlement, or later-process execution must not become a human activity unless the parent task explicitly owns it.
-- Do not recreate REMOVE work, duplicate RETAIN responsibilities, or invent unrelated responsibilities. Retained approval, escalation, accountability, and exception responsibilities remain human-owned.
-- Preserve meaningful differences in triggers and human responsibilities, and avoid duplicate shared coordination, verification, or exception activities.
-- Define semantic activities only. Do not estimate occurrences, minutes, hours, effort, savings, capacity, throughput, or financial impact. Do not create added-work estimates.
-- Return zero activities when the synthesis contains zero agentic tasks or no additional human activity is plausibly required.
+- Model meaningful human actions, including routine interaction, verification, and conditional intervention when required.
+- Use only AI_INTERACTION and AI_VERIFICATION. Classify activities by what the human does, not why the activity is triggered.
+- One activity may reference multiple agentic tasks. Do not create separate activities merely because multiple agents are involved.
+- Do not invent human work for activities agents can complete autonomously.
+
+AI_INTERACTION:
+- Model human communication or collaboration with agents, including queries, explanations, clarifications, instructions, and additional context.
+- Include routine interaction when required by the operating model and conditional interaction when additional guidance is needed.
+- Do not assume every output requires a human query or conversation.
+
+AI_VERIFICATION:
+- Model human review, validation, correction, or approval of agent outputs and recommendations.
+- Include routine verification when required by the operating model.
+- Consolidate shared verification into one activity when a single review covers multiple agentic tasks.
+- Do not assume mandatory approval unless required by the operating model.
+- Verification should assess agent outputs, not independently repeat the original human work.
+
+Exceptions and Edge Cases:
+- Treat exceptions, uncertainty, and agent failures as activity triggers, not separate categories.
+- Distinguish unusual business conditions from situations requiring human intervention. An agent identifying, flagging, or appropriately routing an unusual case does not by itself require additional human work.
+- Model intervention when the agent cannot reliably complete its responsibility, its output requires human validation, or human judgment is necessary to determine the next action.
+- Classify intervention as AI_INTERACTION when the human primarily clarifies or guides the agent, and AI_VERIFICATION when the human primarily evaluates, corrects, or authorizes its output.
+- Group related exception triggers when they require substantially the same human action. Separate activities only when their human responsibilities or effort-driving work differ meaningfully.
+- Do not duplicate intervention already covered by routine interaction or verification.
+
+Scope and Boundaries:
+- Preserve the original parent-task completion boundary. Exclude downstream decisions, adjudication, settlement, and later-process execution unless explicitly included in the parent task.
+- Do not recreate REMOVE work, duplicate RETAIN responsibilities, or invent unrelated human work. Retained approval, escalation, and accountability remain human-owned.
+- Define each activity by its human action, trigger, and associated agentic tasks.
+- Keep activities distinct but avoid overlapping reviews, repeated approvals, and unnecessary fragmentation.
+- A single interaction may include reviewing findings, questioning the agent, and confirming a recommendation. Split it only when the human actions represent meaningfully different responsibilities.
+
+Estimation Boundary:
+- Define semantic activities only. Do not estimate occurrences, time, effort, savings, capacity, throughput, or financial impact.
+- Return zero activities when there are no agentic tasks or no additional human activity is required.
 
 Return only the requested JSON object.
 """.strip()
 
 ACTIVITY_EFFORT_ESTIMATION_PROMPT = """
-Estimate active human effort for the supplied human-agent activities. Return numerical inputs only; Python performs the arithmetic and accounting.
+Estimate active human effort for the supplied human-agent activities under the post-AI operating model. Return estimation inputs only; Python performs arithmetic and accounting.
 
-- Use one parent task output as the common denominator for expected occurrences.
-- Estimate expected occurrences across all parent outputs. For conditional work, include the probability/frequency once; do not multiply it again.
-- Estimate active human effort per occurrence, excluding passive waiting, autonomous agent execution, and machine processing time.
-- Consider the associated agentic responsibilities, inputs, outputs, retained human work, and shared activities. Do not estimate separately per removed baseline subtask.
-- Estimate only the human action needed to complete the original parent-task output. Exclude downstream adjudication, final decisions, settlement, or later-process execution mentioned as context but outside that output.
-- Estimate each modeled activity exactly once, including EXCEPTION_HANDLING when applicable. Shared activities remain one estimate.
-- Set expected_effort_per_parent_output to the exact product of expected_occurrences_per_parent_output and active_effort_per_occurrence. Do not round or substitute a conditional value; for example, 0.2 occurrences × 5 minutes per occurrence = 1.0 minute per parent output.
-- Provide an explicit effort unit and per-operation time basis. Do not present assumptions as measured observations.
-- Estimate only the post-AI activity inputs. Baseline calibration is supplied by the application from caller input or bottom-up decomposition and is never generated in this stage.
-- Estimate the pre-AI baseline independently from post-AI activity effort and any desired reduction. Do not choose either baseline calibration or activity estimates to target a W1/W0 percentage; the resulting ratio is computed by Python.
-- For the estimated baseline calibration, use the original parent-task description, operational decomposition, and baseline relative weights as pre-AI evidence. Do not infer the calibration from agentic-task scope, human-agent activity effort, added effort, or a desired productivity result, even though those fields are present for context.
-- Do not estimate capacity, throughput, staffing, savings, or financial impact.
+Estimation Rules:
+- Use one parent-task output as the common denominator for all activities.
+- Estimate expected occurrences per parent output and active human effort per occurrence, including routine and conditional activities.
+- For conditional activities, incorporate expected frequency once. Allow fractional occurrences and do not assume every activity occurs for every output.
+- Estimate incremental human effort within the complete human-agent workflow. Reuse information, findings, and prior interactions rather than estimating each activity independently from scratch.
+- Count shared review, clarification, verification, and correction work only once. Additional interaction or intervention must represent effort beyond work already counted.
+- Consider activity triggers, agentic responsibilities, available information, retained human work, and the intended operating model.
+- Estimate shared activities once, even when they reference multiple agentic tasks. Do not estimate separately per replaced baseline subtask.
+- Exclude passive waiting, autonomous agent execution, machine processing, and downstream work outside the parent-task boundary.
+- Use reasonable planning assumptions when measured data is unavailable. Distinguish assumptions from supplied facts.
 
-Return only the requested JSON object.
+Calculation:
+- Expected effort per parent output = expected occurrences × active effort per occurrence.
+- Use compatible time units and a per-operation time basis.
+- Do not independently adjust calculated effort or target a desired productivity improvement.
+
+Example:
+A human routinely verifies an agent's output and occasionally asks for clarification.
+Model verification once per output and clarification at its expected conditional frequency.
+Estimate clarification effort incrementally, excluding verification work already counted.
+This example illustrates accounting principles, not default activity requirements.
+
+Boundaries:
+- Estimate post-AI human-agent activities only. Baseline calibration is supplied separately by the application.
+- Do not estimate agent execution time, staffing, capacity, throughput, savings, or financial impact.
+- Return only the requested JSON object.
 """.strip()
 
 SEMANTIC_EVALUATION_PROMPT = f"""

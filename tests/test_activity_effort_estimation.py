@@ -123,7 +123,7 @@ def test_multiple_and_shared_activities_are_summed_once():
         activity(
             "HAA002", HumanAgentActivityCategory.AI_VERIFICATION, "AGT001", "AGT002"
         ),
-        activity("HAA003", HumanAgentActivityCategory.EXCEPTION_HANDLING, "AGT002"),
+        activity("HAA003", HumanAgentActivityCategory.AI_INTERACTION, "AGT002"),
     )
     value = estimation(
         estimate("HAA001", 1, 2),
@@ -137,16 +137,35 @@ def test_multiple_and_shared_activities_are_summed_once():
     assert support.ai_verification.value == Decimal(3)
 
 
-def test_exception_handling_preserves_semantic_category_but_maps_to_interaction():
-    model = activities(
-        activity("HAA001", HumanAgentActivityCategory.EXCEPTION_HANDLING)
-    )
+def test_exception_trigger_uses_canonical_interaction_category():
+    model = activities(activity("HAA001", HumanAgentActivityCategory.AI_INTERACTION))
     value = estimation(estimate("HAA001", 1, 4))
 
     support = resolve_activity_support_work(value, model, make_absolute_accounting())
 
-    assert model.activities[0].category is HumanAgentActivityCategory.EXCEPTION_HANDLING
+    assert model.activities[0].category is HumanAgentActivityCategory.AI_INTERACTION
     assert support.ai_interaction.value == Decimal(4)
+
+
+def test_expected_effort_is_optional_and_canonicalized_by_validation():
+    model = activities(activity("HAA001", HumanAgentActivityCategory.AI_VERIFICATION))
+    value = ActivityEffortEstimation(
+        task=TASK,
+        activity_effort_estimates=(
+            ActivityEffortEstimate(
+                activity_id="HAA001",
+                expected_occurrences_per_parent_output=Decimal("0.25"),
+                active_effort_per_occurrence=quantity(8),
+                rationale="The test activity is conditional.",
+            ),
+        ),
+    )
+
+    validated = validate_activity_effort_estimation(make_operational(), model, value)
+
+    assert validated.activity_effort_estimates[
+        0
+    ].expected_effort_per_parent_output.value == Decimal("2.00")
 
 
 def test_zero_activities_produce_zero_normalized_support_without_calibration():

@@ -5,10 +5,13 @@ from decimal import Decimal
 
 from task_decomposition.contracts.effort import (
     AbsoluteEffortInput,
+    EffortQuantity,
     NormalizedAccountingInput,
     RatioBasis,
     SupportWorkInput,
     SupportWorkInputs,
+    TimeBasis,
+    convert_effort_quantity,
 )
 from task_decomposition.contracts.stages import (
     ActivityEffortEstimation,
@@ -16,6 +19,7 @@ from task_decomposition.contracts.stages import (
     HumanAgentActivityModel,
 )
 from task_decomposition.errors import (
+    ContractValidationError,
     IncompatibleEffortUnitError,
     MissingAccountingInputError,
 )
@@ -25,6 +29,8 @@ def resolve_activity_support_work(
     estimation: ActivityEffortEstimation,
     activities: HumanAgentActivityModel,
     accounting_input: AbsoluteEffortInput | NormalizedAccountingInput,
+    *,
+    baseline_effort: EffortQuantity | None = None,
 ) -> SupportWorkInputs:
     """Convert validated per-parent activity effort into support inputs.
 
@@ -33,6 +39,19 @@ def resolve_activity_support_work(
     """
     by_id = {item.activity_id: item for item in activities.activities}
     totals = defaultdict(Decimal)
+    selected_baseline = baseline_effort
+    if selected_baseline is None and isinstance(accounting_input, AbsoluteEffortInput):
+        selected_baseline = accounting_input.baseline_human_effort
+    if selected_baseline is None:
+        selected_baseline = estimation.estimated_baseline_effort_per_parent_output
+
+    if (
+        selected_baseline is not None
+        and selected_baseline.time_basis is not TimeBasis.PER_OPERATION
+    ):
+        raise IncompatibleEffortUnitError(
+            "activity-based baseline calibration must use a per-operation time basis"
+        )
     for estimate in estimation.activity_effort_estimates:
         activity = by_id[estimate.activity_id]
         category = activity.category
@@ -40,22 +59,26 @@ def resolve_activity_support_work(
             target = HumanAgentActivityCategory.AI_VERIFICATION
         else:
             target = HumanAgentActivityCategory.AI_INTERACTION
-        totals[target] += (
-            estimate.expected_occurrences_per_parent_output
-            * estimate.active_effort_per_occurrence.value
-        )
+        expected_effort = estimate.expected_effort_per_parent_output
+        if selected_baseline is not None:
+            try:
+                expected_effort = convert_effort_quantity(
+                    expected_effort, selected_baseline.unit
+                )
+            except ContractValidationError as exc:
+                raise IncompatibleEffortUnitError(str(exc)) from exc
+            if expected_effort.time_basis is not selected_baseline.time_basis:
+                raise IncompatibleEffortUnitError(
+                    "activity effort must use the same time basis as baseline calibration"
+                )
+        totals[target] += expected_effort.value
 
     if isinstance(accounting_input, AbsoluteEffortInput):
-        baseline = accounting_input.baseline_human_effort
-        for estimate in estimation.activity_effort_estimates:
-            effort = estimate.expected_effort_per_parent_output
-            if (
-                effort.unit is not baseline.unit
-                or effort.time_basis is not baseline.time_basis
-            ):
-                raise IncompatibleEffortUnitError(
-                    "activity effort must match supplied baseline unit/time basis"
-                )
+        baseline = selected_baseline
+        if baseline is None:
+            raise MissingAccountingInputError(
+                "absolute activity estimation requires a baseline calibration"
+            )
         return SupportWorkInputs(
             ai_interaction=SupportWorkInput(
                 value=totals[HumanAgentActivityCategory.AI_INTERACTION],
@@ -81,20 +104,11 @@ def resolve_activity_support_work(
             ),
         )
 
-    baseline = estimation.estimated_baseline_effort_per_parent_output
+    baseline = selected_baseline
     if baseline is None or baseline.value <= 0:
         raise MissingAccountingInputError(
             "activity-based normalized estimation requires a positive estimated baseline calibration"
         )
-    for estimate in estimation.activity_effort_estimates:
-        effort = estimate.expected_effort_per_parent_output
-        if (
-            effort.unit is not baseline.unit
-            or effort.time_basis is not baseline.time_basis
-        ):
-            raise IncompatibleEffortUnitError(
-                "activity effort must match estimated baseline unit/time basis"
-            )
     return SupportWorkInputs(
         ai_interaction=SupportWorkInput(
             value=totals[HumanAgentActivityCategory.AI_INTERACTION] / baseline.value,

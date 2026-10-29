@@ -519,6 +519,9 @@ class TransformationDecompositionResult(BaseModel):
     agentic_task_synthesis: AgenticTaskSynthesis | None = None
     human_agent_activity_modeling: HumanAgentActivityModel | None = None
     activity_effort_estimation: ActivityEffortEstimation | None = None
+    baseline_calibration_source: (
+        Literal["supplied", "baseline_bottom_up", "provider_estimated"] | None
+    ) = None
     estimation_method: Literal["activity_based", "legacy_reference_based"] = (
         "legacy_reference_based"
     )

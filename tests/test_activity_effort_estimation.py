@@ -100,6 +100,29 @@ def test_repeated_activity_is_not_multiplied_by_external_volume():
     assert support.ai_verification.value == Decimal(6)
 
 
+def test_explicit_baseline_calibration_precedes_provider_estimate_and_converts_units():
+    model = activities(activity("HAA001", HumanAgentActivityCategory.AI_VERIFICATION))
+    value = ActivityEffortEstimation(
+        task=TASK,
+        activity_effort_estimates=(estimate("HAA001", 1, 1, unit=EffortUnit.HOURS),),
+        estimated_baseline_effort_per_parent_output=quantity(90, unit=EffortUnit.HOURS),
+        baseline_rationale="Provider fallback should not control this calculation.",
+    )
+    accounting = NormalizedAccountingInput(
+        retained_work_ratio=Decimal("0.5"),
+        gross_removed_work_ratio=Decimal("0.5"),
+    )
+
+    support = resolve_activity_support_work(
+        value,
+        model,
+        accounting,
+        baseline_effort=quantity(30, unit=EffortUnit.MINUTES),
+    )
+
+    assert support.ai_verification.value == Decimal(2)
+
+
 def test_multiple_and_shared_activities_are_summed_once():
     model = activities(
         activity("HAA001", HumanAgentActivityCategory.AI_INTERACTION),

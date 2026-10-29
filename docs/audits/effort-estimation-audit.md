@@ -552,3 +552,22 @@ compatible, and callers are not required to provide the new parent-output metada
 The task-decomposition result exposes the optional baseline estimate and parent
 output contract, while W0/W1, transformation accounting, and workflow-capacity
 semantics remain unchanged for the next phase.
+
+## Phase 2 — Output-Based Baseline Effort Integration implementation record
+
+Transformation calibration now uses explicit precedence: caller-supplied absolute
+baseline effort, Phase 1 bottom-up baseline effort, then the existing provider
+calibration fallback. The selected source is exposed as
+`baseline_calibration_source`. Absolute transformations preserve bottom-up
+subtask proportions and scale retained/removed effort to the authoritative
+supplied baseline before the existing accounting handoff. Normalized activity
+support uses the bottom-up total when available and converts compatible duration
+units deterministically.
+
+The activity estimator remains a single existing provider stage; it does not
+receive a new call or a W1/W0 target, and any provider baseline returned when a
+higher-precedence calibration exists is diagnostic only. `domain/accounting.py`
+remains the sole W0/W1 authority. Legacy relative-only decompositions and
+providers without optional capabilities retain their existing paths. Zero or
+invalid calibration remains an explicit validation/error case rather than a
+fabricated normalized result.

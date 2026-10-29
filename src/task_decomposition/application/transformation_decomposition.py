@@ -18,7 +18,11 @@ from task_decomposition.application.added_work_estimation import (
 from task_decomposition.application.provider_factory import resolve_provider
 from task_decomposition.application.staged_pipeline import _run_staged_pipeline
 from task_decomposition.contracts.accounting import AccountingMode
-from task_decomposition.contracts.effort import AbsoluteEffortInput
+from task_decomposition.contracts.effort import (
+    AbsoluteEffortInput,
+    EffortQuantity,
+    convert_effort_quantity,
+)
 from task_decomposition.contracts.provenance import ProviderStage
 from task_decomposition.contracts.provider import (
     ActivityEffortEstimationRequest,
@@ -32,7 +36,11 @@ from task_decomposition.contracts.stages import (
     AddedWorkClassification,
     TransformationDecompositionResult,
 )
-from task_decomposition.errors import ProviderOutputError
+from task_decomposition.errors import (
+    IncompatibleEffortUnitError,
+    MissingAccountingInputError,
+    ProviderOutputError,
+)
 from task_decomposition.interfaces.provider import (
     ActivityEffortEstimationProvider,
     AgenticTaskSynthesisProvider,
@@ -208,15 +216,20 @@ def _assemble_transformation_result(
     ) = responses
     baseline = request.task_decomposition.operational_decomposition
     if estimation is not None:
+        calibration, calibration_source = _select_baseline_calibration(
+            request, estimation
+        )
         support_work = resolve_activity_support_work(
             estimation,
             activities,
             request.accounting_input,
+            baseline_effort=calibration,
         )
         support_resolution = None
         estimate_details = ()
         estimation_method = "activity_based"
     else:
+        calibration_source = _calibration_source(request, None)
         support_work, support_resolution, estimate_details = (
             resolve_support_work_with_details(
                 added,
@@ -229,6 +242,7 @@ def _assemble_transformation_result(
     accounting_input = request.accounting_input.model_copy(
         update={"support_work": support_work}
     )
+    accounting_input = _apply_calibrated_partition(accounting_input, classification)
     accounting = _run_staged_pipeline(
         baseline,
         classification,
@@ -253,6 +267,7 @@ def _assemble_transformation_result(
         agentic_task_synthesis=synthesis,
         human_agent_activity_modeling=activities,
         activity_effort_estimation=estimation,
+        baseline_calibration_source=calibration_source,
         estimation_method=estimation_method,
         added_work_classification=added,
         accounting=accounting,
@@ -287,10 +302,20 @@ def _apply_baseline_allocation(classification, request):
         if isinstance(accounting_input, AbsoluteEffortInput)
         else AccountingMode.NORMALIZED
     )
+    calibrated = _calibrated_subtask_efforts(request, allocations)
     updated = []
     for item in classification.classified_subtasks:
         allocation = allocations[item.subtask_id]
-        if mode is AccountingMode.ABSOLUTE and allocation.effort is not None:
+        if mode is AccountingMode.ABSOLUTE and calibrated is not None:
+            updated.append(
+                item.model_copy(
+                    update={
+                        "effort": calibrated[item.subtask_id],
+                        "baseline_effort_ratio": None,
+                    }
+                )
+            )
+        elif mode is AccountingMode.ABSOLUTE and allocation.effort is not None:
             updated.append(
                 item.model_copy(
                     update={
@@ -311,6 +336,128 @@ def _apply_baseline_allocation(classification, request):
         else:
             updated.append(item)
     return classification.model_copy(update={"classified_subtasks": tuple(updated)})
+
+
+def _calibrated_subtask_efforts(request, allocations):
+    """Scale baseline subtask proportions to the authoritative absolute W0."""
+    accounting_input = getattr(request, "accounting_input", None)
+    if not isinstance(accounting_input, AbsoluteEffortInput):
+        return None
+    baseline = accounting_input.baseline_human_effort
+    estimates = request.task_decomposition.baseline_effort_estimation
+    ratios = {}
+    if estimates is not None:
+        estimate_ids = [estimate.subtask_id for estimate in estimates.estimates]
+        if len(estimate_ids) != len(set(estimate_ids)):
+            raise MissingAccountingInputError(
+                "bottom-up baseline estimates must have unique subtask IDs"
+            )
+        if set(estimate_ids) != set(allocations):
+            raise MissingAccountingInputError(
+                "bottom-up baseline estimates must cover every allocated subtask"
+            )
+        total = estimates.total_effort_per_parent_output
+        total = convert_effort_quantity(total, baseline.unit)
+        if total.time_basis is not baseline.time_basis:
+            raise IncompatibleEffortUnitError(
+                "bottom-up baseline and supplied calibration must share a time basis"
+            )
+        if total.value <= 0:
+            raise MissingAccountingInputError(
+                "cannot calibrate absolute baseline effort from a zero bottom-up total"
+            )
+        converted_total = 0
+        for estimate in estimates.estimates:
+            effort = convert_effort_quantity(
+                estimate.expected_effort_per_parent_output, baseline.unit
+            )
+            if effort.time_basis is not baseline.time_basis:
+                raise IncompatibleEffortUnitError(
+                    "bottom-up subtask effort and supplied calibration must share a time basis"
+                )
+            converted_total += effort.value
+            ratios[estimate.subtask_id] = effort.value / total.value
+        if converted_total != total.value:
+            raise MissingAccountingInputError(
+                "bottom-up baseline total must equal the sum of subtask effort"
+            )
+    else:
+        ratios = {
+            subtask_id: allocation.weight_ratio
+            for subtask_id, allocation in allocations.items()
+            if allocation.weight_ratio is not None
+        }
+    if set(ratios) != set(allocations):
+        return None
+    return {
+        subtask_id: EffortQuantity(
+            value=baseline.value * ratio,
+            unit=baseline.unit,
+            time_basis=baseline.time_basis,
+        )
+        for subtask_id, ratio in ratios.items()
+    }
+
+
+def _apply_calibrated_partition(accounting_input, classification):
+    """Use classified calibrated subtask effort as the absolute W0 partition."""
+    if not isinstance(accounting_input, AbsoluteEffortInput):
+        return accounting_input
+    items = classification.classified_subtasks
+    if not items or any(item.effort is None for item in items):
+        return accounting_input
+    retained = sum(
+        (item.effort.value for item in items if item.classification.value == "retain"),
+        0,
+    )
+    removed = sum(
+        (item.effort.value for item in items if item.classification.value == "remove"),
+        0,
+    )
+    return accounting_input.model_copy(
+        update={
+            "retained_human_work": EffortQuantity(
+                value=retained,
+                unit=accounting_input.baseline_human_effort.unit,
+                time_basis=accounting_input.baseline_human_effort.time_basis,
+            ),
+            "gross_removed_work": EffortQuantity(
+                value=removed,
+                unit=accounting_input.baseline_human_effort.unit,
+                time_basis=accounting_input.baseline_human_effort.time_basis,
+            ),
+        }
+    )
+
+
+def _select_baseline_calibration(request, estimation):
+    """Select supplied, bottom-up, or provider baseline calibration once."""
+    accounting_input = request.accounting_input
+    if isinstance(accounting_input, AbsoluteEffortInput):
+        return accounting_input.baseline_human_effort, "supplied"
+    bottom_up = request.task_decomposition.baseline_effort_estimation
+    if bottom_up is not None:
+        return bottom_up.total_effort_per_parent_output, "baseline_bottom_up"
+    if estimation.estimated_baseline_effort_per_parent_output is not None:
+        return (
+            estimation.estimated_baseline_effort_per_parent_output,
+            "provider_estimated",
+        )
+    return None, None
+
+
+def _calibration_source(request, estimation):
+    """Return the calibration source used by this transformation result."""
+    if isinstance(request.accounting_input, AbsoluteEffortInput):
+        return "supplied"
+    if request.task_decomposition.baseline_effort_estimation is not None:
+        return "baseline_bottom_up"
+    if (
+        estimation is not None
+        and estimation.estimated_baseline_effort_per_parent_output is not None
+    ):
+        return "provider_estimated"
+    return None
 
 
 __all__ = ["decompose_transformation"]

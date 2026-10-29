@@ -12,6 +12,9 @@ from task_decomposition import (
     AddedWorkItem,
     AgenticTask,
     AgenticTaskSynthesis,
+    BaselineEffortAllocation,
+    BaselineEffortEstimation,
+    BaselineSubtaskEffortEstimate,
     ClassifiedSubtask,
     EffortQuantity,
     EffortUnit,
@@ -25,6 +28,7 @@ from task_decomposition import (
     RetainRemoveClassification,
     SupportWorkInput,
     SupportWorkInputs,
+    TaskDecomposition,
     TaskReference,
     TimeBasis,
     TransformationClassification,
@@ -32,6 +36,11 @@ from task_decomposition import (
     validate_stage_chain,
 )
 from task_decomposition.application.staged_pipeline import _run_staged_pipeline
+from task_decomposition.application.transformation_decomposition import (
+    _apply_baseline_allocation,
+    _apply_calibrated_partition,
+)
+from task_decomposition.contracts.provider import TransformationDecompositionRequest
 from task_decomposition.errors import (
     CardinalityError,
     IdentityMismatchError,
@@ -234,6 +243,78 @@ def make_normalized_accounting():
             ai_verification=normalized_amount(0),
         ),
     )
+
+
+def test_bottom_up_subtask_effort_is_scaled_to_supplied_baseline():
+    estimates = tuple(
+        BaselineSubtaskEffortEstimate(
+            subtask_id=subtask.subtask_id,
+            expected_occurrences_per_parent_output=1,
+            active_effort_per_occurrence=EffortQuantity(
+                value=value, unit=EffortUnit.MINUTES, time_basis=PER_OPERATION
+            ),
+            expected_effort_per_parent_output=EffortQuantity(
+                value=value, unit=EffortUnit.MINUTES, time_basis=PER_OPERATION
+            ),
+            rationale="Bottom-up baseline fixture.",
+        )
+        for subtask, value in zip(make_operational().operational_subtasks, (8, 12, 7))
+    )
+    task_decomposition = TaskDecomposition(
+        operational_decomposition=make_operational(),
+        baseline_effort_estimation=BaselineEffortEstimation(
+            task=TASK,
+            estimates=estimates,
+            total_effort_per_parent_output=EffortQuantity(
+                value=27, unit=EffortUnit.MINUTES, time_basis=PER_OPERATION
+            ),
+        ),
+        baseline_effort_allocations=tuple(
+            BaselineEffortAllocation(
+                subtask_id=subtask.subtask_id,
+                weight_ratio=Decimal(str(value)) / Decimal(27),
+            )
+            for subtask, value in zip(
+                make_operational().operational_subtasks, (8, 12, 7)
+            )
+        ),
+    )
+    accounting = AbsoluteEffortInput(
+        baseline_human_effort=EffortQuantity(
+            value=30, unit=EffortUnit.MINUTES, time_basis=PER_OPERATION
+        ),
+        retained_human_work=EffortQuantity(
+            value=0, unit=EffortUnit.MINUTES, time_basis=PER_OPERATION
+        ),
+        gross_removed_work=EffortQuantity(
+            value=0, unit=EffortUnit.MINUTES, time_basis=PER_OPERATION
+        ),
+    )
+    request = TransformationDecompositionRequest(
+        task_decomposition=task_decomposition,
+        accounting_input=accounting,
+    )
+
+    classification = _apply_baseline_allocation(
+        make_classification(with_effort=False), request
+    )
+    calibrated = _apply_calibrated_partition(accounting, classification)
+
+    expected = (
+        Decimal(240) / Decimal(27),
+        Decimal(360) / Decimal(27),
+        Decimal(210) / Decimal(27),
+    )
+    assert all(
+        abs(item.effort.value - expected_value) < Decimal("1e-24")
+        for item, expected_value in zip(classification.classified_subtasks, expected)
+    )
+    assert abs(
+        calibrated.retained_human_work.value - Decimal(450) / Decimal(27)
+    ) < Decimal("1e-24")
+    assert abs(
+        calibrated.gross_removed_work.value - Decimal(360) / Decimal(27)
+    ) < Decimal("1e-24")
 
 
 def make_absolute_support():

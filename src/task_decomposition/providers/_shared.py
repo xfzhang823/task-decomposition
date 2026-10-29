@@ -125,6 +125,18 @@ def stage_payload(stage_request: Any) -> dict[str, Any]:
         payload["human_agent_activity_modeling"] = (
             stage_request.human_agent_activity_modeling.model_dump(mode="json")
         )
+        payload["parent_output_contract"] = (
+            request.task_decomposition.parent_output_contract.model_dump(mode="json")
+            if request.task_decomposition.parent_output_contract
+            else None
+        )
+        payload["baseline_effort_estimation"] = (
+            request.task_decomposition.baseline_effort_estimation.model_dump(
+                mode="json"
+            )
+            if request.task_decomposition.baseline_effort_estimation
+            else None
+        )
     return payload
 
 

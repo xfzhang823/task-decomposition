@@ -20,7 +20,6 @@ STAGES = (
     ProviderStage.OPERATIONAL_DECOMPOSITION.value,
     "semantic_evaluation",
     ProviderStage.RETAIN_REMOVE_CLASSIFICATION.value,
-    ProviderStage.ADDED_WORK_CLASSIFICATION.value,
 )
 
 
@@ -29,7 +28,7 @@ def test_stage_token_overrides_and_global_fallback(config_type):
     config = config_type(
         stage_output_tokens={stage: index + 101 for index, stage in enumerate(STAGES)}
     )
-    assert [config.output_tokens_for(stage) for stage in STAGES] == [101, 102, 103, 104]
+    assert [config.output_tokens_for(stage) for stage in STAGES] == [101, 102, 103]
     assert config.output_tokens_for("unknown") == DEFAULT_OUTPUT_TOKENS[config_type]
 
 

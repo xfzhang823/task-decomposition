@@ -82,7 +82,7 @@ Using an OpenAI-compatible SDK transport does not make DeepSeek an OpenAI provid
 
 ### `prompts.py`
 
-This module contains provider-facing prompt templates for operational decomposition, operational repair, RETAIN/REMOVE classification, added/support human-work classification, and semantic evaluation.
+This module contains provider-facing prompt templates for operational decomposition, operational repair, RETAIN/REMOVE classification, agentic task synthesis, human-agent activity modeling, activity-effort estimation, and semantic evaluation.
 
 Prompts describe the semantic task and output expectations. They must not contain authoritative accounting formulas or replace the Pydantic contracts and application validation.
 
@@ -144,10 +144,10 @@ This supports credential-free tests and keeps SDK construction at the adapter bo
 
 Concrete adapters implement the behavioral protocols in `task_decomposition.interfaces.provider`:
 
-- `generate_operational_decomposition()` proposes operational subtasks and relative effort weights;
+- `generate_operational_decomposition()` proposes operational subtasks and bottom-up effort inputs; the application derives relative effort weights;
 - `repair_operational_decomposition()` optionally repairs rejected output;
 - `classify_retain_remove()` proposes RETAIN/REMOVE labels for an existing baseline;
-- `classify_added_work()` proposes added/support human-work rows;
+- `estimate_activity_effort()` estimates active human effort for the modeled human-agent activities; the application performs all products, unit conversion, and accounting.
 - `evaluate()` supplies semantic evaluation when the adapter supports the default evaluator path.
 
 Each generation method returns a `ProviderStageResponse` whose payload is untrusted until the application validates it. Providers must preserve stage, provider, model, request, and provenance identity in that envelope.

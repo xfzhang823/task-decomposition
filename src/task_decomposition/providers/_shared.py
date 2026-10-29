@@ -7,7 +7,6 @@ from typing import Any
 from task_decomposition.contracts.provenance import ProviderProvenance, ProviderStage
 from task_decomposition.contracts.provider import (
     ActivityEffortEstimationRequest,
-    AddedWorkClassificationRequest,
     AgenticTaskSynthesisRequest,
     HumanAgentActivityModelingRequest,
     ProviderStageResponse,
@@ -29,7 +28,6 @@ OUTPUT_TOKEN_STAGES = frozenset(
         ProviderStage.AGENTIC_TASK_SYNTHESIS.value,
         ProviderStage.HUMAN_AGENT_ACTIVITY_MODELING.value,
         ProviderStage.ACTIVITY_EFFORT_ESTIMATION.value,
-        ProviderStage.ADDED_WORK_CLASSIFICATION.value,
         "semantic_evaluation",
     }
 )
@@ -88,7 +86,6 @@ def stage_payload(stage_request: Any) -> dict[str, Any]:
         stage_request,
         (
             RetainRemoveClassificationRequest,
-            AddedWorkClassificationRequest,
             AgenticTaskSynthesisRequest,
             HumanAgentActivityModelingRequest,
             ActivityEffortEstimationRequest,
@@ -100,7 +97,6 @@ def stage_payload(stage_request: Any) -> dict[str, Any]:
     if isinstance(
         stage_request,
         (
-            AddedWorkClassificationRequest,
             AgenticTaskSynthesisRequest,
             HumanAgentActivityModelingRequest,
             ActivityEffortEstimationRequest,

@@ -42,9 +42,6 @@ def resolve_activity_support_work(
     selected_baseline = baseline_effort
     if selected_baseline is None and isinstance(accounting_input, AbsoluteEffortInput):
         selected_baseline = accounting_input.baseline_human_effort
-    if selected_baseline is None:
-        selected_baseline = estimation.estimated_baseline_effort_per_parent_output
-
     if (
         selected_baseline is not None
         and selected_baseline.time_basis is not TimeBasis.PER_OPERATION

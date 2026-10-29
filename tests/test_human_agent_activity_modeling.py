@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 import pytest
 from pydantic import ValidationError
 from test_staged_pipeline import make_agentic
@@ -16,6 +14,7 @@ from task_decomposition import (
     HumanAgentActivity,
     HumanAgentActivityCategory,
     HumanAgentActivityModel,
+    ProviderOutputError,
     UnknownReferenceError,
     decompose_task,
     decompose_transformation,
@@ -168,13 +167,17 @@ def test_activity_contract_requires_nonempty_fields_and_supported_category():
         )
 
 
-def test_external_provider_without_modeling_capability_remains_compatible():
-    provider = BoundaryProvider()
-    baseline = decompose_task(task_request(), provider)
-    result = decompose_transformation(transform_request(baseline), provider)
+def test_external_provider_without_canonical_capability_fails_explicitly():
+    class IncompleteProvider:
+        provider_id = "incomplete"
 
-    assert result.human_agent_activity_modeling is None
-    assert result.accounting.w0 == Decimal(100)
+    with pytest.raises(
+        ProviderOutputError, match="TransformationDecompositionProvider"
+    ):
+        decompose_transformation(
+            transform_request(decompose_task(task_request(), BoundaryProvider())),
+            IncompleteProvider(),
+        )
 
 
 def test_modeling_prompt_preserves_retained_human_boundaries_and_no_effort_semantics():

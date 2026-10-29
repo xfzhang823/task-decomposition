@@ -8,7 +8,6 @@ from typing import Any
 from task_decomposition.contracts.provenance import ProviderStage
 from task_decomposition.contracts.provider import (
     ActivityEffortEstimationRequest,
-    AddedWorkClassificationRequest,
     AgenticTaskSynthesisRequest,
     HumanAgentActivityModelingRequest,
     OperationalDecompositionRequest,
@@ -17,7 +16,6 @@ from task_decomposition.contracts.provider import (
 )
 from task_decomposition.contracts.stages import (
     ActivityEffortEstimation,
-    AddedWorkClassification,
     AgenticTaskSynthesis,
     HumanAgentActivityModel,
     OperationalDecomposition,
@@ -45,7 +43,6 @@ from task_decomposition.providers._shared import (
 )
 from task_decomposition.providers.prompts import (
     ACTIVITY_EFFORT_ESTIMATION_PROMPT,
-    ADDED_WORK_PROMPT,
     AGENTIC_TASK_SYNTHESIS_PROMPT,
     HUMAN_AGENT_ACTIVITY_MODELING_PROMPT,
     OPERATIONAL_DECOMPOSITION_PROMPT,
@@ -200,16 +197,6 @@ class GeminiDecompositionProvider:
             ProviderStage.RETAIN_REMOVE_CLASSIFICATION,
             RETAIN_REMOVE_PROMPT,
             RetainRemoveClassification,
-        )
-
-    def classify_added_work(
-        self, request: AddedWorkClassificationRequest
-    ) -> ProviderStageResponse:
-        return self._generate(
-            request,
-            ProviderStage.ADDED_WORK_CLASSIFICATION,
-            ADDED_WORK_PROMPT,
-            AddedWorkClassification,
         )
 
     def synthesize_agentic_tasks(

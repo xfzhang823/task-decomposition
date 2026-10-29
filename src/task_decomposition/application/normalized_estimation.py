@@ -15,7 +15,6 @@ from task_decomposition.contracts.provider import (
 )
 from task_decomposition.contracts.stages import (
     NormalizedWorkEstimate,
-    SupportWorkMode,
     TransformationDecompositionResult,
 )
 from task_decomposition.domain.allocation import DEFAULT_TOLERANCE
@@ -144,7 +143,6 @@ def estimate_transformation(
             task_decomposition=task_decomposition,
             transformation_context=proposal_request.transformation_context,
             accounting_input=accounting_input,
-            support_work_mode=SupportWorkMode.AUTO,
             request_id=request_id,
         )
         return _assemble_transformation_result(

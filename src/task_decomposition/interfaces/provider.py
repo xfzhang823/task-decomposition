@@ -4,7 +4,6 @@ from typing import Protocol, runtime_checkable
 
 from task_decomposition.contracts.provider import (
     ActivityEffortEstimationRequest,
-    AddedWorkClassificationRequest,
     AgenticTaskSynthesisRequest,
     HumanAgentActivityModelingRequest,
     OperationalDecompositionRequest,
@@ -28,7 +27,7 @@ class TaskDecompositionProvider(Protocol):
 
 @runtime_checkable
 class TransformationDecompositionProvider(Protocol):
-    """Provider capability for classifying an existing operational baseline."""
+    """Provider capability for the complete canonical transformation pipeline."""
 
     provider_id: str
 
@@ -38,10 +37,22 @@ class TransformationDecompositionProvider(Protocol):
         """Propose RETAIN/REMOVE labels for validated operational subtasks."""
         ...
 
-    def classify_added_work(
-        self, request: AddedWorkClassificationRequest
+    def synthesize_agentic_tasks(
+        self, request: AgenticTaskSynthesisRequest
     ) -> ProviderStageResponse:
-        """Propose explicitly based added-human-work rows."""
+        """Group removed baseline subtasks into AI responsibilities."""
+        ...
+
+    def model_human_agent_activities(
+        self, request: HumanAgentActivityModelingRequest
+    ) -> ProviderStageResponse:
+        """Model human activities around validated AI responsibilities."""
+        ...
+
+    def estimate_activity_effort(
+        self, request: ActivityEffortEstimationRequest
+    ) -> ProviderStageResponse:
+        """Estimate activity occurrences and active effort per occurrence."""
         ...
 
 

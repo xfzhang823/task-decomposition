@@ -40,7 +40,7 @@ Bottom-Up Baseline Effort:
 - Use explicit compatible effort units with `per_operation` time basis. Exclude passive waiting, machine execution, staffing, capacity, and external workflow volume.
 - Provide rationale and assumptions, distinguishing supplied facts from model-generated planning estimates.
 - Do not provide `expected_effort_per_parent_output` as an independently invented number; the application calculates it as occurrences × effort per occurrence and validates any supplied value.
-- Do not use transformation classifications, agentic tasks, human-agent activities, desired productivity, or W1/W0 targets. If absolute baseline estimates cannot be responsibly produced, omit the estimate collection and preserve the legacy relative-weight behavior.
+- Do not use transformation classifications, agentic tasks, human-agent activities, desired productivity, or W1/W0 targets. If absolute baseline estimates cannot be responsibly produced, return the incomplete output; application validation will reject it because the canonical path requires bottom-up estimates.
 
 Relative Effort Estimation:
 - Treat one parent-task execution as producing one defined parent output unit. Use that same denominator for every subtask, while allowing subtasks to have different native work units.
@@ -48,14 +48,14 @@ Relative Effort Estimation:
 - Estimate effort per occurrence from the work involved, including representative complexity, coordination, information availability, and internal workload. Include internal workload once; do not double-count it in both occurrences and effort per occurrence.
 - Keep external parent-output volume (for example, claims per month) outside this decomposition. Exclude passive waiting, queueing, and unattended processing time.
 - Use supplied operational facts when available; otherwise make reasonable occupational estimates informed by general knowledge, frameworks such as O*NET, and relevant industry practices.
-- Use a consistent relative scale across all subtasks; the application performs authoritative normalization.
-- Treat relative weights as normalized, dimensionless comparison values, not minutes, hours, elapsed time, FTE, capacity, or measured precision.
+- The application derives relative effort weights from bottom-up expected effort per parent output; do not independently estimate or optimize a relative-weight target.
+- Treat derived relative weights as normalized, dimensionless comparison values, not minutes, hours, elapsed time, FTE, capacity, or measured precision.
 - Do not require absolute minutes, hours, or workload volumes from the user.
 - Do not present unsupported precision, measured frequencies, durations, benchmarks, or capacity assumptions as facts.
 - Do not use business importance, risk, or decision authority as proxies for human effort.
 
 Effort Rationale:
-- Provide a concise rationale for each subtask's relative_effort_weight.
+- Provide a concise rationale for each subtask's expected occurrences and active effort per occurrence.
 - Explain the parent output basis, frequency and effort-per-occurrence assumptions, and relevant complexity, coordination, information availability, or internal-workload assumptions.
 - Distinguish supplied operational facts from model-generated estimates and assumptions.
 - State the assumed occurrence frequency clearly. For conditional work, provide an approximate frequency or range labeled as an assumption when none is supplied.
@@ -65,7 +65,7 @@ Effort Rationale:
 
 Output:
 Return only the requested JSON object, conforming to the supplied output schema.
-Include relative_effort_weight and effort_rationale for each subtask. When bottom-up estimates are returned, relative_effort_weight is derived by the application from expected effort per parent output.
+Include bottom-up baseline effort estimates for every subtask. The application derives relative_effort_weight from expected effort per parent output; any provider-supplied relative_effort_weight is non-authoritative.
 No readiness analysis, implementation plans, recommendations, transformation commentary, scoring, or accounting.
 """.strip()
 
@@ -90,8 +90,7 @@ Activity Requirements:
 - Do not assess automation feasibility or assign RETAIN/REMOVE classifications.
 
 Effort Requirements:
-- Ensure every subtask has a positive, unnormalized relative_effort_weight on a consistent relative scale, not expressed in hours or percentages.
-- Estimate expected baseline human effort as typical occurrences per parent task × relative human effort per occurrence.
+- Preserve bottom-up baseline effort estimates for every subtask, using expected occurrences per parent output × active effort per occurrence.
 - Account for complexity, coordination, and information availability in effort per occurrence, and conditional frequency in expected occurrences. Do not double-count workload.
 - Do not use business importance, risk, or decision authority as proxies for effort.
 - Ensure every subtask has a concise effort_rationale explaining the main frequency and effort-per-occurrence assumptions, distinguishing supplied facts from model estimates.
@@ -129,21 +128,6 @@ JSON Output Rules:
 - Set provenance_refs to [].
 
 Return only the requested JSON. No explanations, calculations, or fabricated effort data.
-""".strip()
-
-ADDED_WORK_PROMPT = """
-Identify genuinely new human work caused by automating baseline subtasks classified REMOVE. For each REMOVE subtask, assess incremental AI_INTERACTION and AI_VERIFICATION needs, including routine oversight, exceptions, missing inputs, ambiguity, failures, and rework. A removed subtask does not necessarily create added work; `added_work_rows` may be empty.
-
-- Identity: Copy the supplied task exactly. Use only frozen subtask IDs; never invent, rename, omit, duplicate, or remap them.
-- Categories: AI_INTERACTION covers human prompting, guidance, intervention, retrying, and troubleshooting during execution. AI_VERIFICATION covers human inspection, validation, correction, and approving AI-generated outputs. Use no other categories.
-- Scope: Include only incremental human work during transformed workflow execution. Exclude existing RETAIN work, downstream activities, system implementation, deployment, infrastructure or model maintenance, passive AI waiting time, and other passive waiting. Do not reclassify baseline work as added work.
-- Parent boundary: keep added work within the original parent-task output. Treat downstream roles and later decisions as context only; do not include downstream adjudication, final decisions, settlement, or later-process execution unless the parent task explicitly owns them.
-- Coverage & Consolidation: Assess every REMOVE subtask, but emit only distinct necessary activities. Combine overlapping work across subtasks to avoid double counting; separate activities with materially different triggers, frequencies, or human actions. List all causal REMOVE IDs in `source_removed_subtask_ids`.
-- Effort Reference: Select exactly one comparable baseline `reference_subtask_id` (RETAIN or REMOVE) or `external_reference` per row. Match the added activity's scope, action, complexity, and frequency; avoid arbitrarily narrow references. Do not automatically sum causal subtasks. External references require a quantitative `effort_per_occurrence` anchor; otherwise leave the estimate noncomputable.
-- Estimation: Provide low/typical/high values for `occurrences_per_parent_execution` and `relative_effort_per_occurrence`. For baseline references, also estimate `reference_occurrences_per_parent_execution`; do not assume one without justification. Reflect conditional frequencies and use measured/documented evidence when available; otherwise use `estimate_basis="assumed"`. Never fabricate evidence or benchmarks.
-- Rationale: In ≤40 words per row, explain the trigger, frequency, reference choice, relative effort, and key assumptions.
-- Output: Return the complete structured object with top-level `task`, `added_work_rows`, and `provenance_refs` ([] if unavailable). Give each row a stable work ID and concise activity name. Set optional descriptions, dependencies, sequence indexes, and row provenance to empty/null unless needed.
-- Accounting: Return estimates only. Do not calculate W0, W1, accounting amounts, substitution, augmentation, effects, or readiness metrics; Python owns all calculations.
 """.strip()
 
 AGENTIC_TASK_SYNTHESIS_PROMPT = """
@@ -190,8 +174,7 @@ Estimate active human effort for the supplied human-agent activities. Return num
 - Estimate each modeled activity exactly once, including EXCEPTION_HANDLING when applicable. Shared activities remain one estimate.
 - Set expected_effort_per_parent_output to the exact product of expected_occurrences_per_parent_output and active_effort_per_occurrence. Do not round or substitute a conditional value; for example, 0.2 occurrences × 5 minutes per occurrence = 1.0 minute per parent output.
 - Provide an explicit effort unit and per-operation time basis. Do not present assumptions as measured observations.
-- If normalized accounting has no supplied absolute baseline, provide an auditable estimated baseline effort per parent output with rationale and assumptions. A supplied baseline takes precedence in application accounting.
-- If the input includes a supplied baseline calibration or a bottom-up baseline effort estimation, treat it as the application-owned calibration basis and do not replace it with a provider-generated baseline. Estimate only the post-AI activity inputs; any returned baseline field is diagnostic and is not authoritative.
+- Estimate only the post-AI activity inputs. Baseline calibration is supplied by the application from caller input or bottom-up decomposition and is never generated in this stage.
 - Estimate the pre-AI baseline independently from post-AI activity effort and any desired reduction. Do not choose either baseline calibration or activity estimates to target a W1/W0 percentage; the resulting ratio is computed by Python.
 - For the estimated baseline calibration, use the original parent-task description, operational decomposition, and baseline relative weights as pre-AI evidence. Do not infer the calibration from agentic-task scope, human-agent activity effort, added effort, or a desired productivity result, even though those fields are present for context.
 - Do not estimate capacity, throughput, staffing, savings, or financial impact.
@@ -215,7 +198,6 @@ RUBRIC:
 
 __all__ = [
     "ACTIVITY_EFFORT_ESTIMATION_PROMPT",
-    "ADDED_WORK_PROMPT",
     "AGENTIC_TASK_SYNTHESIS_PROMPT",
     "HUMAN_AGENT_ACTIVITY_MODELING_PROMPT",
     "OPERATIONAL_DECOMPOSITION_PROMPT",

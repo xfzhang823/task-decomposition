@@ -11,7 +11,6 @@ from task_decomposition.errors import (
 from task_decomposition.tracing import current_tracer
 from task_decomposition.validation.stages import (
     validate_activity_effort_estimation,
-    validate_added_work_classification,
     validate_agentic_task_synthesis,
     validate_human_agent_activity_model,
     validate_operational_decomposition,
@@ -120,32 +119,6 @@ def validate_classification_response(operational, response):
         raise ProviderContractValidationError(str(exc)) from exc
 
 
-def validate_added_response(operational, classification, response):
-    try:
-        result = validate_added_work_classification(
-            operational, classification, response.payload
-        )
-        tracer = current_tracer()
-        if tracer:
-            tracer.validation(
-                phase="structural",
-                stage="added_work_classification",
-                result="success",
-                response=result,
-            )
-        return result
-    except StageValidationError as exc:
-        if current_tracer():
-            current_tracer().validation(
-                phase="structural",
-                stage="added_work_classification",
-                result="failure",
-                errors=(str(exc),),
-                response=response.payload,
-            )
-        raise ProviderContractValidationError(str(exc)) from exc
-
-
 def validate_agentic_response(operational, classification, response):
     try:
         result = validate_agentic_task_synthesis(
@@ -225,7 +198,6 @@ __all__ = [
     "call_stage",
     "provider_id",
     "validate_activity_effort_response",
-    "validate_added_response",
     "validate_agentic_response",
     "validate_classification_response",
     "validate_human_activity_response",

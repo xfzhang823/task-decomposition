@@ -20,7 +20,6 @@ from task_decomposition.contracts.stages import (
 )
 from task_decomposition.domain.allocation import allocate_effort
 from task_decomposition.errors import (
-    ProviderContractValidationError,
     ProviderError,
     ProviderExecutionError,
     ProviderOutputError,
@@ -47,12 +46,12 @@ def decompose_task(
     model: str | None = None,
     max_output_tokens: int | None = None,
 ) -> TaskDecomposition:
-    """Generate and validate a reusable task decomposition.
+    """Generate and validate a reusable output-based task decomposition.
 
-    Transformation context and accounting are deliberately absent. Baseline
-    Provider-generated relative effort weights are normalized into baseline
-    shares. A measured ``baseline_effort`` is optional; when supplied, the
-    same normalized shares are also materialized as absolute allocations.
+    The provider supplies bottom-up subtask effort inputs. The application
+    deterministically calculates expected effort per parent output and derives
+    relative shares from those absolute estimates. Transformation context and
+    accounting are deliberately absent.
     """
     provider = resolve_provider(
         provider, model=model, max_output_tokens=max_output_tokens
@@ -97,10 +96,6 @@ def _validate_or_repair_operational(
 ):
     tracer = current_tracer() or getattr(provider, "tracer", TraceLogger.from_env())
     operational = _prepare_operational(request, validate_operational_response(response))
-    requires_relative_weights = all(
-        item.relative_effort_weight is not None
-        for item in operational.operational_subtasks
-    )
     selected = _resolve_evaluator(provider, evaluator)
     evaluation = _evaluate(selected, request, operational, tracer=tracer)
     if evaluation.decision is SemanticEvaluationDecision.ACCEPT:
@@ -143,14 +138,6 @@ def _validate_or_repair_operational(
         operational = _prepare_operational(
             request, validate_operational_response(repaired, attempt=attempt)
         )
-        if requires_relative_weights and any(
-            item.relative_effort_weight is None
-            for item in operational.operational_subtasks
-        ):
-            raise ProviderContractValidationError(
-                "repaired operational decomposition must preserve a positive "
-                "relative_effort_weight for every subtask"
-            )
         tracer.repair(
             stage=ProviderStage.OPERATIONAL_DECOMPOSITION.value,
             attempt=attempt,
@@ -358,7 +345,6 @@ def _baseline_effort_estimation(operational):
         task=operational.task,
         estimates=estimates,
         total_effort_per_parent_output=first.model_copy(update={"value": total}),
-        estimation_method="bottom_up",
         provenance_refs=tuple(
             ref for estimate in estimates for ref in estimate.provenance_refs
         ),

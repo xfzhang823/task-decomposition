@@ -20,7 +20,6 @@ from task_decomposition.contracts.stages import (
     OperationalDecomposition,
     ParentOutputContract,
     RetainRemoveClassification,
-    SupportWorkMode,
     TaskDecomposition,
     TaskReference,
 )
@@ -59,7 +58,6 @@ class TransformationDecompositionRequest(BaseModel):
     task_decomposition: TaskDecomposition
     transformation_context: dict[str, str] = Field(default_factory=dict)
     accounting_input: AbsoluteEffortInput | NormalizedAccountingInput
-    support_work_mode: SupportWorkMode = SupportWorkMode.HOST
     request_id: str | None = None
     provenance_refs: tuple[ProvenanceRef, ...] = ()
 
@@ -100,21 +98,6 @@ class RetainRemoveClassificationRequest(BaseModel):
 
     request: TransformationDecompositionRequest | TransformationProposalRequest
     operational_decomposition: OperationalDecomposition
-
-
-class AddedWorkClassificationRequest(BaseModel):
-    """Input for proposing new human work caused by the transformation.
-
-    Added work is separate from baseline subtasks and may later be quantified
-    by the legacy reference-based resolver. Provider rows are proposals, not
-    authoritative effort or accounting values.
-    """
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    request: TransformationDecompositionRequest | TransformationProposalRequest
-    operational_decomposition: OperationalDecomposition
-    retain_remove_classification: RetainRemoveClassification
 
 
 class AgenticTaskSynthesisRequest(BaseModel):
@@ -188,7 +171,6 @@ class ProviderStageResponse(BaseModel):
 
 __all__ = [
     "ActivityEffortEstimationRequest",
-    "AddedWorkClassificationRequest",
     "AgenticTaskSynthesisRequest",
     "HumanAgentActivityModelingRequest",
     "OperationalDecompositionRequest",

@@ -528,6 +528,25 @@ For absolute accounting, supplied `baseline_human_effort` is the calibration bas
 
 External providers without the complete optional capability remain on the legacy path. The remaining limitation is intentional: modeled activities are not yet a separate workflow or capacity model, and resource calendars, staffing, throughput, and demand remain downstream responsibilities.
 
+## Phase 3A — Legacy estimation removal and canonicalization implementation record
+
+The current architecture now has one supported estimation path. Baseline providers
+must return a complete parent-output contract and bottom-up subtask effort estimates;
+the application calculates occurrence × effort-per-occurrence and derives relative
+shares deterministically. Provider-generated relative weights are no longer an
+independent estimation source. Transformation calibration accepts only caller-supplied
+absolute baseline effort or the bottom-up baseline total, in that order.
+
+The reference-based added-work proposal/resolver path and provider-estimated
+transformation baseline were removed, along with their public result/request models,
+stage, prompts, validators, orchestration branches, and legacy-only tests. The
+canonical transformation sequence is RETAIN/REMOVE → agentic synthesis → human-agent
+activity modeling → activity effort estimation → the existing accounting handoff.
+Incomplete provider implementations and malformed canonical output fail explicitly;
+there is no silent legacy fallback. `domain/accounting.py` remains the sole W0/W1
+authority. Earlier Phase 1–3 records above describe historical behavior where they
+mention optional or legacy paths and are retained for audit history.
+
 ## Phase 3 audit correction record
 
 The observed claim-triage runs were traced through the activity-estimation response, normalized resolver, canonical accounting, and notebook projection. The repeated normalized W1 value is not caused by clipping, fallback, repeated normalization, or legacy/activity double counting: `domain/accounting.py` receives one retained baseline ratio and one resolved activity-support total and computes W1 once. The observations are consistent with provider outputs scaling both an estimated baseline calibration and activity effort by approximately the same factor. The checked-out code cannot establish whether that correlation is stochastic model behavior or prompt anchoring; it is not evidence of a deterministic accounting defect.
@@ -556,17 +575,16 @@ semantics remain unchanged for the next phase.
 ## Phase 2 — Output-Based Baseline Effort Integration implementation record
 
 Transformation calibration now uses explicit precedence: caller-supplied absolute
-baseline effort, Phase 1 bottom-up baseline effort, then the existing provider
-calibration fallback. The selected source is exposed as
-`baseline_calibration_source`. Absolute transformations preserve bottom-up
+baseline effort, then Phase 1 bottom-up baseline effort. The selected source is
+exposed as `baseline_calibration_source`. Absolute transformations preserve bottom-up
 subtask proportions and scale retained/removed effort to the authoritative
 supplied baseline before the existing accounting handoff. Normalized activity
 support uses the bottom-up total when available and converts compatible duration
 units deterministically.
 
 The activity estimator remains a single existing provider stage; it does not
-receive a new call or a W1/W0 target, and any provider baseline returned when a
-higher-precedence calibration exists is diagnostic only. `domain/accounting.py`
+receive a new call or a W1/W0 target, and it estimates only post-AI activities.
+`domain/accounting.py`
 remains the sole W0/W1 authority. Legacy relative-only decompositions and
 providers without optional capabilities retain their existing paths. Zero or
 invalid calibration remains an explicit validation/error case rather than a

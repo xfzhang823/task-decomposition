@@ -9,7 +9,6 @@ from typing import Any
 from task_decomposition.contracts.provenance import ProviderProvenance, ProviderStage
 from task_decomposition.contracts.provider import (
     ActivityEffortEstimationRequest,
-    AddedWorkClassificationRequest,
     AgenticTaskSynthesisRequest,
     HumanAgentActivityModelingRequest,
     OperationalDecompositionRequest,
@@ -18,7 +17,6 @@ from task_decomposition.contracts.provider import (
 )
 from task_decomposition.contracts.stages import (
     ActivityEffortEstimation,
-    AddedWorkClassification,
     AgenticTaskSynthesis,
     HumanAgentActivityModel,
     OperationalDecomposition,
@@ -48,7 +46,6 @@ from task_decomposition.providers._shared import (
 )
 from task_decomposition.providers.prompts import (
     ACTIVITY_EFFORT_ESTIMATION_PROMPT,
-    ADDED_WORK_PROMPT,
     AGENTIC_TASK_SYNTHESIS_PROMPT,
     HUMAN_AGENT_ACTIVITY_MODELING_PROMPT,
     OPERATIONAL_DECOMPOSITION_PROMPT,
@@ -165,38 +162,6 @@ def _provider_text_format(stage, schema) -> Any:
             "minimum": 0,
             "type": "number",
         }
-    elif stage is ProviderStage.ADDED_WORK_CLASSIFICATION:
-        # OpenAI's structured-output schema validator rejects the regex
-        # lookaround emitted by Pydantic for Decimal string alternatives.
-        # Added-work estimates contain both effort quantities and ranges.
-        definitions["EffortQuantity"]["properties"]["value"] = {
-            "minimum": 0,
-            "type": "number",
-        }
-        for field in ("low", "typical", "high"):
-            definitions["EstimateRange"]["properties"][field] = {
-                "minimum": 0,
-                "type": "number",
-            }
-        definitions["SupportWorkInput"]["properties"]["value"] = {
-            "minimum": 0,
-            "type": "number",
-        }
-        item = definitions["AddedWorkItem"]
-        compact_item_fields = {
-            "description",
-            "depends_on_subtask_ids",
-            "sequence_index",
-            "provenance_refs",
-        }
-        for key in compact_item_fields:
-            item["properties"].pop(key, None)
-        item["required"] = [
-            key for key in item["required"] if key not in compact_item_fields
-        ]
-        estimate = definitions["AddedWorkEstimate"]
-        estimate["properties"].pop("provenance_refs", None)
-        estimate["required"].remove("provenance_refs")
     elif stage is ProviderStage.ACTIVITY_EFFORT_ESTIMATION:
         # The Responses API does not accept the lookaround regex that Pydantic
         # emits for Decimal string alternatives. Keep the public Decimal
@@ -440,21 +405,6 @@ class OpenAIDecompositionProvider:
             prompt=RETAIN_REMOVE_PROMPT,
             payload=payload,
             schema=RetainRemoveClassification,
-        )
-
-    def classify_added_work(
-        self, request: AddedWorkClassificationRequest
-    ) -> ProviderStageResponse:
-        """Propose added/support work caused by REMOVE subtasks."""
-        payload = stage_payload(request)
-        request_id, references = request_metadata(request)
-        return self._structured_stage(
-            stage=ProviderStage.ADDED_WORK_CLASSIFICATION,
-            request_id=request_id,
-            references=references,
-            prompt=ADDED_WORK_PROMPT,
-            payload=payload,
-            schema=AddedWorkClassification,
         )
 
     def synthesize_agentic_tasks(

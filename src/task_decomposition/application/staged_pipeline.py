@@ -10,7 +10,6 @@ from task_decomposition.contracts.effort import (
     SupportWorkInputs,
 )
 from task_decomposition.contracts.stages import (
-    AddedWorkClassification,
     OperationalDecomposition,
     RetainRemoveClassification,
 )
@@ -26,7 +25,6 @@ from task_decomposition.validation.stages import validate_stage_chain
 def _run_staged_pipeline(
     operational: OperationalDecomposition | dict,
     classification: RetainRemoveClassification | dict,
-    added_work: AddedWorkClassification | dict,
     accounting_input: AbsoluteEffortInput | NormalizedAccountingInput,
     *,
     support_work: SupportWorkInputs,
@@ -39,9 +37,7 @@ def _run_staged_pipeline(
     must not invent effort when provider output does not contain enough
     information.
     """
-    _, classification_output, _ = validate_stage_chain(
-        operational, classification, added_work
-    )
+    _, classification_output = validate_stage_chain(operational, classification)
     _validate_effort_handoff(classification_output, accounting_input)
     try:
         if isinstance(accounting_input, AbsoluteEffortInput):
@@ -84,7 +80,7 @@ def _validate_effort_handoff(classification, accounting_input) -> None:
                 for item in items
                 if item.classification is TransformationClassification.RETAIN
             ),
-            Decimal("0"),
+            Decimal(0),
         )
         removed = sum(
             (
@@ -92,7 +88,7 @@ def _validate_effort_handoff(classification, accounting_input) -> None:
                 for item in items
                 if item.classification is TransformationClassification.REMOVE
             ),
-            Decimal("0"),
+            Decimal(0),
         )
         if (
             retained != accounting_input.retained_human_work.value
@@ -108,7 +104,7 @@ def _validate_effort_handoff(classification, accounting_input) -> None:
                 "baseline_effort_ratio must be present for every classified subtask or none"
             )
         if not all(provided) and all(item.effort is not None for item in items):
-            total = sum((item.effort.value for item in items), Decimal("0"))
+            total = sum((item.effort.value for item in items), Decimal(0))
             if total <= 0:
                 raise MissingAccountingInputError(
                     "classified effort must have a positive total for normalization"
@@ -119,7 +115,7 @@ def _validate_effort_handoff(classification, accounting_input) -> None:
                     for item in items
                     if item.classification is TransformationClassification.RETAIN
                 ),
-                Decimal("0"),
+                Decimal(0),
             )
             removed = sum(
                 (
@@ -127,7 +123,7 @@ def _validate_effort_handoff(classification, accounting_input) -> None:
                     for item in items
                     if item.classification is TransformationClassification.REMOVE
                 ),
-                Decimal("0"),
+                Decimal(0),
             )
             if (
                 retained / total != accounting_input.retained_work_ratio
@@ -145,7 +141,7 @@ def _validate_effort_handoff(classification, accounting_input) -> None:
                 for item in items
                 if item.classification is TransformationClassification.RETAIN
             ),
-            Decimal("0"),
+            Decimal(0),
         )
         removed = sum(
             (
@@ -153,7 +149,7 @@ def _validate_effort_handoff(classification, accounting_input) -> None:
                 for item in items
                 if item.classification is TransformationClassification.REMOVE
             ),
-            Decimal("0"),
+            Decimal(0),
         )
         if (
             retained != accounting_input.retained_work_ratio

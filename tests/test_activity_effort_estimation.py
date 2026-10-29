@@ -67,14 +67,10 @@ def activity(activity_id, category, *agentic_ids):
     )
 
 
-def estimation(*estimates, baseline=100, rationale=True):
+def estimation(*estimates):
     return ActivityEffortEstimation(
         task=TASK,
         activity_effort_estimates=tuple(estimates),
-        estimated_baseline_effort_per_parent_output=(
-            quantity(baseline) if baseline is not None else None
-        ),
-        baseline_rationale="Estimated planning calibration." if rationale else None,
     )
 
 
@@ -105,8 +101,6 @@ def test_explicit_baseline_calibration_precedes_provider_estimate_and_converts_u
     value = ActivityEffortEstimation(
         task=TASK,
         activity_effort_estimates=(estimate("HAA001", 1, 1, unit=EffortUnit.HOURS),),
-        estimated_baseline_effort_per_parent_output=quantity(90, unit=EffortUnit.HOURS),
-        baseline_rationale="Provider fallback should not control this calculation.",
     )
     accounting = NormalizedAccountingInput(
         retained_work_ratio=Decimal("0.5"),
@@ -162,7 +156,9 @@ def test_zero_activities_produce_zero_normalized_support_without_calibration():
         retained_work_ratio=Decimal("0.6"), gross_removed_work_ratio=Decimal("0.4")
     )
 
-    support = resolve_activity_support_work(value, model, accounting)
+    support = resolve_activity_support_work(
+        value, model, accounting, baseline_effort=quantity(100)
+    )
 
     assert support.ai_interaction.value == Decimal(0)
     assert support.ai_verification.value == Decimal(0)
@@ -225,7 +221,7 @@ def test_product_and_units_are_validated_deterministically():
 
 def test_supplied_absolute_calibration_is_used_without_normalized_conversion():
     model = activities(activity("HAA001", HumanAgentActivityCategory.AI_VERIFICATION))
-    value = estimation(estimate("HAA001", 1, 7), baseline=1)
+    value = estimation(estimate("HAA001", 1, 7))
     accounting = make_absolute_accounting()
 
     support = resolve_activity_support_work(value, model, accounting)
@@ -236,24 +232,20 @@ def test_supplied_absolute_calibration_is_used_without_normalized_conversion():
 
 def test_normalized_calibration_is_explicit_and_positive():
     model = activities(activity("HAA001", HumanAgentActivityCategory.AI_VERIFICATION))
-    value = estimation(estimate("HAA001", 1, 7), baseline=100)
+    value = estimation(estimate("HAA001", 1, 7))
     accounting = NormalizedAccountingInput(
         retained_work_ratio=Decimal("0.6"), gross_removed_work_ratio=Decimal("0.4")
     )
 
-    support = resolve_activity_support_work(value, model, accounting)
+    support = resolve_activity_support_work(
+        value, model, accounting, baseline_effort=quantity(100)
+    )
 
     assert support.ai_verification.basis is RatioBasis.NORMALIZED_CONTRIBUTION
     assert support.ai_verification.value == Decimal("0.07")
 
     with pytest.raises(MissingAccountingInputError):
-        resolve_activity_support_work(
-            value.model_copy(
-                update={"estimated_baseline_effort_per_parent_output": None}
-            ),
-            model,
-            accounting,
-        )
+        resolve_activity_support_work(value, model, accounting)
 
 
 def test_absolute_unit_boundary_is_rejected():

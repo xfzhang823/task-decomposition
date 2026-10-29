@@ -16,6 +16,7 @@ from task_decomposition import (
     CardinalityError,
     ClassifiedSubtask,
     ProviderContractValidationError,
+    ProviderOutputError,
     ProviderStage,
     RetainRemoveClassification,
     StageValidationError,
@@ -154,12 +155,18 @@ class SynthesisProvider(BoundaryProvider):
         )
 
 
-def test_optional_synthesis_is_inserted_before_added_work_without_changing_accounting():
+def test_canonical_synthesis_precedes_activity_effort_without_changing_accounting():
     provider = SynthesisProvider()
     baseline = decompose_task(task_request(), provider)
     result = decompose_transformation(transform_request(baseline), provider)
 
-    assert provider.calls == ["task", "retain-remove", "synthesis", "added-work"]
+    assert provider.calls == [
+        "task",
+        "retain-remove",
+        "synthesis",
+        "activities",
+        "activity-effort",
+    ]
     assert result.agentic_task_synthesis is not None
     assert result.agentic_task_synthesis.agentic_tasks[0].source_subtask_ids == (
         "sub-2",
@@ -168,12 +175,17 @@ def test_optional_synthesis_is_inserted_before_added_work_without_changing_accou
     assert result.accounting.w1 == Decimal(74)
 
 
-def test_provider_without_synthesis_capability_remains_compatible():
-    provider = BoundaryProvider()
-    baseline = decompose_task(task_request(), provider)
-    result = decompose_transformation(transform_request(baseline), provider)
+def test_provider_without_canonical_capabilities_fails_explicitly():
+    class IncompleteProvider:
+        provider_id = "incomplete"
 
-    assert result.agentic_task_synthesis is None
+    with pytest.raises(
+        ProviderOutputError, match="TransformationDecompositionProvider"
+    ):
+        decompose_transformation(
+            transform_request(decompose_task(task_request(), BoundaryProvider())),
+            IncompleteProvider(),
+        )
 
 
 class InvalidSynthesisProvider(SynthesisProvider):

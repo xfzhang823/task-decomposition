@@ -65,10 +65,6 @@ class SupportBasisConflictError(StageValidationError):
     """Rows in one support category cannot be combined without a common basis."""
 
 
-class AddedWorkEstimationError(StageValidationError):
-    """An added-work estimate cannot be resolved deterministically."""
-
-
 class ProviderError(TaskDecompositionError):
     """Base class for provider-boundary failures exposed by the application."""
 

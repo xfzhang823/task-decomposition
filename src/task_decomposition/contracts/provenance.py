@@ -20,7 +20,6 @@ class ProviderStage(str, Enum):
     AGENTIC_TASK_SYNTHESIS = "agentic_task_synthesis"
     HUMAN_AGENT_ACTIVITY_MODELING = "human_agent_activity_modeling"
     ACTIVITY_EFFORT_ESTIMATION = "activity_effort_estimation"
-    ADDED_WORK_CLASSIFICATION = "added_work_classification"
 
 
 class ProviderProvenance(BaseModel):

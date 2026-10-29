@@ -12,7 +12,6 @@ from task_decomposition.contracts.effort import (
 )
 from task_decomposition.contracts.stages import (
     ActivityEffortEstimation,
-    AddedWorkClassification,
     AgenticTaskSynthesis,
     BaselineSubtaskEffortEstimate,
     HumanAgentActivityModel,
@@ -45,10 +44,12 @@ def validate_operational_decomposition(
             "operational sequence indexes must be 1-based and contiguous"
         )
     weights = tuple(item.relative_effort_weight for item in output.operational_subtasks)
-    if (
-        not output.baseline_effort_estimates
-        and any(weight is not None for weight in weights)
-        and any(weight is None for weight in weights)
+    if not output.baseline_effort_estimates:
+        raise StageValidationError(
+            "canonical operational decomposition requires bottom-up baseline effort estimates"
+        )
+    if any(weight is not None for weight in weights) and any(
+        weight is None for weight in weights
     ):
         raise StageValidationError(
             "relative effort weights must be provided for every operational subtask"
@@ -86,8 +87,8 @@ def validate_baseline_effort_estimates(
 ) -> OperationalDecomposition:
     """Validate and canonicalize optional bottom-up baseline estimates.
 
-    Providers may omit the collection for legacy compatibility. When present,
-    it must cover every subtask exactly once. Compatible duration units are
+    The canonical provider contract requires the collection. When present, it
+    must cover every subtask exactly once. Compatible duration units are
     converted to the first estimate's unit before deterministic products are
     used by the application.
     """
@@ -215,61 +216,6 @@ def validate_retain_remove_classification(
                 "classification sequence does not preserve operational subtask order"
             )
     return output
-
-
-def validate_added_work_classification(
-    operational: OperationalDecomposition,
-    classification: RetainRemoveClassification,
-    value: AddedWorkClassification | dict,
-) -> AddedWorkClassification:
-    output = _validate_model(value, AddedWorkClassification)
-    _require_task_identity(operational.task, output.task)
-    _require_unique((row.work_id for row in output.added_work_rows), "added-work IDs")
-    known_subtasks = {item.subtask_id for item in operational.operational_subtasks}
-    classified = {
-        item.subtask_id: item.classification
-        for item in classification.classified_subtasks
-    }
-    for row in output.added_work_rows:
-        unknown = set(row.depends_on_subtask_ids) - known_subtasks
-        if unknown:
-            raise UnknownReferenceError(
-                f"added-work row {row.work_id!r} has unknown subtasks: {sorted(unknown)}"
-            )
-        if not row.source_removed_subtask_ids:
-            raise StageValidationError(
-                f"added-work row {row.work_id!r} requires causal removed subtasks"
-            )
-        if len(row.source_removed_subtask_ids) != len(
-            set(row.source_removed_subtask_ids)
-        ):
-            raise CardinalityError(
-                f"added-work row {row.work_id!r} has duplicate causal subtasks"
-            )
-        sources = set(row.source_removed_subtask_ids)
-        unknown_sources = sources - known_subtasks
-        if unknown_sources:
-            raise UnknownReferenceError(
-                f"added-work row {row.work_id!r} has unknown causal subtasks: "
-                f"{sorted(unknown_sources)}"
-            )
-        if any(
-            classified.get(subtask_id) is not TransformationClassification.REMOVE
-            for subtask_id in sources
-        ):
-            raise StageValidationError(
-                f"added-work row {row.work_id!r} causal sources must be REMOVE subtasks"
-            )
-        if (
-            row.estimate
-            and row.estimate.reference_subtask_id is not None
-            and row.estimate.reference_subtask_id not in known_subtasks
-        ):
-            raise UnknownReferenceError(
-                f"added-work row {row.work_id!r} has an unknown estimate reference"
-            )
-    _validate_optional_sequence_indexes(output.added_work_rows, label="added-work")
-    return output.model_copy(update={"task": operational.task})
 
 
 def validate_agentic_task_synthesis(
@@ -408,32 +354,19 @@ def validate_activity_effort_estimation(
                 f"activity {estimate.activity_id!r} expected effort does not equal "
                 "occurrences multiplied by effort per occurrence"
             )
-    if (
-        output.estimated_baseline_effort_per_parent_output is not None
-        and not output.baseline_rationale
-    ):
-        raise StageValidationError(
-            "estimated baseline calibration requires a rationale"
-        )
     return output.model_copy(update={"task": operational.task})
 
 
 def validate_stage_chain(
     operational: OperationalDecomposition | dict,
     classification: RetainRemoveClassification | dict,
-    added_work: AddedWorkClassification | dict,
-) -> tuple[
-    OperationalDecomposition, RetainRemoveClassification, AddedWorkClassification
-]:
+) -> tuple[OperationalDecomposition, RetainRemoveClassification]:
     """Validate all stage contracts and their cross-stage references."""
     operational_output = validate_operational_decomposition(operational)
     classification_output = validate_retain_remove_classification(
         operational_output, classification
     )
-    added_output = validate_added_work_classification(
-        operational_output, classification_output, added_work
-    )
-    return operational_output, classification_output, added_output
+    return operational_output, classification_output
 
 
 def _validate_model(value, model):
@@ -477,7 +410,6 @@ def _validate_optional_sequence_indexes(rows: Iterable, *, label: str) -> None:
 
 __all__ = [
     "validate_activity_effort_estimation",
-    "validate_added_work_classification",
     "validate_agentic_task_synthesis",
     "validate_human_agent_activity_model",
     "validate_operational_decomposition",

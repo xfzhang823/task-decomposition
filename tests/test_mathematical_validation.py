@@ -28,7 +28,6 @@ from task_decomposition.contracts.decomposition import (
     TransformationClassification,
     TransformationRow,
 )
-from task_decomposition.contracts.stages import AddedWorkCategory, AddedWorkItem
 from task_decomposition.errors import ZeroBaselineError
 
 UNIT = EffortUnit.EFFORT
@@ -338,7 +337,6 @@ def test_allocation_handoff_preserves_retain_remove_totals(removed_ids, expected
 def test_staged_pipeline_matches_direct_accounting_for_absolute_and_normalized_inputs():
     from test_staged_pipeline import (
         make_absolute_accounting,
-        make_added,
         make_classification,
         make_normalized_accounting,
         make_operational,
@@ -347,7 +345,6 @@ def test_staged_pipeline_matches_direct_accounting_for_absolute_and_normalized_i
     absolute_staged = _run_staged_pipeline(
         make_operational(),
         make_classification(),
-        make_added(),
         make_absolute_accounting(),
         support_work=support_inputs((8, 6), RatioBasis.ABSOLUTE_EFFORT),
     )
@@ -355,7 +352,6 @@ def test_staged_pipeline_matches_direct_accounting_for_absolute_and_normalized_i
     normalized_staged = _run_staged_pipeline(
         make_operational(),
         make_classification(with_effort=False),
-        make_added(normalized=True),
         make_normalized_accounting(),
         support_work=support_inputs(
             ("0.08", "0.06"), RatioBasis.NORMALIZED_CONTRIBUTION
@@ -374,46 +370,6 @@ def test_staged_pipeline_matches_direct_accounting_for_absolute_and_normalized_i
         assert staged.net_substitution_ratio == direct.net_substitution_ratio
         assert staged.net_augmentation_multiplier == direct.net_augmentation_multiplier
         assert staged.effect is direct.effect
-
-
-def test_multiple_added_work_items_aggregate_by_category_without_double_counting():
-    from test_staged_pipeline import (
-        make_absolute_accounting,
-        make_added,
-        make_classification,
-        make_operational,
-    )
-
-    added = make_added()
-    rows = added.added_work_rows
-    added = added.model_copy(
-        update={
-            "added_work_rows": (
-                rows[0],
-                AddedWorkItem(
-                    work_id="work-gov-2",
-                    workload_name="Review additional samples",
-                    category=AddedWorkCategory.AI_VERIFICATION,
-                    source_removed_subtask_ids=("sub-2",),
-                    sequence_index=2,
-                ),
-                rows[1].model_copy(update={"sequence_index": 3}),
-                rows[2].model_copy(update={"sequence_index": 4}),
-            )
-        }
-    )
-    result = _run_staged_pipeline(
-        make_operational(),
-        make_classification(),
-        added,
-        make_absolute_accounting(),
-        support_work=support_inputs((8, 7), RatioBasis.ABSOLUTE_EFFORT),
-    )
-
-    assert result.ai_interaction_work.value == Decimal("8")
-    assert result.ai_verification_work.value == Decimal("7")
-    assert result.added_human_work.value == Decimal("15")
-    assert result.w1 == Decimal("75")
 
 
 def test_invalid_finite_and_accounting_inputs_are_rejected():

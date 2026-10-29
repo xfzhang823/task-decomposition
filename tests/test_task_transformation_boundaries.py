@@ -1,23 +1,23 @@
-from decimal import Decimal
-
-import pytest
-
 from task_decomposition import (
     AbsoluteEffortInput,
-    AddedWorkCategory,
-    AddedWorkClassification,
-    AddedWorkItem,
+    ActivityEffortEstimate,
+    ActivityEffortEstimation,
+    AgenticTask,
+    AgenticTaskSynthesis,
+    BaselineSubtaskEffortEstimate,
+    ClassifiedSubtask,
     EffortQuantity,
     EffortUnit,
+    HumanAgentActivity,
+    HumanAgentActivityCategory,
+    HumanAgentActivityModel,
     OperationalDecomposition,
     OperationalSubtask,
+    ParentOutputContract,
     ProviderProvenance,
     ProviderStage,
     ProviderStageResponse,
-    RatioBasis,
     RetainRemoveClassification,
-    SemanticEvaluation,
-    SemanticEvaluationDecision,
     SupportWorkInput,
     SupportWorkInputs,
     TaskDecompositionRequest,
@@ -25,16 +25,12 @@ from task_decomposition import (
     TimeBasis,
     TransformationClassification,
     TransformationDecompositionRequest,
-    decompose,
-    decompose_task,
-    decompose_transformation,
+)
+from task_decomposition.evaluation.contracts import (
+    SemanticEvaluation,
+    SemanticEvaluationDecision,
 )
 from task_decomposition.evaluation.rubric import SEMANTIC_EVALUATION_RUBRIC_VERSION
-from task_decomposition.interfaces import (
-    DecompositionProvider,
-    TaskDecompositionProvider,
-    TransformationDecompositionProvider,
-)
 
 TASK = TaskReference(
     task_id="task-boundary",
@@ -46,45 +42,43 @@ TIME = TimeBasis.PER_OPERATION
 
 
 def amount(value):
-    return SupportWorkInput(
-        value=value,
-        basis=RatioBasis.ABSOLUTE_EFFORT,
-        unit=UNIT,
-        time_basis=TIME,
-    )
-
-
-def accounting(*, retained=60, removed=40):
-    return AbsoluteEffortInput(
-        baseline_human_effort=EffortQuantity(value=100, unit=UNIT, time_basis=TIME),
-        retained_human_work=EffortQuantity(value=retained, unit=UNIT, time_basis=TIME),
-        gross_removed_work=EffortQuantity(value=removed, unit=UNIT, time_basis=TIME),
-        support_work=SupportWorkInputs(
-            ai_interaction=amount(8),
-            ai_verification=amount(6),
-        ),
-    )
+    return EffortQuantity(value=value, unit=UNIT, time_basis=TIME)
 
 
 def operational():
     return OperationalDecomposition(
         task=TASK,
+        parent_output_contract=ParentOutputContract(
+            output_unit="One account update request processed",
+            completion_boundary="The account record is updated.",
+            source="provider_inferred",
+        ),
+        baseline_effort_estimates=tuple(
+            BaselineSubtaskEffortEstimate(
+                subtask_id=f"sub-{index}",
+                expected_occurrences_per_parent_output=1,
+                active_effort_per_occurrence=amount(value),
+                expected_effort_per_parent_output=amount(value),
+                rationale="Usually occurs once.",
+            )
+            for index, value in enumerate((30, 40, 30), start=1)
+        ),
         operational_subtasks=(
             OperationalSubtask(
                 sequence_index=1,
                 subtask_id="sub-1",
                 subtask_name="Receive account request",
                 description="Log the incoming customer request.",
-                effort_rationale="Usually occurs once; straightforward logging requires limited effort.",
-                relative_effort_weight=Decimal("0.30"),
+                relative_effort_weight="0.30",
+                effort_rationale="Usually occurs once.",
             ),
             OperationalSubtask(
                 sequence_index=2,
                 subtask_id="sub-2",
                 subtask_name="Verify requester identity",
                 description="Confirm the requester is authorized.",
-                effort_rationale="Usually occurs once; checking authorization is moderately complex.",
-                relative_effort_weight=Decimal("0.40"),
+                relative_effort_weight="0.40",
+                effort_rationale="Usually occurs once.",
                 depends_on=("sub-1",),
             ),
             OperationalSubtask(
@@ -92,72 +86,43 @@ def operational():
                 subtask_id="sub-3",
                 subtask_name="Update account record",
                 description="Apply the approved account change.",
-                effort_rationale="Usually occurs once; applying the change requires focused system interaction.",
-                relative_effort_weight=Decimal("0.30"),
+                relative_effort_weight="0.30",
+                effort_rationale="Usually occurs once.",
                 depends_on=("sub-2",),
             ),
         ),
     )
 
 
-def added_work():
-    return AddedWorkClassification(
-        task=TASK,
-        added_work_rows=(
-            AddedWorkItem(
-                work_id="work-governance",
-                workload_name="Review account changes",
-                category=AddedWorkCategory.AI_VERIFICATION,
-                source_removed_subtask_ids=("sub-2",),
-                sequence_index=1,
-            ),
-            AddedWorkItem(
-                work_id="work-support",
-                workload_name="Handle exceptions",
-                category=AddedWorkCategory.AI_INTERACTION,
-                source_removed_subtask_ids=("sub-2",),
-                sequence_index=2,
-            ),
-            AddedWorkItem(
-                work_id="work-lifecycle",
-                workload_name="Maintain update rules",
-                category=AddedWorkCategory.AI_VERIFICATION,
-                source_removed_subtask_ids=("sub-2",),
-                sequence_index=3,
-            ),
-        ),
-    )
+def task_request():
+    return TaskDecompositionRequest(task=TASK, request_id="request-1")
 
 
-def classification(*, all_retain=False):
-    labels = (
-        (TransformationClassification.RETAIN,) * 3
-        if all_retain
-        else (
-            TransformationClassification.RETAIN,
-            TransformationClassification.REMOVE,
-            TransformationClassification.RETAIN,
-        )
-    )
-    return RetainRemoveClassification(
-        task=TASK,
-        classified_subtasks=tuple(
-            {
-                "subtask_id": f"sub-{index}",
-                "classification": label,
-            }
-            for index, label in enumerate(labels, start=1)
+def transform_request(baseline):
+    return TransformationDecompositionRequest(
+        task_decomposition=baseline,
+        accounting_input=AbsoluteEffortInput(
+            baseline_human_effort=amount(100),
+            retained_human_work=amount(60),
+            gross_removed_work=amount(40),
+            support_work=SupportWorkInputs(
+                ai_interaction=SupportWorkInput(
+                    value=0, basis="absolute_effort", unit=UNIT, time_basis=TIME
+                ),
+                ai_verification=SupportWorkInput(
+                    value=0, basis="absolute_effort", unit=UNIT, time_basis=TIME
+                ),
+            ),
         ),
+        request_id="request-1",
     )
 
 
 class BoundaryProvider:
-    provider_id = "boundary-fake"
+    provider_id = "boundary-provider"
 
     def __init__(self):
         self.calls = []
-        self.all_retain = False
-        self.task_request = None
 
     def _response(self, stage, payload):
         return ProviderStageResponse(
@@ -167,8 +132,13 @@ class BoundaryProvider:
                 provider_id=self.provider_id,
                 stage=stage,
                 model_id="boundary-model",
+                request_id="request-1",
             ),
         )
+
+    def generate_operational_decomposition(self, request):
+        self.calls.append("task")
+        return self._response(ProviderStage.OPERATIONAL_DECOMPOSITION, operational())
 
     def evaluate(self, request):
         return SemanticEvaluation(
@@ -176,117 +146,82 @@ class BoundaryProvider:
             rubric_version=SEMANTIC_EVALUATION_RUBRIC_VERSION,
         )
 
-    def generate_operational_decomposition(self, request):
-        self.calls.append("task")
-        self.task_request = request.request
-        return self._response(
-            ProviderStage.OPERATIONAL_DECOMPOSITION,
-            operational(),
-        )
-
     def classify_retain_remove(self, request):
         self.calls.append("retain-remove")
         return self._response(
             ProviderStage.RETAIN_REMOVE_CLASSIFICATION,
-            classification(all_retain=self.all_retain),
-        )
-
-    def classify_added_work(self, request):
-        self.calls.append("added-work")
-        return self._response(
-            ProviderStage.ADDED_WORK_CLASSIFICATION,
-            AddedWorkClassification(
+            RetainRemoveClassification(
                 task=TASK,
-                added_work_rows=() if self.all_retain else added_work().added_work_rows,
+                classified_subtasks=(
+                    ClassifiedSubtask(
+                        subtask_id="sub-1",
+                        classification=TransformationClassification.RETAIN,
+                    ),
+                    ClassifiedSubtask(
+                        subtask_id="sub-2",
+                        classification=TransformationClassification.REMOVE,
+                    ),
+                    ClassifiedSubtask(
+                        subtask_id="sub-3",
+                        classification=TransformationClassification.RETAIN,
+                    ),
+                ),
             ),
         )
 
+    def synthesize_agentic_tasks(self, request):
+        self.calls.append("synthesis")
+        return self._response(
+            ProviderStage.AGENTIC_TASK_SYNTHESIS,
+            AgenticTaskSynthesis(
+                task=TASK,
+                agentic_tasks=(
+                    AgenticTask(
+                        agentic_task_id="AGT001",
+                        agentic_task_name="Prepare account update assessment",
+                        description="Assess the account update request.",
+                        source_subtask_ids=("sub-2",),
+                        required_inputs=("account request",),
+                        expected_outputs=("assessment",),
+                    ),
+                ),
+            ),
+        )
 
-def task_request():
-    return TaskDecompositionRequest(
-        task=TASK,
-        task_context={"domain": "customer_support"},
-        baseline_effort=EffortQuantity(value=100, unit=UNIT, time_basis=TIME),
-    )
+    def model_human_agent_activities(self, request):
+        self.calls.append("activities")
+        return self._response(
+            ProviderStage.HUMAN_AGENT_ACTIVITY_MODELING,
+            HumanAgentActivityModel(
+                task=TASK,
+                activities=(
+                    HumanAgentActivity(
+                        activity_id="HAA001",
+                        activity_name="Verify assessment",
+                        description="Review the agent assessment.",
+                        category=HumanAgentActivityCategory.AI_VERIFICATION,
+                        agentic_task_ids=("AGT001",),
+                        trigger="The agent completes the assessment.",
+                        expected_action="Accept or correct the assessment.",
+                    ),
+                ),
+            ),
+        )
 
-
-def transform_request(baseline, *, retained=60, removed=40):
-    return TransformationDecompositionRequest(
-        task_decomposition=baseline,
-        transformation_context={"target": "assisted account updates"},
-        accounting_input=accounting(retained=retained, removed=removed),
-    )
-
-
-def test_task_decomposition_is_independent_and_allocates_baseline():
-    provider = BoundaryProvider()
-    baseline = decompose_task(task_request(), provider)
-
-    assert isinstance(provider, TaskDecompositionProvider)
-    assert not hasattr(provider.task_request, "transformation_intent")
-    assert provider.calls == ["task"]
-    assert len(baseline.operational_decomposition.operational_subtasks) == 3
-    assert [item.effort.value for item in baseline.baseline_effort_allocations] == [
-        Decimal(30),
-        Decimal(40),
-        Decimal(30),
-    ]
-
-
-def test_transformation_decomposition_consumes_fixed_baseline():
-    provider = BoundaryProvider()
-    baseline = decompose_task(task_request(), provider)
-    original = baseline
-
-    result = decompose_transformation(transform_request(baseline), provider)
-
-    assert isinstance(provider, TransformationDecompositionProvider)
-    assert result.task_decomposition is original
-    assert provider.calls == ["task", "retain-remove", "added-work"]
-    assert result.accounting.w0 == Decimal(100)
-    assert result.accounting.w1 == Decimal(74)
-    assert result.accounting.net_substitution_ratio == Decimal("0.26")
-    assert baseline == original
-
-
-def test_frozen_baseline_is_reused_for_multiple_transformations():
-    provider = BoundaryProvider()
-    baseline = decompose_task(task_request(), provider)
-    allocations = baseline.baseline_effort_allocations
-
-    result_a = decompose_transformation(transform_request(baseline), provider)
-    provider.all_retain = True
-    result_b = decompose_transformation(
-        transform_request(baseline, retained=100, removed=0), provider
-    )
-
-    assert provider.calls.count("task") == 1
-    assert result_a.task_decomposition is baseline
-    assert result_b.task_decomposition is baseline
-    assert baseline.baseline_effort_allocations == allocations
-    assert result_a.accounting.w1 == Decimal(74)
-    assert result_b.accounting.w1 == Decimal(114)
-    assert result_b.accounting.effect.value == "degradation"
-
-
-def test_convenience_facade_composes_the_two_capabilities():
-    provider = BoundaryProvider()
-    result = decompose(
-        task_request(),
-        provider,
-        transformation_context={"target": "assisted account updates"},
-        accounting_input=accounting(),
-    )
-
-    assert isinstance(provider, DecompositionProvider)
-    assert provider.calls == ["task", "retain-remove", "added-work"]
-    assert result.accounting.net_substitution_ratio == Decimal("0.26")
-    assert len(result.provider_provenance) == 3
-
-
-def test_new_task_request_rejects_transformation_intent():
-    with pytest.raises(ValueError):
-        TaskDecompositionRequest(
-            task=TASK,
-            transformation_intent="not part of task decomposition",
+    def estimate_activity_effort(self, request):
+        self.calls.append("activity-effort")
+        return self._response(
+            ProviderStage.ACTIVITY_EFFORT_ESTIMATION,
+            ActivityEffortEstimation(
+                task=TASK,
+                activity_effort_estimates=(
+                    ActivityEffortEstimate(
+                        activity_id="HAA001",
+                        expected_occurrences_per_parent_output=1,
+                        active_effort_per_occurrence=amount(14),
+                        expected_effort_per_parent_output=amount(14),
+                        rationale="One review per request.",
+                    ),
+                ),
+            ),
         )

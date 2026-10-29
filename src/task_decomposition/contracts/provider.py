@@ -1,4 +1,16 @@
-"""Host-neutral requests and untrusted provider-stage response envelopes."""
+"""Host-neutral contracts at the provider/application boundary.
+
+Requests carry task, transformation, accounting, and stage context without
+vendor SDK types or workflow concerns. Provider responses are untrusted,
+stage-labelled envelopes: adapters propose semantic facts, while application
+validation and the accounting domain remain authoritative for identity,
+effort products, unit compatibility, allocation, and W0/W1 results.
+
+The canonical transformation stages are RETAIN/REMOVE classification, agentic
+task synthesis, human-agent activity modeling, and activity-effort estimation.
+These contracts deliberately exclude execution graphs, capacity, staffing, and
+provider-generated accounting metrics.
+"""
 
 from typing import Any
 

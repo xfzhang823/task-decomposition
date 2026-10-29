@@ -7,99 +7,134 @@ from task_decomposition.evaluation.rubric import (
 
 OPERATIONAL_DECOMPOSITION_PROMPT = """
 Objective:
-Decompose the supplied business task into concrete, distinct human activities suitable for independent evaluation for complete automation using current AI capabilities. Ground the decomposition in the baseline work performed, without assuming or favoring an automation outcome.
+Decompose the supplied business task into distinct, concrete human activities suitable for independent automation evaluation. Represent baseline work without assuming or favoring any automation outcome.
 
 Decomposition Rules:
-- Each subtask must represent a meaningful unit of human work, including physical work, system interaction, communication, investigation, analysis, evaluation, or decision-making.
-- Specify what is performed, reviewed, evaluated, or determined.
-- Decompose around meaningful, distinct operational activities. Use suitability for independent automation evaluation as a check on granularity.
-- Keep subtasks distinct and non-overlapping. Each should describe work not already included in another subtask. Combine activities that repeat the same check against the same information unless they involve clearly different actions or decisions.
-- Avoid trivial microsteps or unnecessary fragmentation. Do not split activities merely to create fully automatable subtasks.
-- Ensure each subtask name matches the activity described.
-- Distinguish reviewing or checking for a condition from the additional work performed when that condition is present.
-- Cover the substantive work explicitly required by the task, including criteria that affect decisions or routing. Make these checks clear in the descriptions without creating a separate subtask for every criterion.
-- Describe activities, not goals, outcomes, or completion states.
+- Each subtask must represent meaningful human work: physical activity, system interaction, communication, investigation, analysis, evaluation, or decision-making.
+- Describe what is performed, reviewed, evaluated, or determined—not goals, outcomes, or completion states.
+- Use distinct operational responsibilities as the decomposition basis, with independent automation evaluation as a granularity check.
+- Avoid overlapping responsibilities, repeated checks, trivial microsteps, and unnecessary fragmentation. Combine duplicate work unless it involves genuinely different actions or decisions.
+- Preserve distinct assessments or decisions even when they reuse information from other subtasks.
+- Distinguish routine checks for a condition from additional work triggered when that condition is present.
+- Include substantive checks and decision criteria required by the task without creating a separate subtask for every criterion.
 - Do not assess automation feasibility or assign RETAIN/REMOVE classifications.
-- Include only activities necessary or reasonably implied by the supplied task objective. Do not add documentation, monitoring, feedback, or follow-up activities merely to make the decomposition appear complete.
-- Include recording or communication when needed to deliver the task's result or hand it off. State what is recorded or communicated and for whom; avoid generic activities such as "document outcomes for future reference."
+- Include only necessary or reasonably implied activities. Do not invent documentation, monitoring, feedback, or follow-up work.
+- Include recording or communication when necessary to deliver the output or hand it off. Specify what is communicated and to whom.
+- Ensure each subtask name accurately describes its activity.
 
 Subtask Structure:
-- Preserve task identity. Use stable short subtask IDs and a contiguous 1-based sequence.
-- Dependencies may reference only earlier subtasks. Sequence indicates presentation order; it does not by itself imply a dependency.
-- Copy dependency references character-for-character from an earlier `subtask_id`; never renumber, shorten, or reformat an ID (for example, `SUB004` must be referenced as `SUB004`, not `SUB4`). If there is no exact ID, use an empty dependency list.
-- Keep names and descriptions concise, stating the activity and its object or decision.
-- Use empty dependency and provenance arrays unless needed; omit unnecessary metadata.
+- Use stable short subtask IDs and a contiguous 1-based sequence.
+- Dependencies may reference only earlier subtasks. Sequence alone does not imply dependency.
+- Copy dependency IDs exactly (e.g., SUB004, not SUB4). Use an empty list when no dependency exists.
+- Keep names and descriptions concise, identifying the activity and its object or decision.
+- Omit unnecessary metadata; use empty dependency and provenance arrays unless needed.
 
 Parent Output Contract:
-- Define one parent output unit, the completion boundary, and any downstream work excluded from that output.
-- Infer this contract from the supplied task description when the request does not provide one. A downstream handoff is not completion of downstream adjudication, approval, settlement, or later-process work.
+- Define one parent output unit, its completion boundary, and excluded downstream work.
+- Infer the contract from the task description when not supplied.
+- Do not include downstream adjudication, approval, settlement, or other work beyond the parent-task completion boundary.
 
 Bottom-Up Baseline Effort:
-- When the supplied schema supports `baseline_effort_estimates`, provide exactly one estimate for every operational subtask.
-- Estimate expected occurrences per parent output and active human effort per occurrence under the pre-AI operating model only.
-- Use explicit compatible effort units with `per_operation` time basis. Exclude passive waiting, machine execution, staffing, capacity, and external workflow volume.
-- Provide rationale and assumptions, distinguishing supplied facts from model-generated planning estimates.
-- Do not provide `expected_effort_per_parent_output` as an independently invented number; the application calculates it as occurrences × effort per occurrence and validates any supplied value.
-- Do not use transformation classifications, agentic tasks, human-agent activities, desired productivity, or W1/W0 targets. If absolute baseline estimates cannot be responsibly produced, return the incomplete output; application validation will reject it because the canonical path requires bottom-up estimates.
+- Provide exactly one `baseline_effort_estimate` per operational subtask, using the supplied schema.
+- Estimate expected occurrences per parent output and active human effort per occurrence under the pre-AI operating model.
+- Use explicit compatible time units with `per_operation` time basis.
+- Estimate expected effort per parent output as occurrences × effort per occurrence. Do not independently invent the calculated product; the application computes and validates it.
+- Exclude passive waiting, queueing, unattended machine execution, staffing, capacity, and external workflow volume.
+- Do not use transformation classifications, agentic tasks, human-agent activities, productivity targets, or W0/W1 outcomes.
 
-Relative Effort Estimation:
-- Treat one parent-task execution as producing one defined parent output unit. Use that same denominator for every subtask, while allowing subtasks to have different native work units.
-- Estimate expected subtask effort per parent output as expected occurrences per parent output × active human effort per occurrence. Occurrences may be zero, fractional, one, or greater than one; include conditional work, repetition, and active rework without assuming every subtask occurs once.
-- Estimate effort per occurrence from the work involved, including representative complexity, coordination, information availability, and internal workload. Include internal workload once; do not double-count it in both occurrences and effort per occurrence.
-- Keep external parent-output volume (for example, claims per month) outside this decomposition. Exclude passive waiting, queueing, and unattended processing time.
-- Use supplied operational facts when available; otherwise make reasonable occupational estimates informed by general knowledge, frameworks such as O*NET, and relevant industry practices.
-- The application derives relative effort weights from bottom-up expected effort per parent output; do not independently estimate or optimize a relative-weight target.
-- Treat derived relative weights as normalized, dimensionless comparison values, not minutes, hours, elapsed time, FTE, capacity, or measured precision.
-- Do not require absolute minutes, hours, or workload volumes from the user.
-- Do not present unsupported precision, measured frequencies, durations, benchmarks, or capacity assumptions as facts.
-- Do not use business importance, risk, or decision authority as proxies for human effort.
+Effort Estimation Principles:
+- Use the same parent output denominator for every subtask, even when subtasks have different native work units.
+- Expected occurrences may be zero, fractional, one, or greater than one. Account for conditional work, repetition, and active rework without assuming every subtask occurs once.
+- Distinguish routine assessments performed for every output from conditional follow-up work. Apply conditional frequencies only to work actually triggered by the condition.
+- Estimate each subtask's marginal active effort within the complete parent-task workflow, not the time required to perform it independently from scratch.
+- Treat the workflow as a continuous work session. Assume previously gathered information, completed analysis, and intermediate findings remain available to subsequent subtasks.
+- For assessments and decisions based on existing findings, estimate only the additional reasoning, verification, or action required. Do not allocate another full review duration.
+- For routing, recording, and handoff activities, estimate actual preparation, interaction, and execution time using available information and systems. Do not assume substantial effort merely because an activity is a separate subtask.
+- Estimate effort per occurrence considering actual complexity, coordination, information availability, and internal workload.
+- Attribute shared information gathering, observations, and reasoning only once. Preserve genuinely additional analysis, verification, documentation, or decision-making effort.
+- Do not double-count workload across occurrence frequency, effort per occurrence, or related subtasks.
+- Splitting an activity into multiple subtasks must not increase total estimated effort unless the split reveals genuinely additional work. Granularity alone does not justify more effort.
+- Use supplied operational facts when available; otherwise generate reasonable occupational planning estimates informed by general knowledge and relevant industry practices.
+- Do not require users to supply measured durations or workload volumes.
+- Do not present model estimates as measured facts, industry benchmarks, or precise empirical observations.
+- Do not use business importance, risk, or decision authority as proxies for effort.
+
+Relative Effort:
+- The application derives `relative_effort_weight` from each subtask's expected effort per parent output divided by total baseline effort.
+- Do not independently estimate, assign, or optimize relative weights.
+- Relative weights are normalized, dimensionless comparisons—not time, FTE, capacity, or measured precision.
 
 Effort Rationale:
-- Provide a concise rationale for each subtask's expected occurrences and active effort per occurrence.
-- Explain the parent output basis, frequency and effort-per-occurrence assumptions, and relevant complexity, coordination, information availability, or internal-workload assumptions.
-- Distinguish supplied operational facts from model-generated estimates and assumptions.
-- State the assumed occurrence frequency clearly. For conditional work, provide an approximate frequency or range labeled as an assumption when none is supplied.
-- Do not invent measured data, benchmarks, or citations. Do not claim to have consulted specific sources unless they were actually provided or retrieved.
-- Keep each rationale brief, typically 1–2 sentences.
-- Before returning, check that each rationale supports the assigned weight through expected frequency and human effort per occurrence, and describes only the work included in that subtask. Do not justify weights using phrases such as "important," "integral," or "frequency varies."
+- Provide a concise rationale for each subtask's occurrence frequency and active effort per occurrence, typically 1–2 sentences.
+- Explain relevant assumptions about complexity, coordination, information availability, conditional frequency, and incremental effort.
+- Distinguish supplied facts from model-generated planning assumptions.
+- For conditional work, state an approximate expected frequency when not supplied and label it as an assumption.
+- Ensure estimates reflect only work attributable to the subtask, without double-counting shared activities.
+- Do not fabricate measured data, benchmarks, citations, or claims of source consultation.
+- Do not justify effort using vague statements such as "important," "integral," or "frequency varies."
+
+Validation:
+- Cover the complete parent task without adding downstream responsibilities.
+- Preserve distinct operational activities while avoiding duplicated work and effort.
+- Ensure every subtask has a corresponding baseline effort estimate with compatible units and consistent occurrence assumptions.
+- Review the complete decomposition as a continuous human work session. Check whether the sum of subtask effort estimates is plausible for the actual work performed, without imposing a predetermined total or overriding bottom-up estimates.
+- Check that splitting or separating activities has not artificially increased total effort through repeated reviews, assessments, or handoffs.
+- Ensure rationales support estimated frequencies and durations rather than arbitrary relative weights.
+- If operational information is incomplete, make explicit, reasonable planning assumptions. Do not invent missing operational facts or claim unsupported precision.
 
 Output:
-Return only the requested JSON object, conforming to the supplied output schema.
-Include bottom-up baseline effort estimates for every subtask. The application derives relative_effort_weight from expected effort per parent output; any provider-supplied relative_effort_weight is non-authoritative.
-No readiness analysis, implementation plans, recommendations, transformation commentary, scoring, or accounting.
+- Return only the JSON object conforming to the supplied schema.
+- Include the parent output contract and bottom-up baseline effort estimates for every subtask.
+- The application derives `relative_effort_weight`; any provider-supplied value is non-authoritative.
+- Do not include automation readiness analysis, transformation recommendations, implementation plans, scoring, or accounting commentary.
 """.strip()
 
 OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT = """
-Repair the supplied JSON operational decomposition using the supplied semantic validation feedback and the original task context.
+Objective:
+Repair the supplied JSON operational decomposition using semantic validation feedback and the original task context. Make only the corrections necessary to restore consistency with the canonical decomposition and baseline effort methodology.
 
 Repair Scope:
-- Return the same JSON schema with no extra metadata.
-- Follow the operational decomposition rules used to generate the original response.
-- Preserve task identity and all valid effort_rationale values, unaffected subtasks, IDs, ordering, dependencies, and relative_effort_weight values.
-- Apply the smallest correction needed to resolve the validation findings. Change related fields or dependent references only when necessary to keep the decomposition consistent.
-- Do not alter unrelated items, add unsupported activities, or over-decompose work.
-- Preserve existing IDs where possible. If structural changes are necessary, keep IDs unique, sequence contiguous and 1-based, and dependencies limited to exact IDs of earlier subtasks.
+- Return the same JSON schema without extra metadata.
+- Apply the smallest correction that resolves the validation findings.
+- Preserve task identity, valid parent output contracts, subtasks, IDs, ordering, dependencies, baseline effort estimates, rationales, and other unaffected fields.
+- Change related fields only when necessary for consistency. Do not modify unrelated work, invent activities, or over-decompose.
+- Preserve existing IDs where possible. If structural changes are required, keep IDs unique, sequence contiguous and 1-based, and dependencies referencing exact IDs of earlier subtasks.
+- Follow the original operational decomposition rules without favoring automation outcomes.
 
 Activity Requirements:
-- Every subtask must represent a meaningful, concrete human activity, including physical work, system interaction, communication, investigation, analysis, evaluation, or decision-making.
-- Specify what is performed, reviewed, evaluated, determined, recorded, or communicated.
-- Ensure each subtask name matches its description.
-- Distinguish checking for a condition from additional work performed when that condition is present.
-- Reject goals, states, outcomes, and vague completion labels. Keep names and descriptions concise.
-- Ground boundaries in distinct operational activities suitable for independent automation evaluation, without favoring an automation outcome.
+- Each subtask must describe meaningful, concrete human work: physical activity, system interaction, communication, investigation, analysis, evaluation, or decision-making.
+- Describe activities and decisions, not goals, outcomes, states, or vague completion labels.
+- Keep names and descriptions concise, accurate, and aligned.
+- Preserve distinct operational responsibilities, including assessments or decisions that reuse information from other subtasks.
+- Remove duplicated responsibilities and unnecessary fragmentation. Do not merge distinct activities solely because they share inputs.
+- Distinguish routine checks from conditional follow-up work triggered by their findings.
 - Do not assess automation feasibility or assign RETAIN/REMOVE classifications.
 
-Effort Requirements:
-- Preserve bottom-up baseline effort estimates for every subtask, using expected occurrences per parent output × active effort per occurrence.
-- Account for complexity, coordination, and information availability in effort per occurrence, and conditional frequency in expected occurrences. Do not double-count workload.
-- Do not use business importance, risk, or decision authority as proxies for effort.
-- Ensure every subtask has a concise effort_rationale explaining the main frequency and effort-per-occurrence assumptions, distinguishing supplied facts from model estimates.
-- If a correction changes an activity's scope, frequency, or effort requirements, update its weight and rationale together as needed.
-- Do not require absolute units or invent measured data, benchmarks, citations, or claims of source consultation.
-- Preserve any valid parent output contract and baseline effort estimates. If estimates are present, keep one estimate per operational subtask, use pre-AI scope only, and do not independently invent the calculated expected-effort product.
+Baseline Effort Requirements:
+- Maintain exactly one baseline effort estimate per subtask, using expected occurrences per parent output and active human effort per occurrence.
+- Use explicit compatible time units with `per_operation` time basis and pre-AI scope only.
+- Allow zero, fractional, one, or multiple expected occurrences. Distinguish routine work from conditional work and active rework.
+- Estimate incremental active human effort. Attribute shared information gathering, observations, and reasoning only once across related subtasks.
+- Preserve genuinely additional analysis, verification, documentation, and decision-making effort even when activities reuse information.
+- Account for complexity, coordination, information availability, and internal workload without double-counting across frequency, effort per occurrence, or subtasks.
+- Exclude passive waiting, queueing, unattended processing, staffing, capacity, and external workflow volume.
+- Do not use business importance, risk, decision authority, automation outcomes, or productivity targets as proxies for baseline effort.
+- Preserve valid estimates. When a correction changes scope, occurrence frequency, or incremental effort, update affected estimates and rationales consistently.
+- Do not independently invent `expected_effort_per_parent_output`; the application calculates occurrences × effort per occurrence.
+- Do not independently assign or adjust `relative_effort_weight`; the application derives it deterministically.
+
+Effort Rationale:
+- Maintain a concise rationale for each subtask's occurrence frequency and active effort per occurrence, typically 1–2 sentences.
+- Explain relevant assumptions about complexity, coordination, information availability, conditional frequency, and incremental effort.
+- Distinguish supplied operational facts from model-generated planning estimates.
+- Use reasonable planning assumptions when measured durations are unavailable; do not require users to supply measurements.
+- Do not fabricate measured data, benchmarks, citations, or claims of source consultation.
+- Update rationales only when necessary to support corrected estimates or resolve validation findings.
 
 Output:
-Return only the repaired JSON object conforming to the supplied output schema.
+Return only the repaired JSON object conforming to the supplied schema.
+Preserve the parent output contract and one bottom-up baseline effort estimate per subtask.
+Do not include automation analysis, recommendations, implementation plans, scoring, or accounting commentary.
 """.strip()
 
 RETAIN_REMOVE_PROMPT = """

@@ -1,318 +1,354 @@
 # Task Transmorph
 
-`task-transmorph` is a host-neutral Python library for decomposing operational work and evaluating a specified transformation against a reusable baseline.
+Task Transmorph is a host-neutral Python library for answering two related questions:
 
-## Architecture
+1. What operational work makes up a task, and how is its baseline effort distributed?
+2. What happens to that work when an AI-assisted transformation is introduced?
+
+It uses providers for semantic proposals—subtasks, effort rationales, RETAIN/REMOVE classifications, and human interaction or verification activities—and uses deterministic application code for allocation and accounting. The main result is a validated `TransformationDecompositionResult` containing the transformation facts, assumptions, provenance, and canonical W0/W1 impact metrics.
+
+Task Transmorph is output-unit anchored. It models expected active human effort per completed parent output—such as one invoice, claim, ticket, or schedule. For each subtask, expected effort is `expected_occurrences_per_parent_output × active_effort_per_occurrence`. W0 and W1 are baseline and post-AI human effort on that same parent-output basis. This is distinct from resource capacity, staffing, and workflow throughput; those are downstream concerns.
+
+> [!NOTE]
+> **Built-in LLM providers:** **OpenAI, DeepSeek, and Google Gemini.** These are the three bundled integrations; custom providers can implement the public provider interfaces. Deterministic accounting works without an LLM.
+
+The primary estimation workflow is:
 
 ```text
-process / task
-      ↓
-decompose_task(...)
-      ↓
-TaskDecomposition
-      ↓
-decompose_transformation(...)
-      ↓
-TransformationDecompositionResult
+decompose_task() → TaskDecomposition → estimate_transformation() → TransformationDecompositionResult
 ```
 
-Task decomposition answers “What work exists?” It produces validated operational subtasks and deterministic normalized baseline allocations derived from provider weights.
+Normalized estimates are comparative planning signals. They are not measured hours, capacity, or validated productivity improvements.
 
-See the [decomposition model reference](docs/reference/DECOMPOSITION_MODEL.md) and the [baseline effort weighting audit](docs/audits/baseline-effort-weighting.md) for current weighting semantics and evidence.
+## How It Works
 
-Transformation decomposition answers “What happens to that work under the specified transformation?” It consumes an existing `TaskDecomposition`, classifies subtasks as `RETAIN` or `REMOVE`, identifies added/support human work, and invokes deterministic canonical accounting.
+### High Level
 
-`decompose(...)` is a convenience operation that composes these two capabilities. It is not a separate architecture and does not own duplicate decomposition or accounting logic.
+```mermaid
+flowchart TD
+    A["Original Task + Context"] --> B["1. Task Decomposition<br/>provider-assisted semantic proposals"]
+    B --> C["Validated Baseline Subtasks<br/>deterministic normalized allocation"]
+
+    C --> D["2. AI Transformation Analysis<br/>provider-assisted semantic proposals"]
+    T["AI Transformation Goal"] --> D
+
+    D --> E["Retained · Removed · Added Human Work"]
+    E --> F["3. Deterministic Impact Accounting"]
+    F --> G["Post-AI Effort (W1) · Substitution · Augmentation"]
+
+    classDef input fill:#f5f5f5,stroke:#999,color:#222
+    classDef assisted fill:#e8f1ff,stroke:#6088d8,color:#183153
+    classDef computed fill:#e9f7ee,stroke:#66a37a,color:#183c28
+
+    class A,T input
+    class B,D assisted
+    class C,E,F,G computed
+```
+
+Blue stages use an LLM provider to propose semantic facts, including effort estimates; green stages represent Python validation, normalization/allocation, or accounting. The estimates themselves are not deterministic merely because they are provider output. Gross removed work is counted against the baseline, **not** added to post-AI effort. Only retained work plus added interaction/verification work contributes to W1. The transformation consumes the frozen baseline; it does not regenerate the task decomposition.
+
+### Illustrative supplier-invoice numbers
+
+For one completed invoice review, an illustrative output-anchored calculation is `W0 = 14 min/invoice`, `W1 = 10 min/invoice`, net substitution `= 28.6%`, and augmentation multiplier `= 1.40×`. These are illustrative values, not actual API results. See the [Supplier Invoice Transformation Example](examples/supplier_invoice_transformation.md) for the detailed allocation, classifications, and calculations.
+
+## Provider-Assisted Quick Start (Normalized Estimation)
+
+Install the OpenAI integration (`python -m pip install "task-transmorph[openai]"`) and set `OPENAI_API_KEY` before running this example. It makes live LLM calls. Replace `"openai"` with `"deepseek"` or `"gemini"` after installing the corresponding extra and configuring its API key.
+
+```python
+from task_transmorph import (
+    TaskDecompositionRequest,
+    TaskReference,
+    decompose_task,
+    estimate_transformation,
+)
+
+request = TaskDecompositionRequest(
+    task=TaskReference(
+        task_name="Review a supplier invoice",
+        task_description="Validate invoice details, resolve exceptions, and approve or reject the invoice.",
+    ),
+    task_context={"domain": "accounts_payable"},
+)
+
+# Provider-assisted baseline: operational subtasks and normalized weights.
+baseline = decompose_task(request, provider="openai")
+
+# Provider-assisted transformation: no host-supplied ratios are required.
+result = estimate_transformation(
+    baseline,
+    provider="openai",
+    transformation_context={
+        "goal": "Use AI to draft invoice checks while retaining human approval",
+    },
+)
+
+accounting = result.accounting
+print("normalized baseline W0:", accounting.w0)
+print("post-transformation human effort W1:", accounting.w1)
+print("gross removed work ratio:", accounting.gross_removed_work_ratio)
+print("added human work ratio:", accounting.added_human_work_ratio)
+print("net substitution ratio:", accounting.net_substitution_ratio)
+print("augmentation multiplier:", accounting.net_augmentation_multiplier)
+
+for item in result.retain_remove_classification.classified_subtasks:
+    print(item.subtask_id, item.classification, item.rationale)
+
+print("assumptions:", result.estimation_assumptions)
+for estimate in result.normalized_work_estimates:
+    print(estimate.subtask_name, estimate.assumption, estimate.rationale)
+
+if result.human_agent_activity_modeling:
+    for activity in result.human_agent_activity_modeling.activities:
+        print(activity.category, activity.activity_name)
+
+if result.activity_effort_estimation:
+    for estimate in result.activity_effort_estimation.activity_effort_estimates:
+        print(estimate.activity_id, estimate.rationale, estimate.assumptions)
+```
+
+In normalized mode, `accounting.w0` is exactly `1` and `accounting.w1` is the comparable post-transformation effort. Use the normalized ratio fields rather than interpreting W0/W1 as hours or capacity. Absolute quantity fields such as `accounting.baseline_human_effort`, `accounting.net_human_effort`, and `accounting.added_human_work` are `None` in this mode. Automatic provider-assisted estimation of missing absolute effort quantities is a future enhancement, not current behavior.
 
 ## Installation
 
-`task-transmorph` supports Python 3.10 and newer. The current package version is `0.1.0`.
-
-Install the release with pip:
+Task Transmorph supports Python 3.10 and newer.
 
 ```bash
-python -m pip install task-transmorph==0.1.0
+python -m pip install task-transmorph
+# or in a uv project:
+uv add task-transmorph
 ```
 
-Add the release to a uv project:
-
-```bash
-uv add task-transmorph==0.1.0
-```
-
-For development from a checkout, install it editable:
-
-```bash
-python -m pip install -e .
-```
-
-Install optional provider integrations when needed:
+Provider SDKs are optional. Install the extra for the provider you intend to use (or `providers` for all three):
 
 ```bash
 python -m pip install 'task-transmorph[openai]'
 python -m pip install 'task-transmorph[gemini]'
 python -m pip install 'task-transmorph[deepseek]'
-```
-
-The `providers` extra installs all supported provider SDKs:
-
-```bash
 python -m pip install 'task-transmorph[providers]'
 ```
 
-Build the wheel and source distribution from the repository root:
+For development from a checkout:
 
 ```bash
+python -m pip install -e .
 uv build
 # or:
 python -m build
 ```
 
-The deterministic public API requires no provider SDK or paid LLM call:
+The deterministic contracts, allocation utility, and accounting functions do not require a provider SDK or an LLM call.
+
+## API Overview
+
+The four public application entry points map to the canonical flow:
+
+- `decompose_task(request, provider, *, evaluator=None, model=None, max_output_tokens=None)` creates a reusable `TaskDecomposition`. It validates provider-generated operational subtasks and normalizes their relative effort weights to `W0 = 1.0` (or materializes compatible absolute allocations when measured baseline effort is supplied).
+- `estimate_transformation(task_decomposition, provider, *, evaluator=None, transformation_context=None, model=None, max_output_tokens=None, request_id=None)` is the provider-assisted estimation workflow. It consumes the existing baseline, derives normalized RETAIN/REMOVE work from provider classifications, estimates added human support work, and returns deterministic comparative accounting with `W0 = 1.0`; it does not produce host-calibrated absolute effort quantities.
+- `decompose_transformation(request, provider, *, evaluator=None, model=None, max_output_tokens=None)` is the strict transformation operation. Its `TransformationDecompositionRequest` must contain an existing baseline and explicit `AbsoluteEffortInput` or `NormalizedAccountingInput`; it never regenerates the baseline.
+- `decompose(request, provider, *, transformation_context, accounting_input, model=None, max_output_tokens=None)` is convenience composition: it runs `decompose_task()` and then `decompose_transformation()` in one call. It is useful when the host already owns accounting inputs, but it is not the default estimation workflow.
+
+`provider` can be a constructed provider object or the built-in name `"openai"`, `"gemini"`, or `"deepseek"`. A named provider can receive a per-call `model` and `max_output_tokens` override. Import protocols from `task_transmorph.interfaces` when implementing a custom provider.
+
+## API Data Structures
+
+The public contracts are Pydantic models. The following shapes show the fields most applications use; they are abbreviated views, not complete schemas.
+
+### Provider-assisted estimation
+
+```text
+TaskDecompositionRequest
+├── task: TaskReference
+│   ├── task_name: str
+│   └── task_description: str | None
+├── task_context: dict[str, str]
+├── parent_output_contract: ParentOutputContract | None
+└── baseline_effort: EffortQuantity | None
+
+decompose_task(...)
+└── TaskDecomposition
+    ├── operational_decomposition
+    │   └── operational_subtasks[]
+    │       ├── subtask_id
+    │       ├── subtask_name
+    │       ├── relative_effort_weight
+    │       └── effort_rationale
+    └── baseline_effort_allocations[]
+
+estimate_transformation(...)
+├── task_decomposition: TaskDecomposition
+└── transformation_context: dict[str, str]
+
+TransformationDecompositionResult
+├── retain_remove_classification
+│   └── classified_subtasks[]
+├── agentic_task_synthesis: AgenticTaskSynthesis | None
+├── human_agent_activity_modeling: HumanAgentActivityModel | None
+├── activity_effort_estimation: ActivityEffortEstimation | None
+├── normalized_work_estimates[]
+├── estimation_assumptions[]
+└── accounting: CanonicalTransformationImpact
+```
+
+The baseline is reusable: transformation estimation consumes the existing `TaskDecomposition` and does not regenerate its subtasks or effort allocation.
+
+### Host-supplied accounting
+
+`decompose_transformation()` receives a `TransformationDecompositionRequest` with an existing baseline, transformation context, and one explicit accounting input:
+
+```text
+TransformationDecompositionRequest
+├── task_decomposition: TaskDecomposition
+├── transformation_context: dict[str, str]
+└── accounting_input
+    ├── AbsoluteEffortInput
+    │   ├── baseline_human_effort: EffortQuantity
+    │   ├── retained_human_work: EffortQuantity
+    │   ├── gross_removed_work: EffortQuantity
+    │   └── support_work: SupportWorkInputs | None
+    └── NormalizedAccountingInput
+        ├── retained_work_ratio: Decimal
+        ├── gross_removed_work_ratio: Decimal
+        └── support_work: SupportWorkInputs | None
+```
+
+These are partial constructor shapes for orientation:
 
 ```python
-from task_transmorph import TaskDecompositionRequest, TaskReference
-
-request = TaskDecompositionRequest(
+TaskDecompositionRequest(
     task=TaskReference(
-        task_name="Review an invoice",
+        task_name="Review a supplier invoice",
         task_description="Validate and approve an invoice.",
-    )
+    ),
+    task_context={"domain": "accounts_payable"},
 )
 ```
 
-This package is distributed under the [MIT License](LICENSE).
-
-The supported application entry points are:
-
-- `decompose_task(request, provider, *, evaluator=None, model=None, max_output_tokens=None)` for creating a reusable baseline.
-- `decompose_transformation(request, provider, *, model=None, max_output_tokens=None)` for evaluating a transformation against an existing baseline.
-- `estimate_transformation(task_decomposition, provider, *, transformation_context=None, model=None, max_output_tokens=None)` for provider-assisted normalized transformation estimation from an existing task allocation.
-- `decompose(request, provider, *, transformation_context, accounting_input, model=None, max_output_tokens=None)` for the complete two-step composition.
-
-`provider` may be an already-constructed provider object or one of the built-in provider names (`"openai"`, `"gemini"`, or `"deepseek"`). When a name is supplied, `model` selects the model for that call; omitting it preserves the provider's configured default. For example:
-
 ```python
-baseline = decompose_task(request, provider="openai", model="your-model-id")
+AbsoluteEffortInput(
+    baseline_human_effort=EffortQuantity(
+        value=14,
+        unit=EffortUnit.MINUTES,
+        time_basis=TimeBasis.PER_OPERATION,
+    ),
+    retained_human_work=EffortQuantity(
+        value=7,
+        unit=EffortUnit.MINUTES,
+        time_basis=TimeBasis.PER_OPERATION,
+    ),
+    gross_removed_work=EffortQuantity(
+        value=7,
+        unit=EffortUnit.MINUTES,
+        time_basis=TimeBasis.PER_OPERATION,
+    ),
+)
 ```
 
-The selected model and optional output-token cap are used across the generation and baseline-evaluation stages of that run. OpenAI transformation semantic evaluation uses the configured transformation evaluator model (default `gpt-6-luna` when the provider model remains its default); an explicit transformation evaluator override takes precedence. Overrides cannot be combined with an already-constructed provider object; this prevents shared provider instances from being mutated. `max_output_tokens` is forwarded to the provider's existing output-token setting; omit it to preserve provider defaults.
+Common result access looks like this:
 
-Added-work estimation supports `AI_INTERACTION` and `AI_VERIFICATION` rows with explicit causal REMOVE-subtask references and reference-class estimates. Baseline references are normalized by their estimated occurrences per parent execution; external references require a compatible quantitative per-occurrence anchor. Support selection defaults to host inputs and can be switched to `estimate` or `auto` through `SupportWorkMode`; canonical accounting remains deterministic and provider-independent.
+```python
+result.accounting.w0
+result.accounting.w1
+result.accounting.net_substitution_ratio
+result.accounting.net_augmentation_multiplier
 
-## Repository ownership
+result.retain_remove_classification.classified_subtasks
+result.human_agent_activity_modeling.activities
+result.estimation_assumptions
+```
 
-This repository owns operational task decomposition, baseline effort allocation, transformation-specific RETAIN/REMOVE classification, added/support-work classification, deterministic transformation accounting, and provider adapters for decomposition.
+In normalized estimation, `w0` is `1.0` and the accounting ratio fields are the meaningful comparative outputs. In absolute accounting, the corresponding `EffortQuantity` fields—such as `baseline_human_effort`, `net_human_effort`, and `added_human_work`—are populated when the accounting input and resolved support work use compatible units and time bases.
 
-This repository does not own workflow execution, workflow throughput or capacity computation, scenario orchestration, simulation, Monte Carlo, grid search, workforce planning, or alternative-scenario management. Hosts and downstream systems own those concerns.
+## Two Usage Modes
 
-## Task decomposition
+### Current provider-assisted estimation
 
-`decompose_task(request, provider, *, evaluator=None)` accepts a `TaskDecompositionRequest` containing a `TaskReference`, optional task context, and optional measured baseline effort. It asks a `TaskDecompositionProvider` for operational subtasks, validates the untrusted response, normalizes provider-generated relative effort weights to `W0 = 1.0`, and returns a frozen `TaskDecomposition`. Measured baseline effort is optional and only materializes compatible absolute allocations.
+Use `decompose_task()` followed by `estimate_transformation()` when the host has a reusable task baseline but does not have host-supplied accounting inputs. The provider proposes semantic classifications and support-work estimates. The application maps the completed baseline's canonical relative weights onto a 100-unit comparison baseline, normalizes accounting to `W0 = 1.0`, and computes W1 and all ratios deterministically.
 
-The reusable baseline invariant is central: transformation decomposition consumes an existing task decomposition and does not regenerate its subtasks or re-estimate its baseline effort.
+This mode is intentionally comparative. A 100-unit baseline is not hours, throughput, staffing demand, or proof of an improvement. Provider-generated `relative_effort_weight` values are the allocation source; the application normalizes them rather than inventing equal-effort or host-weight alternatives.
 
-## Transformation decomposition
+### Host-supplied accounting
 
-`decompose_transformation(request, provider)` accepts a `TransformationDecompositionRequest` containing an existing `TaskDecomposition`, `transformation_context`, explicit `AbsoluteEffortInput` or `NormalizedAccountingInput`, and a `SupportWorkMode`. It asks a `TransformationDecompositionProvider` for RETAIN/REMOVE and added-work proposals, validates each stage, and returns a `TransformationDecompositionResult` containing the transformation facts and canonical impact.
+Use `decompose_transformation()` when the host supplies the accounting basis. The quantities need not be measured observations; they may be planning estimates, provided they are explicit, compatible, and internally reconciled. The request can carry `AbsoluteEffortInput` with explicit units and time basis:
 
-`estimate_transformation(task_decomposition, provider)` is an opt-in bridge for notebook and exploratory workflows that do not have host-supplied effort ratios. It applies the completed task decomposition's relative effort allocations to a 100-unit comparative baseline, uses the provider's RETAIN/REMOVE classifications to aggregate retained and gross-removed work, and then reuses the existing support-work resolver and deterministic accounting. The 100 units are not hours or measured productivity. The strict canonical APIs still require explicit accounting input.
+```python
+from task_transmorph import (
+    AbsoluteEffortInput,
+    EffortQuantity,
+    EffortUnit,
+    TimeBasis,
+    TransformationDecompositionRequest,
+    decompose_transformation,
+)
 
-Every added-work row must identify one or more original subtasks in `source_removed_subtask_ids`; each source must exist and be classified `REMOVE`. This causal attribution explains why the added work exists and is independent of the reference used to estimate its effort. The reference may be a `RETAIN` or `REMOVE` baseline subtask, or an external analogous workflow. Python validates the references and computes the estimate; providers do not provide authoritative accounting amounts. A valid transformation may contain no added-work rows.
+accounting_input = AbsoluteEffortInput(
+    baseline_human_effort=EffortQuantity(
+        value=14, unit=EffortUnit.MINUTES, time_basis=TimeBasis.PER_OPERATION
+    ),
+    retained_human_work=EffortQuantity(
+        value=7, unit=EffortUnit.MINUTES, time_basis=TimeBasis.PER_OPERATION
+    ),
+    gross_removed_work=EffortQuantity(
+        value=7, unit=EffortUnit.MINUTES, time_basis=TimeBasis.PER_OPERATION
+    ),
+)
 
-There is no sibling application-level `account_transformation(...)` operation. The application invokes the deterministic accounting domain after transformation facts are validated; low-level accounting functions remain directly callable for deterministic use cases and tests.
+request = TransformationDecompositionRequest(
+    task_decomposition=baseline,
+    transformation_context={"goal": "Draft invoice checks while retaining approval"},
+    accounting_input=accounting_input,
+)
+absolute_result = decompose_transformation(request, provider="openai")
+print(absolute_result.accounting.baseline_human_effort)
+print(absolute_result.accounting.net_human_effort)
+print(absolute_result.accounting.added_human_work)
+```
 
-## Deterministic accounting
+`NormalizedAccountingInput` is the strict alternative when the host supplies baseline-relative retained and gross-removed ratios. In the absolute example above, the accounting basis is `14 min/invoice` baseline effort, `7 min/invoice` retained work, and `7 min/invoice` gross removed work. When `support_work` is omitted, the application resolves added support work from validated activity estimates; supplying `support_work` makes the host's values authoritative. This does not estimate missing baseline effort. Providers do not supply canonical W0, W1, substitution, augmentation, or effect values.
 
-`src/task_transmorph/domain/accounting.py` is the single mathematical authority. For baseline human work `W0`, the model is:
+Added-work estimates use the `AI_INTERACTION` and `AI_VERIFICATION` categories. Each modeled added-work row is causally linked to one or more original `REMOVE` subtasks, while its effort reference may be a retained or removed baseline subtask or a compatible external reference. A valid transformation may have no added-work rows.
+
+## Accounting Model
+
+The accounting domain in `src/task_transmorph/domain/accounting.py` is the sole mathematical authority. W0 is baseline human effort per completed parent output; W1 is post-AI human effort per completed parent output:
 
 ```text
 W0 = retained_human_work + gross_removed_work
 added_human_work = ai_interaction_work + ai_verification_work
 W1 = retained_human_work + added_human_work
-gross_removed_work_ratio = gross_removed_work / W0
-net_remaining_work_ratio = W1 / W0
-net_substitution_ratio = 1 - net_remaining_work_ratio
+net_substitution_ratio = 1 - (W1 / W0)
 net_augmentation_multiplier = W0 / W1
 ```
 
-Gross removed work is not net substitution. Added human work reduces net substitution and can produce negative net substitution when `W1 > W0`. Effect is derived from `W0` and `W1` as `GAIN`, `NEUTRAL`, or `DEGRADATION`; ratios are not clamped.
+`baseline_human_effort` is W0, not another component to add. Retained work is baseline human work remaining after the transformation. Gross removed work is baseline human work eliminated by the transformation, before support work. Added work is new AI interaction and verification effort. Therefore gross removal is not net substitution: added work can reduce, erase, or exceed the gross reduction. Negative net substitution represents degradation; derived values are not clamped. The augmentation multiplier is a theoretical effort-productivity multiplier for comparable parent outputs—not measured workflow throughput—and is undefined when W1 is zero, represented as `None`.
 
-Accounting supports normalized mode with `W0 = 1.0` and absolute mode with explicit effort unit and time basis. Support inputs use an explicit `RatioBasis`: baseline ratio, gross-removed-work ratio, already-normalized contribution, or absolute effort. Zero baseline and zero post-transformation human effort are rejected because their required ratios or multiplier are undefined.
+Absolute accounting preserves explicit effort units and time bases. Normalized accounting fixes `W0 = 1.0` and exposes ratios for comparative estimation. Do not mix units, time bases, ratio denominators, or normalization bases. See the [accounting model reference](docs/reference/ACCOUNTING_MODEL.md) for support ratio bases, conversions, tolerances, and zero-denominator behavior.
 
-## Providers
+## Providers and Configuration
 
-The provider boundary is split by capability. Behavioral protocols live under `task_transmorph.interfaces`; data schemas live under `task_transmorph.contracts`:
+Provider protocols live under `task_transmorph.interfaces`; public contracts live under `task_transmorph.contracts`. The capability boundary is:
 
 ```text
 TaskDecompositionProvider
-  → operational decomposition
+  → operational subtasks and baseline effort facts
 
 TransformationDecompositionProvider
-  → RETAIN / REMOVE
-  → added human work
+  → RETAIN / REMOVE classifications
+  → AI interaction and verification activities and estimates
 
 DecompositionProvider
-  → composite capability for providers implementing both
+  → both capabilities for decompose()
 ```
 
-OpenAI, Gemini, and DeepSeek adapters may implement both capabilities while sharing only narrow provider infrastructure. Provider output is untrusted: the application validates it before advancing to the next stage, and providers never calculate authoritative W0, W1, substitution, augmentation, or effect values. Import protocols from `task_transmorph.interfaces`, for example `from task_transmorph.interfaces import DecompositionProvider`.
+OpenAI, Gemini, and DeepSeek adapters can implement both capabilities. Provider output is untrusted and is validated at each stage before the next stage runs. Core imports do not eagerly require optional provider SDKs.
 
-Install the library and add provider-specific dependencies as needed:
+Configure the relevant credential in the environment (`OPENAI_API_KEY`, `GEMINI_API_KEY`, or `DEEPSEEK_API_KEY`) or inject credentials through the provider-specific configuration object. The [supplier invoice example](examples/supplier_invoice_transformation.py) shows the end-to-end provider-assisted path and requires credentials when executed. No live or paid provider call is needed for ordinary tests.
 
-```bash
-uv pip install -e .
-uv pip install -e '.[openai]'
-uv pip install -e '.[gemini]'
-uv pip install -e '.[deepseek]'
-uv pip install -e '.[providers]'
-```
+## Validation, Tracing, and Development
 
-The deterministic contracts and accounting functions are available without invoking an LLM. Configure `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `DEEPSEEK_API_KEY`, or inject credentials through the provider-specific configuration object. Bot0 is not required to use this package.
+Pydantic contracts enforce field and value constraints. Stage validation checks identity, cardinality, dependencies, allocations, and accounting reconciliation. Semantic validation separately checks whether provider output is operational, complete, and plausible. Deterministic accounting then computes the canonical impact.
 
-## Minimal provider-driven usage
-
-The concrete live example is in [`examples/openai_decompose.py`](examples/openai_decompose.py). A custom or fake provider can use the same application contracts without installing an SDK.
-
-For the primary end-to-end use case, [`examples/supplier_invoice_transformation.py`](examples/supplier_invoice_transformation.py) shows a supplier-invoice task flowing from `TaskDecompositionRequest` and `TaskReference` through `decompose_task()` and provider-assisted `estimate_transformation()`. It prints normalized W0/W1, gross removal, substitution, and augmentation metrics, plus the structured baseline, classifications, activities, estimates, assumptions, rationales, and provenance available in the result contracts. It uses `openai` with an explicit model; running it requires credentials and makes live provider calls.
-
-Task decomposition only:
-
-```python
-from task_transmorph import (
-    EffortQuantity,
-    EffortUnit,
-    TaskDecompositionRequest,
-    TaskReference,
-    TimeBasis,
-    decompose_task,
-)
-from task_transmorph.providers.openai import OpenAIDecompositionProvider
-
-request = TaskDecompositionRequest(
-    task=TaskReference(
-        task_name="Review an invoice",
-        task_description="Validate and approve an invoice.",
-    ),
-    baseline_effort=EffortQuantity(
-        value=8,
-        unit=EffortUnit.HOURS,
-        time_basis=TimeBasis.PER_OPERATION,
-    ),
-)
-baseline = decompose_task(request, OpenAIDecompositionProvider())
-```
-
-Transformation decomposition from that existing baseline:
-
-```python
-from task_transmorph import (
-    AbsoluteEffortInput,
-    EffortQuantity,
-    EffortUnit,
-    SupportWorkMode,
-    TimeBasis,
-    TransformationDecompositionRequest,
-    decompose_transformation,
-)
-from task_transmorph.providers.openai import OpenAIDecompositionProvider
-
-accounting_input = AbsoluteEffortInput(
-    baseline_human_effort=EffortQuantity(
-        value=8, unit=EffortUnit.HOURS, time_basis=TimeBasis.PER_OPERATION
-    ),
-    retained_human_work=EffortQuantity(
-        value=4, unit=EffortUnit.HOURS, time_basis=TimeBasis.PER_OPERATION
-    ),
-    gross_removed_work=EffortQuantity(
-        value=4, unit=EffortUnit.HOURS, time_basis=TimeBasis.PER_OPERATION
-    ),
-)
-transformation_request = TransformationDecompositionRequest(
-    task_decomposition=baseline,
-    transformation_context={"goal": "Draft invoice checks while retaining approval"},
-    accounting_input=accounting_input,
-    support_work_mode=SupportWorkMode.ESTIMATE,
-)
-impact = decompose_transformation(
-    transformation_request,
-    OpenAIDecompositionProvider(),
-)
-```
-
-Full convenience composition:
-
-```python
-from task_transmorph import (
-    AbsoluteEffortInput,
-    EffortQuantity,
-    EffortUnit,
-    TaskDecompositionRequest,
-    TaskReference,
-    TimeBasis,
-    decompose,
-)
-from task_transmorph.providers.openai import OpenAIDecompositionProvider
-
-request = TaskDecompositionRequest(
-    task=TaskReference(task_name="Review an invoice"),
-    task_context={"domain": "accounts_payable"},
-    baseline_effort=EffortQuantity(
-        value=8, unit=EffortUnit.HOURS, time_basis=TimeBasis.PER_OPERATION
-    ),
-)
-result = decompose(
-    request,
-    OpenAIDecompositionProvider(),
-    transformation_context={"goal": "Draft invoice checks while retaining approval"},
-    accounting_input=AbsoluteEffortInput(
-        baseline_human_effort=EffortQuantity(
-            value=8, unit=EffortUnit.HOURS, time_basis=TimeBasis.PER_OPERATION
-        ),
-        retained_human_work=EffortQuantity(
-            value=4, unit=EffortUnit.HOURS, time_basis=TimeBasis.PER_OPERATION
-        ),
-        gross_removed_work=EffortQuantity(
-            value=4, unit=EffortUnit.HOURS, time_basis=TimeBasis.PER_OPERATION
-        ),
-    ),
-)
-```
-
-The absolute accounting values must reconcile with the provider's RETAIN/REMOVE classification. Use `NormalizedAccountingInput` when the host supplies baseline-relative values instead. The examples require an OpenAI API key; replace `OpenAIDecompositionProvider` with any implementation of the appropriate protocol for another provider or a credential-free test double.
-
-### Support-work selection
-
-`TransformationDecompositionRequest.support_work_mode` defaults to `SupportWorkMode.HOST`:
-
-- `HOST` uses `accounting_input.support_work`, including explicit zero values, and fails if host support is absent.
-- `ESTIMATE` derives `AI_INTERACTION` and `AI_VERIFICATION` support from validated `AddedWorkEstimate` rows and fails if an estimate is missing or noncomputable.
-- `AUTO` uses explicit host support when present; otherwise it derives estimates. When both are available, the result includes reconciliation diagnostics and does not silently mix the values.
-
-Reference-class estimates preserve low/typical/high ranges as metadata; typical values drive canonical support inputs. Baseline references are normalized by their reference occurrence frequency. External references need a compatible quantitative per-occurrence effort anchor. See [`docs/reference/ACCOUNTING_MODEL.md`](docs/reference/ACCOUNTING_MODEL.md) for effort units, bases, and equations.
-
-## Validation and testing
-
-Pydantic contracts enforce field and value constraints. Stage validation enforces identity, cardinality, dependency, and effort invariants. Semantic validation rejects non-operational or meta-only provider output. Deterministic accounting then validates and computes the canonical impact.
-
-Hard validity is machine-checkable: schemas, identities, dependencies, allocations, accounting reconciliation, and derived identities must hold. Semantic quality is a separate review concern covering completeness, overlap, granularity, transformation plausibility, and support-work plausibility. Relative-effort proportions are validated structurally but are not currently subject to an explicit effort-plausibility rubric; see the [baseline effort weighting audit](docs/audits/baseline-effort-weighting.md).
-
-The `benchmarks/` corpus and review helpers support credential-free framework tests and opt-in live review. Ordinary tests do not require network access or provider credentials. S4B-2 did not execute live providers because no provider keys were configured, so live semantic quality remains deferred to manual evaluation.
-
-Run the normal checks with:
-
-```bash
-pytest
-ruff check src tests
-ruff format --check src tests
-python -m compileall -q src
-git diff --check
-```
-
-## Opt-in LLM tracing
-
-Provider tracing is disabled by default. To capture a redacted, machine-readable
-JSONL lifecycle trace for the OpenAI example:
+Provider tracing is disabled by default. To capture a redacted JSONL lifecycle trace for the OpenAI example:
 
 ```bash
 TASK_TRANSMORPH_TRACE_ENABLED=true \
@@ -322,18 +358,9 @@ python examples/openai_decompose.py \
   --task-description "Validate the invoice and approve or reject it."
 ```
 
-The detailed trace is written to a timestamped file such as
-`logs/llm/task_transmorph_2026-10-09_143012.jsonl`; each
-line is one event linked by the execution-level `correlation_id`. Console output
-is a concise event summary. Tracing includes full prompts and structured responses,
-which may contain sensitive business data. API keys, authorization values, and
-common provider key formats are redacted, but the `logs/` directory must still
-be protected. Set `TASK_TRANSMORPH_TRACE_DIR` to override the directory;
-relative overrides resolve from the repository root.
-Each execution keeps its lifecycle in one file; if two executions start in the
-same second, the later file receives a short unique suffix.
+Traces are written under `logs/llm/` by default; set `TASK_TRANSMORPH_TRACE_DIR` to change the directory. Traces include prompts and structured responses that may contain sensitive business data. Keys and common authorization values are redacted, but the directory must still be protected.
 
-Useful filters include:
+Useful filters for a captured trace are:
 
 ```bash
 TRACE_FILE=$(ls -t logs/llm/task_transmorph_*.jsonl | head -1)
@@ -341,20 +368,22 @@ jq -c 'select(.correlation_id == "REQUEST_ID")' "$TRACE_FILE"
 jq -c 'select(.stage == "retain_remove_classification" or .event == "llm.exception")' "$TRACE_FILE"
 ```
 
-You can ask Codex: “Inspect the latest logs under `logs/llm/`, identify the
-failed stage, examine the request and response events, and explain the root
-cause.”
+Run the credential-free checks from the repository root:
 
-Provider SDK limitation: successful OpenAI, DeepSeek, and Gemini responses are
-recorded before contract mapping. If OpenAI `responses.parse()` raises during
-its internal Pydantic/JSON parsing, the SDK may not attach the underlying
-Responses API payload to the exception. In that case the trace records the
-complete request, exception attributes, cause/context, and explicitly marks the
-raw response as unavailable; it cannot reconstruct bytes the SDK discarded.
+```bash
+pytest
+ruff check src tests
+ruff format --check src tests
+python -m compileall -q src
+git diff --check
+```
 
-## Further documentation
+## Architecture and Ownership Boundaries
 
-- [`docs/reference/DECOMPOSITION_MODEL.md`](docs/reference/DECOMPOSITION_MODEL.md) explains the two capabilities and their contracts.
-- [`docs/reference/ACCOUNTING_MODEL.md`](docs/reference/ACCOUNTING_MODEL.md) explains quantities, equations, modes, units, ranges, and edge behavior.
-- [`docs/README.md`](docs/README.md) indexes current reference, active topic, historical, and verification documentation.
-- [`AGENTS.md`](AGENTS.md) gives concise maintenance rules for coding agents.
+Task decomposition owns operational subtasks and baseline effort allocation. Transformation decomposition owns RETAIN/REMOVE classification and added/support human work. The accounting domain owns deterministic W0/W1 mathematics. `decompose()` only composes the two application operations.
+
+The library does not own workflow execution, throughput or capacity computation, scenarios, simulation, Monte Carlo, grid search, workforce planning, or alternative-scenario management. Hosts and downstream systems own those concerns.
+
+For the detailed contracts and weighting semantics, see the [decomposition model reference](docs/reference/DECOMPOSITION_MODEL.md), the [accounting model reference](docs/reference/ACCOUNTING_MODEL.md), the [baseline effort weighting audit](docs/audits/baseline-effort-weighting.md), and the [documentation index](docs/README.md). The repository's [AGENTS.md](AGENTS.md) records maintenance constraints.
+
+Task Transmorph is distributed under the [MIT License](LICENSE).

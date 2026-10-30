@@ -1,7 +1,7 @@
 """Versioned, provider-neutral semantic evaluation rubric."""
 
 SEMANTIC_EVALUATION_RUBRIC_VERSION = "1.3"
-TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION = "1.0"
+TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION = "1.1"
 
 SEMANTIC_EVALUATION_RUBRIC = """
 Evaluate whether the supplied operational decomposition adequately represents the work required by the original task, at a granularity suitable for independent automation assessment.
@@ -42,10 +42,33 @@ Return concise, observable findings. Do not use keyword matching, an operational
 """.strip()
 
 TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC = """
-Evaluate the complete transformation of the frozen baseline decomposition against
-the original task and parent-output contract. Do not redesign the baseline, change
-accounting, or require human involvement where the supplied context supports
-autonomous execution.
+Evaluate only the semantic consistency of the complete transformation of the frozen
+baseline decomposition against the original task and parent-output contract. The
+baseline decomposition is an input, not an object to improve.
+
+Transformation-stage scope:
+- Do not reevaluate baseline operational completeness, clarity, specificity,
+  granularity, dependency quality, or baseline effort plausibility.
+- Do not recommend additional automation, optimization, workflow redesign, or
+  reductions merely because a baseline activity could theoretically be automated.
+- Do not request procedural detail or operational thresholds unless their absence
+  creates a concrete inconsistency between transformation stages.
+- Do not regenerate, rename, split, merge, or otherwise redesign baseline subtasks.
+- Do not introduce responsibilities outside the parent-output completion boundary
+  or its exclusions.
+
+Responsibility reconciliation:
+- Trace required responsibilities from the parent-output contract and task
+  requirements through the frozen baseline subtasks, RETAIN/REMOVE classifications,
+  agentic tasks and rationales, human-agent activities, effort estimates, and W1.
+- For each responsibility retained by the task, determine what human work remains,
+  where it is represented, whether its active effort is included in W1, whether it
+  is duplicated, and whether it remains within scope.
+- Distinguish reviewing information, making a decision, authorizing a decision,
+  communicating a decision, and executing an action. They are not interchangeable
+  unless the supplied artifact explicitly establishes that relationship.
+- Do not require human involvement where the supplied task context and artifact
+  permit autonomous execution.
 
 Evaluate these criteria and report the criterion in every finding:
 - HUMAN_RESPONSIBILITY_COMPLETENESS (high): retain necessary authorization,
@@ -65,9 +88,18 @@ Evaluate these criteria and report the criterion in every finding:
   clearly implausible frequencies.
 
 Use concise, observable findings. Include affected references using the supplied
-IDs when applicable. Suggestions are nonblocking; repairable findings are material
-local defects; blocking findings prevent reliable evaluation. Do not recalculate
-W0 or W1, duplicate deterministic validation, or propose automatic repairs.
+IDs when applicable, and never invent references. Every finding must identify a
+concrete cross-stage inconsistency, include supporting evidence from the supplied
+artifact, and explain its impact on responsibility completeness, effort accounting,
+or task boundary. Do not emit generic automation recommendations, baseline-quality
+criticisms, or multiple findings for the same underlying inconsistency.
+
+Suggestions are nonblocking; repairable findings are material local defects;
+blocking findings prevent reliable evaluation. The decision must match the finding
+severities: ACCEPT with suggestions only, REPAIR with at least one repairable and
+no blocking findings, and REJECT with at least one blocking finding. Do not
+recalculate W0 or W1, duplicate deterministic validation, or propose automatic
+repairs.
 """.strip()
 
 

@@ -3,7 +3,13 @@ from types import SimpleNamespace
 
 import pytest
 from test_evaluation_contracts import evaluation_request, finding
+from test_task_transformation_boundaries import (
+    BoundaryProvider,
+    task_request,
+    transform_request,
+)
 
+from task_decomposition import decompose_task, decompose_transformation
 from task_decomposition.errors import (
     ProviderAuthenticationError,
     ProviderExecutionError,
@@ -11,10 +17,12 @@ from task_decomposition.errors import (
 )
 from task_decomposition.evaluation import (
     SEMANTIC_EVALUATION_RUBRIC_VERSION,
+    TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION,
     SemanticEvaluation,
     SemanticEvaluationDecision,
     SemanticFindingCode,
     SemanticFindingSeverity,
+    TransformationSemanticEvaluationRequest,
 )
 from task_decomposition.providers.deepseek import (
     DeepSeekDecompositionProvider,
@@ -25,6 +33,8 @@ from task_decomposition.providers.gemini import (
     GeminiProviderConfig,
 )
 from task_decomposition.providers.openai import (
+    DEFAULT_OPENAI_MODEL,
+    DEFAULT_TRANSFORMATION_EVALUATOR_MODEL,
     OpenAIDecompositionProvider,
     OpenAIProviderConfig,
 )
@@ -107,6 +117,29 @@ def evaluation(decision):
     )
 
 
+def transformation_request():
+    baseline = decompose_task(task_request(), BoundaryProvider())
+    result = decompose_transformation(transform_request(baseline), BoundaryProvider())
+    return TransformationSemanticEvaluationRequest(
+        task=result.task_decomposition.operational_decomposition.task,
+        parent_output_contract=result.task_decomposition.parent_output_contract,
+        task_decomposition=result.task_decomposition,
+        retain_remove_classification=result.retain_remove_classification,
+        agentic_task_synthesis=result.agentic_task_synthesis,
+        human_agent_activity_modeling=result.human_agent_activity_modeling,
+        activity_effort_estimation=result.activity_effort_estimation,
+        accounting=result.accounting,
+        rubric_version=TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION,
+    )
+
+
+def transformation_evaluation():
+    return SemanticEvaluation(
+        decision=SemanticEvaluationDecision.ACCEPT,
+        rubric_version=TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION,
+    )
+
+
 def provider_factory(provider_name, result, *, tracer=None, error=None):
     if provider_name == "openai":
         client = FakeOpenAIClient(output=result, error=error)
@@ -181,6 +214,72 @@ def test_evaluator_request_contains_context_and_complete_decomposition(provider_
     assert payload["rubric_version"] == SEMANTIC_EVALUATION_RUBRIC_VERSION
     assert "request_id" not in payload
     assert "correlation_id" not in payload
+
+
+@pytest.mark.parametrize("provider_name", ["openai", "deepseek", "gemini"])
+def test_each_provider_selects_transformation_rubric_for_transformation_request(
+    provider_name,
+):
+    provider, client = provider_factory(provider_name, transformation_evaluation())
+    provider.evaluate(transformation_request())
+
+    if provider_name == "openai":
+        prompt = client.responses.calls[0]["input"][0]["content"]
+    elif provider_name == "deepseek":
+        prompt = client.chat.completions.calls[0]["messages"][0]["content"]
+    else:
+        prompt = client.models.calls[0]["contents"]
+
+    assert "cross-stage semantic consistency" in prompt
+    assert "Do not recommend additional automation" in prompt
+    assert "operational decomposition in the supplied input JSON" not in prompt
+
+
+def test_openai_uses_luna_only_for_default_transformation_evaluation():
+    baseline_client = FakeOpenAIClient(
+        output=evaluation(SemanticEvaluationDecision.ACCEPT)
+    )
+    baseline_provider = OpenAIDecompositionProvider(
+        OpenAIProviderConfig(), client=baseline_client
+    )
+    baseline_provider.evaluate(evaluation_request())
+
+    transformation_client = FakeOpenAIClient(output=transformation_evaluation())
+    transformation_provider = OpenAIDecompositionProvider(
+        OpenAIProviderConfig(), client=transformation_client
+    )
+    transformation_provider.evaluate(transformation_request())
+
+    assert baseline_provider.config.model == DEFAULT_OPENAI_MODEL
+    assert baseline_client.responses.calls[0]["model"] == DEFAULT_OPENAI_MODEL
+    assert (
+        transformation_client.responses.calls[0]["model"]
+        == DEFAULT_TRANSFORMATION_EVALUATOR_MODEL
+    )
+    transformation_result = transformation_provider.evaluate(transformation_request())
+    assert transformation_result.evaluator_provenance.model_id == (
+        DEFAULT_TRANSFORMATION_EVALUATOR_MODEL
+    )
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        OpenAIProviderConfig(model="explicit-provider-model"),
+        OpenAIProviderConfig(
+            transformation_evaluator_model="explicit-transformation-model"
+        ),
+    ],
+)
+def test_openai_model_overrides_are_preserved_for_transformation_evaluation(config):
+    result = transformation_evaluation()
+    client = FakeOpenAIClient(output=result)
+    provider = OpenAIDecompositionProvider(config, client=client)
+
+    provider.evaluate(transformation_request())
+
+    expected = config.transformation_evaluator_model or config.model
+    assert client.responses.calls[0]["model"] == expected
 
 
 def test_semantic_prompt_requires_concise_actionable_findings():

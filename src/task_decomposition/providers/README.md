@@ -37,7 +37,8 @@ Responsibilities include:
 
 - translating stage requests into OpenAI messages and structured-output schemas;
 - handling OpenAI response parsing, refusals, schema details, and provider diagnostics;
-- forwarding the configured model and output-token limits to every stage;
+- forwarding the configured model and output-token limits to every stage, with
+  the transformation semantic evaluator's dedicated model routing;
 - mapping SDK failures into the library's provider error taxonomy;
 - emitting invocation, response, validation, and provenance metadata.
 
@@ -45,13 +46,14 @@ Responsibilities include:
 
 | Field | Purpose |
 | --- | --- |
-| `model` | Model ID used for every stage of one provider instance. Default: `gpt-4o-mini`. |
+| `model` | Model ID used for generation stages and baseline evaluation. Default: `gpt-4o-mini`. An explicit value also overrides transformation evaluation unless the dedicated field is set. |
+| `transformation_evaluator_model` | Optional model ID for transformation semantic evaluation. Default: `gpt-6-luna` when `model` is unchanged. |
 | `api_key` | Optional injected API key; otherwise `OPENAI_API_KEY` is read when the client is built. |
 | `organization` | Optional OpenAI organization. |
 | `base_url` | Optional API-compatible endpoint override. |
 | `timeout` | Optional SDK timeout. |
 | `max_output_tokens` | Default output-token cap. |
-| `stage_output_tokens` | Optional per-stage output-token caps; this is not per-stage model selection. |
+| `stage_output_tokens` | Optional per-stage output-token caps; model selection is stage-aware only for transformation semantic evaluation. |
 
 The OpenAI SDK is imported lazily by `_build_client()`. Importing the core package or using a fake provider therefore does not require a live SDK client.
 

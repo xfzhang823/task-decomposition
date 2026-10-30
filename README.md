@@ -24,6 +24,65 @@ Transformation decomposition answers “What happens to that work under the spec
 
 `decompose(...)` is a convenience operation that composes these two capabilities. It is not a separate architecture and does not own duplicate decomposition or accounting logic.
 
+## Installation
+
+`task-decomposition` supports Python 3.10 and newer. The current package version is `0.1.0`.
+
+Install the release with pip:
+
+```bash
+python -m pip install task-decomposition==0.1.0
+```
+
+Add the release to a uv project:
+
+```bash
+uv add task-decomposition==0.1.0
+```
+
+For development from a checkout, install it editable:
+
+```bash
+python -m pip install -e .
+```
+
+Install optional provider integrations when needed:
+
+```bash
+python -m pip install 'task-decomposition[openai]'
+python -m pip install 'task-decomposition[gemini]'
+python -m pip install 'task-decomposition[deepseek]'
+```
+
+The `providers` extra installs all supported provider SDKs:
+
+```bash
+python -m pip install 'task-decomposition[providers]'
+```
+
+Build the wheel and source distribution from the repository root:
+
+```bash
+uv build
+# or:
+python -m build
+```
+
+The deterministic public API requires no provider SDK or paid LLM call:
+
+```python
+from task_decomposition import TaskDecompositionRequest, TaskReference
+
+request = TaskDecompositionRequest(
+    task=TaskReference(
+        task_name="Review an invoice",
+        task_description="Validate and approve an invoice.",
+    )
+)
+```
+
+This package is distributed under the [MIT License](LICENSE).
+
 The supported application entry points are:
 
 - `decompose_task(request, provider, *, evaluator=None, model=None, max_output_tokens=None)` for creating a reusable baseline.

@@ -377,6 +377,15 @@ def _evaluate_transformation(request, result, provider, *, evaluator=None):
             raise ValueError("evaluator returned an unexpected rubric version")
         if any(finding.criterion is None for finding in evaluation.findings):
             raise ValueError("transformation findings must identify a criterion")
+        if any(
+            not finding.evidence
+            or not finding.evidence.strip()
+            or not finding.affected_references
+            for finding in evaluation.findings
+        ):
+            raise ValueError(
+                "transformation findings must include evidence and affected references"
+            )
     except Exception as exc:
         raise SemanticEvaluatorContractError(
             f"transformation semantic evaluator returned an invalid evaluation: {exc}"

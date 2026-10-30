@@ -31,6 +31,7 @@ from task_decomposition.errors import (
 from task_decomposition.evaluation.contracts import (
     SemanticEvaluation,
     SemanticEvaluationRequest,
+    TransformationSemanticEvaluationRequest,
 )
 from task_decomposition.providers._semantic import (
     SEMANTIC_EVALUATION_STAGE,
@@ -56,6 +57,7 @@ from task_decomposition.providers.prompts import (
 from task_decomposition.tracing import TraceLogger
 
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
+DEFAULT_TRANSFORMATION_EVALUATOR_MODEL = "gpt-6-luna"
 
 
 def _semantic_parse_diagnostics(exc: BaseException) -> dict[str, Any]:
@@ -232,6 +234,7 @@ class OpenAIProviderConfig:
     """Non-secret OpenAI adapter settings plus optional injected credentials."""
 
     model: str = DEFAULT_OPENAI_MODEL
+    transformation_evaluator_model: str | None = None
     api_key: str | None = field(default=None, repr=False)
     organization: str | None = None
     base_url: str | None = None
@@ -276,12 +279,13 @@ class OpenAIDecompositionProvider:
     def _evaluate_inner(self, request: SemanticEvaluationRequest):
         """Run the evaluation request and normalize structured-output failures."""
         payload = semantic_payload(request)
+        model = self._evaluation_model(request)
         messages: list[Any] = [
             {"role": "system", "content": semantic_evaluation_prompt(request)},
             {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
         ]
         output_tokens = self.config.output_tokens_for(SEMANTIC_EVALUATION_STAGE)
-        parameters: dict[str, Any] = {"model": self.config.model}
+        parameters: dict[str, Any] = {"model": model}
         if output_tokens is not None:
             parameters["max_output_tokens"] = output_tokens
         invocation = self.tracer.invocation(
@@ -297,13 +301,13 @@ class OpenAIDecompositionProvider:
         try:
             if output_tokens is None:
                 response = self._client.responses.parse(
-                    model=self.config.model,
+                    model=model,
                     input=messages,
                     text_format=SemanticEvaluation,
                 )
             else:
                 response = self._client.responses.parse(
-                    model=self.config.model,
+                    model=model,
                     input=messages,
                     text_format=SemanticEvaluation,
                     max_output_tokens=output_tokens,
@@ -342,7 +346,7 @@ class OpenAIDecompositionProvider:
                 parsed,
                 request,
                 provider_name="OpenAI",
-                model_id=self.config.model,
+                model_id=model,
             )
         except Exception as exc:
             self.tracer.exception(
@@ -357,6 +361,25 @@ class OpenAIDecompositionProvider:
             )
             raise
         return evaluation
+
+    def _evaluation_model(
+        self,
+        request: SemanticEvaluationRequest | TransformationSemanticEvaluationRequest,
+    ) -> str:
+        """Resolve the model for the explicitly typed evaluation stage.
+
+        The existing ``model`` override remains the common override for a
+        configured provider. A dedicated transformation override takes
+        precedence when supplied; otherwise the default provider model remains
+        the baseline evaluator model and transformation evaluation uses Luna.
+        """
+        if not isinstance(request, TransformationSemanticEvaluationRequest):
+            return self.config.model
+        if self.config.transformation_evaluator_model is not None:
+            return self.config.transformation_evaluator_model
+        if self.config.model != DEFAULT_OPENAI_MODEL:
+            return self.config.model
+        return DEFAULT_TRANSFORMATION_EVALUATOR_MODEL
 
     def generate_operational_decomposition(
         self, request: OperationalDecompositionRequest
@@ -686,6 +709,7 @@ class OpenAIDecompositionProvider:
 
 __all__ = [
     "DEFAULT_OPENAI_MODEL",
+    "DEFAULT_TRANSFORMATION_EVALUATOR_MODEL",
     "OpenAIDecompositionProvider",
     "OpenAIProviderConfig",
 ]

@@ -1,15 +1,13 @@
 [project]
 name = "task-decomposition"
 version = "0.1.0"
-description = "Add your description here"
+description = "Host-neutral operational task decomposition and transformation accounting"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
-    "black>=26.10.0",
-    "openai>=3.24.0",
     "pydantic>=2.13.5",
-    "pylance>=13.0.0",
-    "pylint>=4.1.2",
 ]
 
 [project.optional-dependencies]
@@ -36,11 +34,14 @@ where = ["src"]
 
 [dependency-groups]
 dev = [
+    "black>=26.10.0",
     "ipykernel>=7.3.0",
     "ipywidgets>=8.1.9",
     "jupyterlab>=4.6.4",
     "notebook>=7.6.3",
     "pandas>=2.3.3",
+    "pylance>=13.0.0",
+    "pylint>=4.1.2",
     "pytest>=9.1.1",
     "ruff>=0.16.9",
 ]

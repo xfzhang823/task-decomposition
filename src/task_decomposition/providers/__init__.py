@@ -13,15 +13,17 @@ from task_decomposition.providers.gemini import (
 )
 from task_decomposition.providers.openai import (
     DEFAULT_OPENAI_MODEL,
-    OpenAIProviderConfig,
+    DEFAULT_TRANSFORMATION_EVALUATOR_MODEL,
     OpenAIDecompositionProvider,
+    OpenAIProviderConfig,
 )
 
 __all__ = [
     "DEFAULT_DEEPSEEK_BASE_URL",
     "DEFAULT_DEEPSEEK_MODEL",
-    "DEFAULT_OPENAI_MODEL",
     "DEFAULT_GEMINI_MODEL",
+    "DEFAULT_OPENAI_MODEL",
+    "DEFAULT_TRANSFORMATION_EVALUATOR_MODEL",
     "DeepSeekDecompositionProvider",
     "DeepSeekProviderConfig",
     "GeminiDecompositionProvider",

@@ -19,9 +19,12 @@ from task_decomposition import (
     decompose_task,
     decompose_transformation,
 )
+from task_decomposition.errors import SemanticEvaluatorContractError
 from task_decomposition.evaluation.rubric import (
+    TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC,
     TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION,
 )
+from task_decomposition.providers._semantic import semantic_evaluation_prompt
 
 
 class StubTransformationEvaluator:
@@ -41,6 +44,7 @@ def finding(criterion, message, references=("HAA001",)):
         severity=SemanticFindingSeverity.REPAIRABLE,
         criterion=criterion,
         affected_references=references,
+        evidence="The supplied transformation records the responsibility without corresponding W1 effort.",
         message=message,
     )
 
@@ -123,3 +127,38 @@ def test_reasonable_model_generated_occurrence_assumptions_are_not_rejected():
     estimate = request.activity_effort_estimation.activity_effort_estimates[0]
     assert estimate.expected_occurrences_per_parent_output == Decimal(1)
     assert transformed.semantic_evaluation.decision is SemanticEvaluationDecision.ACCEPT
+
+
+def test_transformation_prompt_is_cross_stage_only():
+    _, request = run(evaluation())
+
+    prompt = semantic_evaluation_prompt(request)
+
+    assert "cross-stage semantic consistency" in prompt
+    assert "Do not reevaluate baseline operational completeness" in prompt
+    assert "Do not recommend additional automation" in prompt
+    assert "Do not redesign or modify the baseline" in prompt
+
+
+def test_transformation_findings_require_evidence():
+    result = finding(
+        TransformationSemanticCriterion.HUMAN_RESPONSIBILITY_COMPLETENESS,
+        "Authorization effort is omitted from W1.",
+    )
+    result = result.model_copy(update={"evidence": None})
+
+    with pytest.raises(SemanticEvaluatorContractError, match="include evidence"):
+        run(evaluation(result))
+
+
+def test_transformation_rubric_requires_grounded_cross_stage_findings():
+    assert (
+        "concrete cross-stage inconsistency"
+        in TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC
+    )
+    assert "Do not emit generic automation recommendations" in (
+        TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC
+    )
+    assert (
+        "baseline operational completeness" in TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC
+    )

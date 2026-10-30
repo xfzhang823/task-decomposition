@@ -121,6 +121,16 @@ def parse_semantic_evaluation(
         raise ProviderOutputError(
             f"{provider_name} transformation findings must identify a criterion"
         )
+    if isinstance(request, TransformationSemanticEvaluationRequest) and any(
+        not finding.evidence
+        or not finding.evidence.strip()
+        or not finding.affected_references
+        for finding in evaluation.findings
+    ):
+        raise ProviderOutputError(
+            f"{provider_name} transformation findings must include evidence and "
+            "affected references"
+        )
 
     return evaluation.model_copy(
         update={

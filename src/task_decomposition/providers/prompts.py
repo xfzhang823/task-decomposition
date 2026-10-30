@@ -306,16 +306,27 @@ RUBRIC:
 """.strip()
 
 TRANSFORMATION_SEMANTIC_EVALUATION_PROMPT = f"""
-Evaluate the complete frozen AI transformation in the supplied input JSON. Return
-only the structured evaluation object.
+Evaluate only the cross-stage semantic consistency of the complete frozen AI
+transformation in the supplied input JSON. Return only the structured evaluation
+object.
 
 Decision Rules:
 - Apply RUBRIC VERSION: {TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION}.
 - Treat the transformation rubric as the authority for criteria and severity.
-- Do not redesign or modify the baseline, recalculate W0/W1, duplicate structural
-  validation, or propose automatic repairs.
-- Every finding must set criterion to one of the transformation criteria and should
-  include affected_references when specific IDs are involved.
+- Evaluate the transformation relative to the frozen baseline; do not evaluate
+  baseline decomposition quality or suggest additional automation.
+- Do not redesign or modify the baseline decomposition.
+- Reconcile responsibility and effort across the parent contract, baseline
+  subtasks, classifications, agentic tasks, human activities, effort estimates,
+  and accounting output. Decisions, authorizations, communication, and execution
+  are separate responsibilities unless the artifact explicitly connects them.
+- Do not recalculate W0/W1, duplicate deterministic validation, or propose repairs.
+- Every finding must set a transformation criterion, identify a concrete
+  inconsistency, include artifact evidence, and include affected IDs when the
+  supplied input provides relevant IDs. Never invent references.
+- Keep the decision and finding severities consistent with the contract: ACCEPT
+  only with suggestions, REPAIR with repairable findings and no blocking findings,
+  and REJECT with at least one blocking finding.
 
 TRANSFORMATION RUBRIC:
 {TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC}

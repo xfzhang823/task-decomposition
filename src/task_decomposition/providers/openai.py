@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
 
-from task_decomposition.contracts.provenance import ProviderProvenance, ProviderStage
+from task_decomposition.contracts.provenance import ProviderStage
 from task_decomposition.contracts.provider import (
     ActivityEffortEstimationRequest,
     AgenticTaskSynthesisRequest,
@@ -40,6 +40,7 @@ from task_decomposition.providers._semantic import (
     semantic_payload,
 )
 from task_decomposition.providers._shared import (
+    make_stage_response,
     raise_provider_failure,
     request_metadata,
     stage_output_tokens,
@@ -492,16 +493,13 @@ class OpenAIDecompositionProvider:
                 payload=payload,
                 schema=schema,
             )
-        return ProviderStageResponse(
+        return make_stage_response(
+            provider_id=self.provider_id,
+            model_id=self.config.model,
             stage=stage,
+            request_id=request_id,
+            references=references,
             payload=parsed,
-            provenance=ProviderProvenance(
-                provider_id=self.provider_id,
-                stage=stage,
-                model_id=self.config.model,
-                request_id=request_id,
-                references=tuple(references),
-            ),
         )
 
     # pylint: disable-next=too-many-locals,too-many-statements

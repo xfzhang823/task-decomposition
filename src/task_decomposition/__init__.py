@@ -88,12 +88,16 @@ from task_decomposition.errors import (
     ZeroBaselineError,
 )
 from task_decomposition.evaluation import (
+    TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC,
+    TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION,
     SemanticEvaluation,
     SemanticEvaluationDecision,
     SemanticFinding,
     SemanticFindingCategory,
     SemanticFindingCode,
     SemanticFindingSeverity,
+    TransformationSemanticCriterion,
+    TransformationSemanticEvaluationRequest,
 )
 from task_decomposition.interfaces import (
     ActivityEffortEstimationProvider,
@@ -116,6 +120,8 @@ from task_decomposition.validation import (
 )
 
 __all__ = [
+    "TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC",
+    "TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION",
     "AbsoluteEffortInput",
     "AccountingInvariantError",
     "AccountingMode",
@@ -198,6 +204,8 @@ __all__ = [
     "TransformationDecompositionResult",
     "TransformationProposalRequest",
     "TransformationRow",
+    "TransformationSemanticCriterion",
+    "TransformationSemanticEvaluationRequest",
     "UnknownReferenceError",
     "ZeroBaselineError",
     "account_absolute",

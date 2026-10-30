@@ -15,7 +15,6 @@ from task_decomposition import (
     AgenticTaskSynthesis,
     CardinalityError,
     ClassifiedSubtask,
-    ProviderContractValidationError,
     ProviderOutputError,
     ProviderStage,
     RetainRemoveClassification,
@@ -25,6 +24,7 @@ from task_decomposition import (
     decompose_transformation,
     validate_agentic_task_synthesis,
 )
+from task_decomposition.errors import ProviderContractValidationError
 
 
 def classification(*labels):
@@ -173,6 +173,47 @@ def test_canonical_synthesis_precedes_activity_effort_without_changing_accountin
     )
     assert result.accounting.w0 == Decimal(100)
     assert result.accounting.w1 == Decimal(74)
+    assert result.accounting.net_substitution_ratio == Decimal("0.26")
+
+
+def test_all_removed_with_required_verification_produces_positive_w1():
+    from test_task_transformation_boundaries import AllRemovedVerificationProvider
+
+    provider = AllRemovedVerificationProvider()
+    baseline = decompose_task(task_request(), provider)
+    result = decompose_transformation(transform_request(baseline), provider)
+
+    assert result.human_agent_activity_modeling.activities[0].category.value == (
+        "AI_VERIFICATION"
+    )
+    assert result.accounting.w1 == Decimal(5)
+    assert result.accounting.net_substitution_ratio == Decimal("0.95")
+
+
+def test_all_removed_with_legitimate_zero_human_effort_is_valid():
+    from test_task_transformation_boundaries import AllRemovedAutonomousProvider
+
+    provider = AllRemovedAutonomousProvider()
+    baseline = decompose_task(task_request(), provider)
+    result = decompose_transformation(transform_request(baseline), provider)
+
+    assert result.human_agent_activity_modeling.activities == ()
+    assert result.activity_effort_estimation.activity_effort_estimates == ()
+    assert result.accounting.w1 == Decimal(0)
+    assert result.accounting.net_substitution_ratio == Decimal(1)
+    assert result.accounting.net_augmentation_multiplier is None
+
+
+def test_activity_effort_missing_for_modeled_activity_fails_explicitly():
+    from test_task_transformation_boundaries import MissingActivityEffortProvider
+
+    provider = MissingActivityEffortProvider()
+    baseline = decompose_task(task_request(), provider)
+
+    with pytest.raises(
+        ProviderContractValidationError, match="missing activity effort"
+    ):
+        decompose_transformation(transform_request(baseline), provider)
 
 
 def test_provider_without_canonical_capabilities_fails_explicitly():

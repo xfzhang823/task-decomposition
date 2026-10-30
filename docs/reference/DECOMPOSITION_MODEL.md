@@ -2,6 +2,10 @@
 
 ## Task decomposition
 
+### Canonical task definition
+
+A task is a bounded unit of work performed to produce a defined output. `TaskReference` establishes task identity; `ParentOutputContract` establishes the output unit, completion boundary, and scope exclusions; and `TaskDecomposition` describes the operational work and expected baseline human effort required per completed parent-task output. A task does not inherently require one executor, sequential execution, or a particular staffing arrangement.
+
 Task decomposition answers “What work exists?” Its canonical input is `TaskDecompositionRequest`, which contains a host-neutral `TaskReference`, `task_context`, and optional measured baseline effort. It does not contain transformation context.
 
 `decompose_task(request, provider, evaluator=None)` asks a `TaskDecompositionProvider` to propose operational subtasks. The application validates the provider response for contract shape, identity, ordering, dependencies, and optional bottom-up effort estimates, then uses the configured LLM semantic evaluator for contextual operational judgment. After evaluator acceptance, provider-generated relative effort weights are normalized deterministically to `W0 = 1.0`; an optional measured baseline materializes absolute allocations using the same weights.
@@ -25,6 +29,8 @@ expected_subtask_effort_per_parent_output
 Expected occurrences may be zero, fractional, one, or greater than one. They represent the average number of executions per parent output and include conditional work, repetition, and active rework; they are not necessarily probabilities. Expected parent effort is the sum of expected subtask effort, and `relative_effort_weight` is derived from those absolute products. Python performs the product and normalization deterministically.
 
 The baseline includes active human effort such as analysis, review, communication, coordination, execution, and active rework. It excludes passive waiting, queueing, and unattended processing. Internal workload, such as documents per claim, belongs inside the per-parent estimate and must not be multiplied again. External workload volume, such as claims per month, belongs to downstream workload and capacity systems, not relative task decomposition.
+
+Expected effort is active human effort per completed parent-task output, not elapsed cycle time. Clarification, verification, exception handling, and handoff work are included when they occur within the completion boundary. Expected effort is summed across contributing activities independently of staffing, sequencing, or concurrency; supplied facts and model-generated assumptions remain distinct.
 
 Baseline relative effort is dimensionless. When a measured parent effort per output is supplied, the existing `EffortQuantity` and `allocate_effort()` utility materialize compatible absolute subtask allocations using the normalized shares. Without measured or externally supplied absolute effort, normalized weights must not be interpreted as hours, FTE, capacity, or staffing requirements.
 
@@ -56,6 +62,8 @@ When the provider supports the complete activity-based path, the application the
 expected activity effort = expected occurrences per parent output
                             × active effort per occurrence
 ```
+
+The activity estimate uses the same parent-output denominator and completion boundary as the baseline decomposition. Retained human responsibilities remain part of retained baseline effort; newly introduced interaction or verification is added once, without counting retained work or AI execution time again.
 
 Occurrences include conditional frequency and repetition once; parent workload volume is not multiplied again. Passive waiting, autonomous agent execution, and machine processing are excluded. The provider supplies occurrence and per-occurrence assumptions and rationale; Python derives and validates the product and units deterministically. Only `AI_INTERACTION` and `AI_VERIFICATION` contribute, with exceptions represented as triggers for one of those categories.
 

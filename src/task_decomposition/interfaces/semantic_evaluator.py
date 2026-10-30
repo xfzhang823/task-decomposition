@@ -5,6 +5,7 @@ from typing import Protocol, runtime_checkable
 from task_decomposition.evaluation.contracts import (
     SemanticEvaluation,
     SemanticEvaluationRequest,
+    TransformationSemanticEvaluationRequest,
 )
 
 
@@ -12,8 +13,11 @@ from task_decomposition.evaluation.contracts import (
 class SemanticEvaluator(Protocol):
     """Evaluate a complete operational decomposition."""
 
-    def evaluate(self, request: SemanticEvaluationRequest) -> SemanticEvaluation:
-        """Return a validated semantic decision for the complete decomposition."""
+    def evaluate(
+        self,
+        request: SemanticEvaluationRequest | TransformationSemanticEvaluationRequest,
+    ) -> SemanticEvaluation:
+        """Return a validated semantic decision for a complete decomposition."""
         ...
 
 

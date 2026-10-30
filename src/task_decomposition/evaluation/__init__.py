@@ -9,15 +9,21 @@ from task_decomposition.evaluation.contracts import (
     SemanticFindingCategory,
     SemanticFindingCode,
     SemanticFindingSeverity,
+    TransformationSemanticCriterion,
+    TransformationSemanticEvaluationRequest,
 )
 from task_decomposition.evaluation.rubric import (
     SEMANTIC_EVALUATION_RUBRIC,
     SEMANTIC_EVALUATION_RUBRIC_VERSION,
+    TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC,
+    TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION,
 )
 
 __all__ = [
     "SEMANTIC_EVALUATION_RUBRIC",
     "SEMANTIC_EVALUATION_RUBRIC_VERSION",
+    "TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC",
+    "TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION",
     "SemanticEvaluation",
     "SemanticEvaluationDecision",
     "SemanticEvaluationRequest",
@@ -26,4 +32,6 @@ __all__ = [
     "SemanticFindingCategory",
     "SemanticFindingCode",
     "SemanticFindingSeverity",
+    "TransformationSemanticCriterion",
+    "TransformationSemanticEvaluationRequest",
 ]

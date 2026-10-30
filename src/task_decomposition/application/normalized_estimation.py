@@ -103,6 +103,7 @@ def estimate_transformation(
     task_decomposition,
     provider,
     *,
+    evaluator=None,
     transformation_context: dict[str, str] | None = None,
     model: str | None = None,
     max_output_tokens: int | None = None,
@@ -154,6 +155,7 @@ def estimate_transformation(
             activities,
             estimation,
             responses,
+            evaluator=evaluator,
             normalized_work_estimates=estimates,
             estimation_assumptions=(NORMALIZED_ESTIMATE_ASSUMPTION,),
         )

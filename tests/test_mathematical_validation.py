@@ -10,7 +10,6 @@ from task_decomposition import (
     EffortQuantity,
     EffortUnit,
     IncompatibleEffortUnitError,
-    InvalidDenominatorError,
     NormalizedAccountingInput,
     RatioBasis,
     RatioBasisError,
@@ -134,9 +133,11 @@ def test_known_answer_matrix(
     assert result.effect is effect
 
 
-def test_full_removal_requires_positive_net_work_for_augmentation():
-    with pytest.raises(InvalidDenominatorError):
-        account_absolute(absolute_input("100", "0", "100", ("0", "0")))
+def test_full_removal_reports_undefined_augmentation_multiplier():
+    result = account_absolute(absolute_input("100", "0", "100", ("0", "0")))
+    assert result.w1 == Decimal("0")
+    assert result.net_substitution_ratio == Decimal("1")
+    assert result.net_augmentation_multiplier is None
 
     result = account_absolute(absolute_input("100", "0", "100", ("20", "0")))
     assert result.w1 == Decimal("20")

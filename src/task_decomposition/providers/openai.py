@@ -35,6 +35,7 @@ from task_decomposition.evaluation.contracts import (
 from task_decomposition.providers._semantic import (
     SEMANTIC_EVALUATION_STAGE,
     parse_semantic_evaluation,
+    semantic_evaluation_prompt,
     semantic_payload,
 )
 from task_decomposition.providers._shared import (
@@ -51,7 +52,6 @@ from task_decomposition.providers.prompts import (
     OPERATIONAL_DECOMPOSITION_PROMPT,
     OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT,
     RETAIN_REMOVE_PROMPT,
-    SEMANTIC_EVALUATION_PROMPT,
 )
 from task_decomposition.tracing import TraceLogger
 
@@ -268,7 +268,7 @@ class OpenAIDecompositionProvider:
         self.tracer = tracer or TraceLogger.from_env()
 
     def evaluate(self, request: SemanticEvaluationRequest) -> SemanticEvaluation:
-        """Evaluate a complete operational decomposition with OpenAI."""
+        """Evaluate a complete baseline or transformation with OpenAI."""
 
         with self.tracer.session(request.correlation_id or request.request_id):
             return self._evaluate_inner(request)
@@ -277,7 +277,7 @@ class OpenAIDecompositionProvider:
         """Run the evaluation request and normalize structured-output failures."""
         payload = semantic_payload(request)
         messages: list[Any] = [
-            {"role": "system", "content": SEMANTIC_EVALUATION_PROMPT},
+            {"role": "system", "content": semantic_evaluation_prompt(request)},
             {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
         ]
         output_tokens = self.config.output_tokens_for(SEMANTIC_EVALUATION_STAGE)

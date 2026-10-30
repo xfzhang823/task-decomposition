@@ -85,7 +85,9 @@ class CanonicalTransformationImpact(BaseModel):
         net_remaining_work_ratio: ``w1 / w0``.
         net_substitution_ratio: ``1 - net_remaining_work_ratio``; this is not
             the same as gross removed work ratio when support work is present.
-        net_augmentation_multiplier: ``1 / net_remaining_work_ratio``.
+        net_augmentation_multiplier: ``1 / net_remaining_work_ratio`` when
+            ``w1`` is positive; ``None`` when ``w1`` is zero because the
+            multiplier is undefined.
         effect: Tolerance-aware classification derived from ``w0`` and ``w1``.
         provenance_refs: Portable references supporting the result inputs or
             classifications.
@@ -107,7 +109,7 @@ class CanonicalTransformationImpact(BaseModel):
     added_human_work_ratio: Decimal
     net_remaining_work_ratio: Decimal
     net_substitution_ratio: Decimal
-    net_augmentation_multiplier: Decimal
+    net_augmentation_multiplier: Decimal | None
     effect: EffectClassification
     provenance_refs: tuple[ProvenanceRef, ...] = ()
 

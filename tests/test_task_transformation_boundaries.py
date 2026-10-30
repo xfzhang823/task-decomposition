@@ -29,8 +29,12 @@ from task_decomposition import (
 from task_decomposition.evaluation.contracts import (
     SemanticEvaluation,
     SemanticEvaluationDecision,
+    TransformationSemanticEvaluationRequest,
 )
-from task_decomposition.evaluation.rubric import SEMANTIC_EVALUATION_RUBRIC_VERSION
+from task_decomposition.evaluation.rubric import (
+    SEMANTIC_EVALUATION_RUBRIC_VERSION,
+    TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION,
+)
 
 TASK = TaskReference(
     task_id="task-boundary",
@@ -143,7 +147,11 @@ class BoundaryProvider:
     def evaluate(self, request):
         return SemanticEvaluation(
             decision=SemanticEvaluationDecision.ACCEPT,
-            rubric_version=SEMANTIC_EVALUATION_RUBRIC_VERSION,
+            rubric_version=(
+                TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION
+                if isinstance(request, TransformationSemanticEvaluationRequest)
+                else SEMANTIC_EVALUATION_RUBRIC_VERSION
+            ),
         )
 
     def classify_retain_remove(self, request):
@@ -224,4 +232,104 @@ class BoundaryProvider:
                     ),
                 ),
             ),
+        )
+
+
+class AllRemovedVerificationProvider(BoundaryProvider):
+    def classify_retain_remove(self, request):
+        self.calls.append("retain-remove")
+        return self._response(
+            ProviderStage.RETAIN_REMOVE_CLASSIFICATION,
+            RetainRemoveClassification(
+                task=TASK,
+                classified_subtasks=tuple(
+                    ClassifiedSubtask(
+                        subtask_id=f"sub-{index}",
+                        classification=TransformationClassification.REMOVE,
+                    )
+                    for index in range(1, 4)
+                ),
+            ),
+        )
+
+    def synthesize_agentic_tasks(self, request):
+        self.calls.append("synthesis")
+        return self._response(
+            ProviderStage.AGENTIC_TASK_SYNTHESIS,
+            AgenticTaskSynthesis(
+                task=TASK,
+                agentic_tasks=(
+                    AgenticTask(
+                        agentic_task_id="AGT001",
+                        agentic_task_name="Complete account update",
+                        description="Complete the delegated account update.",
+                        source_subtask_ids=("sub-1", "sub-2", "sub-3"),
+                        required_inputs=("account request",),
+                        expected_outputs=("updated account",),
+                    ),
+                ),
+            ),
+        )
+
+    def model_human_agent_activities(self, request):
+        self.calls.append("activities")
+        return self._response(
+            ProviderStage.HUMAN_AGENT_ACTIVITY_MODELING,
+            HumanAgentActivityModel(
+                task=TASK,
+                activities=(
+                    HumanAgentActivity(
+                        activity_id="HAA001",
+                        activity_name="Verify account update",
+                        description="Review the agent's completed account update.",
+                        category=HumanAgentActivityCategory.AI_VERIFICATION,
+                        agentic_task_ids=("AGT001",),
+                        trigger="The agent produces an updated account.",
+                        expected_action="Approve or correct the update.",
+                    ),
+                ),
+            ),
+        )
+
+    def estimate_activity_effort(self, request):
+        self.calls.append("activity-effort")
+        return self._response(
+            ProviderStage.ACTIVITY_EFFORT_ESTIMATION,
+            ActivityEffortEstimation(
+                task=TASK,
+                activity_effort_estimates=(
+                    ActivityEffortEstimate(
+                        activity_id="HAA001",
+                        expected_occurrences_per_parent_output=1,
+                        active_effort_per_occurrence=amount(5),
+                        expected_effort_per_parent_output=amount(5),
+                        rationale="One required verification per request.",
+                    ),
+                ),
+            ),
+        )
+
+
+class AllRemovedAutonomousProvider(AllRemovedVerificationProvider):
+    def model_human_agent_activities(self, request):
+        self.calls.append("activities")
+        return self._response(
+            ProviderStage.HUMAN_AGENT_ACTIVITY_MODELING,
+            HumanAgentActivityModel(task=TASK, activities=()),
+        )
+
+    def estimate_activity_effort(self, request):
+        self.calls.append("activity-effort")
+        return self._response(
+            ProviderStage.ACTIVITY_EFFORT_ESTIMATION,
+            ActivityEffortEstimation(task=TASK, activity_effort_estimates=()),
+        )
+
+
+class MissingActivityEffortProvider(AllRemovedVerificationProvider):
+    def estimate_activity_effort(self, request):
+        self.calls.append("activity-effort")
+        return self._response(
+            ProviderStage.ACTIVITY_EFFORT_ESTIMATION,
+            ActivityEffortEstimation(task=TASK, activity_effort_estimates=()),
         )

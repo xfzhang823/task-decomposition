@@ -29,7 +29,6 @@ from task_decomposition.domain.allocation import DEFAULT_TOLERANCE
 from task_decomposition.errors import (
     AccountingInvariantError,
     IncompatibleEffortUnitError,
-    InvalidDenominatorError,
     RatioBasisError,
     ZeroBaselineError,
 )
@@ -144,10 +143,6 @@ def account_normalized(
     ai_interaction, ai_verification = support_values
     added = ai_interaction + ai_verification
     w1 = retained + added
-    if w1 == 0:
-        raise InvalidDenominatorError(
-            "net augmentation multiplier is undefined when W1 is zero"
-        )
     return CanonicalTransformationImpact(
         accounting_mode=AccountingMode.NORMALIZED,
         baseline_human_effort=None,
@@ -163,7 +158,7 @@ def account_normalized(
         added_human_work_ratio=added,
         net_remaining_work_ratio=w1,
         net_substitution_ratio=1 - w1,
-        net_augmentation_multiplier=1 / w1,
+        net_augmentation_multiplier=1 / w1 if w1 else None,
         effect=classify_effect(w0, w1, tolerance),
     )
 
@@ -218,10 +213,6 @@ def account_absolute(
     )
     added = ai_interaction + ai_verification
     w1 = retained + added
-    if w1 == 0:
-        raise InvalidDenominatorError(
-            "net augmentation multiplier is undefined when W1 is zero"
-        )
     unit = baseline.unit
     period = baseline.time_basis
 
@@ -243,7 +234,7 @@ def account_absolute(
         added_human_work_ratio=added / w0,
         net_remaining_work_ratio=w1 / w0,
         net_substitution_ratio=1 - (w1 / w0),
-        net_augmentation_multiplier=w0 / w1,
+        net_augmentation_multiplier=w0 / w1 if w1 else None,
         effect=classify_effect(w0, w1, tolerance),
     )
 

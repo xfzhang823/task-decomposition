@@ -1,0 +1,993 @@
+{
+  "run_id": "cde43a77da88",
+  "timestamp": "2026-10-30T00:20:17.218053+00:00",
+  "case_key": "saas_customer_support",
+  "provider": "OpenAI",
+  "model": "gpt-6-luna",
+  "stage": "transformation",
+  "validation_status": "passed",
+  "assumptions": [
+    "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity."
+  ],
+  "result": {
+    "task_decomposition": {
+      "operational_decomposition": {
+        "task": {
+          "task_id": null,
+          "task_name": "Triage a software customer support ticket",
+          "task_description": "You work in customer support at a B2B software company. A customer reports that several employees can't access their reporting dashboard after a recent software update. They've included a short description, screenshots, and roughly when the problem started. You can look up their account information, previous support tickets, product documentation, and known incidents. Your job is to figure out what kind of issue this is, how serious it might be, and how it's affecting the customer's business. Some tickets are straightforward, while others may involve widespread outages, unclear symptoms, or problems that need specialist attention. Decide who should handle the issue, make sure the ticket gets to the right team with the relevant information, and let the customer know what happens next. You're responsible for triaging the ticket, not troubleshooting or resolving the underlying problem."
+        },
+        "operational_subtasks": [
+          {
+            "sequence_index": 1,
+            "subtask_id": "SUB001",
+            "subtask_name": "Review the reported symptoms and evidence",
+            "description": "Read the ticket description and review its screenshots and reported timing to identify the observed behavior and information already provided.",
+            "relative_effort_weight": "0.1785714285714285714285714286",
+            "effort_rationale": "Assume one routine review per ticket; allow a few minutes to compare the short description with the supplied images and onset information. This is the initial evidence review, not a technical investigation.",
+            "depends_on": [],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 2,
+            "subtask_id": "SUB002",
+            "subtask_name": "Review account and ticket history",
+            "description": "Check the customer account and previous support tickets for relevant context about the affected users, service, and similar prior reports.",
+            "relative_effort_weight": "0.1428571428571428571428571429",
+            "effort_rationale": "Assume one account-and-history lookup per ticket, taking about 4 minutes when records are available. This gathers customer context once for use in later assessments; it does not repeat review of the current report.",
+            "depends_on": [],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 3,
+            "subtask_id": "SUB003",
+            "subtask_name": "Check product guidance and known incidents",
+            "description": "Compare the reported behavior and timing with relevant product documentation and known incident information.",
+            "relative_effort_weight": "0.2142857142857142857142857143",
+            "effort_rationale": "Assume one targeted search per ticket, averaging about 6 minutes across routine cases; an evident match may take less, while a limited search takes longer. This is evidence gathering, not troubleshooting.",
+            "depends_on": [
+              "SUB001"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 4,
+            "subtask_id": "SUB004",
+            "subtask_name": "Seek clarification when material details are missing",
+            "description": "When the available evidence leaves a material uncertainty about symptoms or affected scope, ask the customer a focused question and assess any reply received during triage.",
+            "relative_effort_weight": "0.03571428571428571428571428571",
+            "effort_rationale": "Model assumption: this is needed for about 1 in 5 tickets, with roughly 5 minutes of active effort per occurrence to identify the gap, contact the customer, and use any timely reply; waiting is excluded. Routine cases require no clarification.",
+            "depends_on": [
+              "SUB001"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 5,
+            "subtask_id": "SUB005",
+            "subtask_name": "Determine the issue category",
+            "description": "Use the reported and gathered evidence to determine the likely issue type, such as an access issue, product problem, or known incident, and note material uncertainty.",
+            "relative_effort_weight": "0.1071428571428571428571428571",
+            "effort_rationale": "Assume one classification decision per ticket, averaging about 3 minutes of incremental analysis using findings already gathered. Do not repeat the underlying record or product-information review.",
+            "depends_on": [
+              "SUB001",
+              "SUB003"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 6,
+            "subtask_id": "SUB006",
+            "subtask_name": "Assess seriousness and customer impact",
+            "description": "Assess the apparent scope and business effect of the issue, including the number of affected employees and any relevant account context or known incident information.",
+            "relative_effort_weight": "0.1428571428571428571428571429",
+            "effort_rationale": "Assume one impact assessment per ticket, averaging about 4 minutes to weigh existing evidence and determine apparent seriousness. This is an additional assessment, not a second evidence-gathering pass.",
+            "depends_on": [
+              "SUB002",
+              "SUB003",
+              "SUB005"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 7,
+            "subtask_id": "SUB007",
+            "subtask_name": "Select the handling team and route the ticket",
+            "description": "Choose the appropriate team or specialist based on the issue category and seriousness, then route the ticket with a concise summary of the symptoms, impact, relevant evidence, and unresolved uncertainty.",
+            "relative_effort_weight": "0.1071428571428571428571428571",
+            "effort_rationale": "Assume one routing and handoff per ticket, averaging about 3 minutes using the findings already available. This covers selecting the recipient and entering or transferring relevant information, not downstream investigation or resolution.",
+            "depends_on": [
+              "SUB005",
+              "SUB006"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 8,
+            "subtask_id": "SUB008",
+            "subtask_name": "Tell the customer what happens next",
+            "description": "Send the customer a concise update describing the triage disposition, the team handling the ticket, and the next expected step without representing that the underlying problem has been resolved.",
+            "relative_effort_weight": "0.07142857142857142857142857143",
+            "effort_rationale": "Assume one customer update per ticket, averaging about 2 minutes to prepare and send using the routing decision and existing findings. Any separate wait for a reply is excluded.",
+            "depends_on": [
+              "SUB007"
+            ],
+            "provenance_refs": []
+          }
+        ],
+        "parent_output_contract": {
+          "output_unit": "One triaged customer support ticket",
+          "completion_boundary": "The ticket's issue category and apparent seriousness and business impact have been assessed, the ticket has been routed to the selected handling team with relevant information, and the customer has been told what happens next.",
+          "scope_exclusions": [
+            "Troubleshooting or resolving the underlying software problem",
+            "The receiving team's investigation or specialist work",
+            "Subsequent approvals, remediation, or customer follow-up beyond the triage update"
+          ],
+          "source": "application_inferred",
+          "provenance_refs": []
+        },
+        "baseline_effort_estimates": [
+          {
+            "subtask_id": "SUB001",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "5",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "5",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Model planning assumption: one short review per ticket, allowing time to compare the description, screenshots, and reported onset. This records the initial evidence without duplicating later research.",
+            "assumptions": [
+              "Typical ticket includes a short report, screenshots, and approximate onset as described."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB002",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Model planning assumption: one account and prior-ticket lookup takes about 4 active minutes when records are accessible. The gathered context is reused in impact assessment.",
+            "assumptions": [
+              "Relevant account and ticket records are available through the support system."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB003",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "6",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "6",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Model planning assumption: one targeted search of documentation and known incidents takes about 6 active minutes for a representative case. Search complexity varies, but this does not include troubleshooting.",
+            "assumptions": [
+              "Product documentation and known incident information can be searched by support staff."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB004",
+            "expected_occurrences_per_parent_output": "0.2",
+            "active_effort_per_occurrence": {
+              "value": "5",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "1.0",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Model assumption: a focused clarification is needed for about 20% of tickets when symptoms or affected scope remain materially unclear; each occurrence takes about 5 active minutes for the question and use of any timely reply. Passive waiting is excluded.",
+            "assumptions": [
+              "Clarification is limited to material gaps that affect triage."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB005",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "3",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "3",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Model planning assumption: one issue-category decision takes about 3 incremental minutes using the report and research already reviewed. The estimate excludes repeating those reviews.",
+            "assumptions": [
+              "Most tickets can be categorized from the available evidence without technical troubleshooting."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB006",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Model planning assumption: one assessment takes about 4 incremental minutes to judge apparent scope and business effect from existing findings. Account history and incident evidence are not gathered again.",
+            "assumptions": [
+              "The ticket and account records provide enough information for an initial impact assessment."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB007",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "3",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "3",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Model planning assumption: selecting a destination and passing along a concise, relevant summary takes about 3 active minutes using findings already available. No downstream team work is included.",
+            "assumptions": [
+              "The support organization has a usable team or specialist routing process."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB008",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "2",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "2",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Model planning assumption: one concise status message takes about 2 active minutes to prepare and send from the existing triage disposition. Waiting for any customer response is excluded.",
+            "assumptions": [
+              "The customer can be contacted through the support ticket system."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          }
+        ],
+        "provenance_refs": []
+      },
+      "parent_output_contract": {
+        "output_unit": "One triaged customer support ticket",
+        "completion_boundary": "The ticket's issue category and apparent seriousness and business impact have been assessed, the ticket has been routed to the selected handling team with relevant information, and the customer has been told what happens next.",
+        "scope_exclusions": [
+          "Troubleshooting or resolving the underlying software problem",
+          "The receiving team's investigation or specialist work",
+          "Subsequent approvals, remediation, or customer follow-up beyond the triage update"
+        ],
+        "source": "application_inferred",
+        "provenance_refs": []
+      },
+      "baseline_effort_estimation": {
+        "task": {
+          "task_id": null,
+          "task_name": "Triage a software customer support ticket",
+          "task_description": "You work in customer support at a B2B software company. A customer reports that several employees can't access their reporting dashboard after a recent software update. They've included a short description, screenshots, and roughly when the problem started. You can look up their account information, previous support tickets, product documentation, and known incidents. Your job is to figure out what kind of issue this is, how serious it might be, and how it's affecting the customer's business. Some tickets are straightforward, while others may involve widespread outages, unclear symptoms, or problems that need specialist attention. Decide who should handle the issue, make sure the ticket gets to the right team with the relevant information, and let the customer know what happens next. You're responsible for triaging the ticket, not troubleshooting or resolving the underlying problem."
+        },
+        "estimates": [
+          {
+            "subtask_id": "SUB001",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "5",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "5",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Model planning assumption: one short review per ticket, allowing time to compare the description, screenshots, and reported onset. This records the initial evidence without duplicating later research.",
+            "assumptions": [
+              "Typical ticket includes a short report, screenshots, and approximate onset as described."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB002",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Model planning assumption: one account and prior-ticket lookup takes about 4 active minutes when records are accessible. The gathered context is reused in impact assessment.",
+            "assumptions": [
+              "Relevant account and ticket records are available through the support system."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB003",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "6",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "6",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Model planning assumption: one targeted search of documentation and known incidents takes about 6 active minutes for a representative case. Search complexity varies, but this does not include troubleshooting.",
+            "assumptions": [
+              "Product documentation and known incident information can be searched by support staff."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB004",
+            "expected_occurrences_per_parent_output": "0.2",
+            "active_effort_per_occurrence": {
+              "value": "5",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "1.0",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Model assumption: a focused clarification is needed for about 20% of tickets when symptoms or affected scope remain materially unclear; each occurrence takes about 5 active minutes for the question and use of any timely reply. Passive waiting is excluded.",
+            "assumptions": [
+              "Clarification is limited to material gaps that affect triage."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB005",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "3",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "3",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Model planning assumption: one issue-category decision takes about 3 incremental minutes using the report and research already reviewed. The estimate excludes repeating those reviews.",
+            "assumptions": [
+              "Most tickets can be categorized from the available evidence without technical troubleshooting."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB006",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Model planning assumption: one assessment takes about 4 incremental minutes to judge apparent scope and business effect from existing findings. Account history and incident evidence are not gathered again.",
+            "assumptions": [
+              "The ticket and account records provide enough information for an initial impact assessment."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB007",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "3",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "3",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Model planning assumption: selecting a destination and passing along a concise, relevant summary takes about 3 active minutes using findings already available. No downstream team work is included.",
+            "assumptions": [
+              "The support organization has a usable team or specialist routing process."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB008",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "2",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "2",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Model planning assumption: one concise status message takes about 2 active minutes to prepare and send from the existing triage disposition. Waiting for any customer response is excluded.",
+            "assumptions": [
+              "The customer can be contacted through the support ticket system."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          }
+        ],
+        "total_effort_per_parent_output": {
+          "value": "28.0",
+          "unit": "minutes",
+          "time_basis": "per_operation"
+        },
+        "provenance_refs": []
+      },
+      "baseline_effort_allocations": [
+        {
+          "subtask_id": "SUB001",
+          "effort": null,
+          "weight_ratio": "0.1785714285714285714285714286",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB002",
+          "effort": null,
+          "weight_ratio": "0.1428571428571428571428571429",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB003",
+          "effort": null,
+          "weight_ratio": "0.2142857142857142857142857143",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB004",
+          "effort": null,
+          "weight_ratio": "0.03571428571428571428571428571",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB005",
+          "effort": null,
+          "weight_ratio": "0.1071428571428571428571428571",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB006",
+          "effort": null,
+          "weight_ratio": "0.1428571428571428571428571429",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB007",
+          "effort": null,
+          "weight_ratio": "0.1071428571428571428571428571",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB008",
+          "effort": null,
+          "weight_ratio": "0.07142857142857142857142857143",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        }
+      ],
+      "provenance_refs": [],
+      "provider_provenance": [
+        {
+          "provider_id": "openai",
+          "stage": "operational_decomposition",
+          "model_id": "gpt-6-luna",
+          "request_id": null,
+          "references": []
+        }
+      ]
+    },
+    "retain_remove_classification": {
+      "task": {
+        "task_id": null,
+        "task_name": "Triage a software customer support ticket",
+        "task_description": "You work in customer support at a B2B software company. A customer reports that several employees can't access their reporting dashboard after a recent software update. They've included a short description, screenshots, and roughly when the problem started. You can look up their account information, previous support tickets, product documentation, and known incidents. Your job is to figure out what kind of issue this is, how serious it might be, and how it's affecting the customer's business. Some tickets are straightforward, while others may involve widespread outages, unclear symptoms, or problems that need specialist attention. Decide who should handle the issue, make sure the ticket gets to the right team with the relevant information, and let the customer know what happens next. You're responsible for triaging the ticket, not troubleshooting or resolving the underlying problem."
+      },
+      "classified_subtasks": [
+        {
+          "subtask_id": "SUB001",
+          "subtask_name": "Review the reported symptoms and evidence",
+          "sequence_index": 1,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1785714285714285714285714286",
+          "rationale": "AI can review ticket text, screenshots, and timing to identify the reported behavior and evidence with limited recurring human execution."
+        },
+        {
+          "subtask_id": "SUB002",
+          "subtask_name": "Review account and ticket history",
+          "sequence_index": 2,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1428571428571428571428571429",
+          "rationale": "Integrated search can retrieve account details and prior tickets and summarize relevant customer context with limited recurring human execution."
+        },
+        {
+          "subtask_id": "SUB003",
+          "subtask_name": "Check product guidance and known incidents",
+          "sequence_index": 3,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.2142857142857142857142857143",
+          "rationale": "Search and AI comparison tools can match reported symptoms and timing against product guidance and known incidents with limited recurring human execution."
+        },
+        {
+          "subtask_id": "SUB004",
+          "subtask_name": "Seek clarification when material details are missing",
+          "sequence_index": 4,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.03571428571428571428571428571",
+          "rationale": "AI can identify material information gaps, ask focused questions, and assess customer replies with limited recurring human execution."
+        },
+        {
+          "subtask_id": "SUB005",
+          "subtask_name": "Determine the issue category",
+          "sequence_index": 5,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1071428571428571428571428571",
+          "rationale": "AI can categorize the issue from the reported and gathered evidence while noting uncertainty with limited recurring human execution."
+        },
+        {
+          "subtask_id": "SUB006",
+          "subtask_name": "Assess seriousness and customer impact",
+          "sequence_index": 6,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1428571428571428571428571429",
+          "rationale": "AI can assess apparent scope and business effect from affected-user counts, account context, and incident information with limited recurring human execution."
+        },
+        {
+          "subtask_id": "SUB007",
+          "subtask_name": "Select the handling team and route the ticket",
+          "sequence_index": 7,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1071428571428571428571428571",
+          "rationale": "AI classification and workflow routing can select a handling team and transfer a concise evidence-based summary with limited recurring human execution."
+        },
+        {
+          "subtask_id": "SUB008",
+          "subtask_name": "Tell the customer what happens next",
+          "sequence_index": 8,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.07142857142857142857142857143",
+          "rationale": "AI can prepare and send a concise customer update from the triage disposition and next step with limited recurring human execution."
+        }
+      ],
+      "provenance_refs": []
+    },
+    "agentic_task_synthesis": {
+      "task": {
+        "task_id": null,
+        "task_name": "Triage a software customer support ticket",
+        "task_description": "You work in customer support at a B2B software company. A customer reports that several employees can't access their reporting dashboard after a recent software update. They've included a short description, screenshots, and roughly when the problem started. You can look up their account information, previous support tickets, product documentation, and known incidents. Your job is to figure out what kind of issue this is, how serious it might be, and how it's affecting the customer's business. Some tickets are straightforward, while others may involve widespread outages, unclear symptoms, or problems that need specialist attention. Decide who should handle the issue, make sure the ticket gets to the right team with the relevant information, and let the customer know what happens next. You're responsible for triaging the ticket, not troubleshooting or resolving the underlying problem."
+      },
+      "agentic_tasks": [
+        {
+          "agentic_task_id": "AGT001",
+          "agentic_task_name": "Gather and clarify ticket evidence",
+          "description": "Review the reported symptoms, screenshots, and timing; assemble relevant account and prior-ticket context; compare the report with product guidance and known incidents; and, when a material uncertainty remains, ask a focused clarification question and assess any reply received during triage.",
+          "source_subtask_ids": [
+            "SUB001",
+            "SUB002",
+            "SUB003",
+            "SUB004"
+          ],
+          "required_inputs": [
+            "Customer ticket description, screenshots, and reported timing",
+            "Customer account information and previous support tickets",
+            "Relevant product documentation and known incident information"
+          ],
+          "expected_outputs": [
+            "Concise summary of reported behavior and relevant evidence",
+            "Relevant account, ticket-history, product-guidance, and incident context",
+            "Clarification questions and any received information addressing material gaps"
+          ]
+        },
+        {
+          "agentic_task_id": "AGT002",
+          "agentic_task_name": "Assess issue category and customer impact",
+          "description": "Use the reported and gathered evidence to determine the likely issue category and note material uncertainty. Assess apparent seriousness, scope, and business effect, including affected employees and relevant account or incident context.",
+          "source_subtask_ids": [
+            "SUB005",
+            "SUB006"
+          ],
+          "required_inputs": [
+            "Reported symptoms and supporting evidence",
+            "Relevant account and ticket-history context",
+            "Relevant product guidance and known incident information",
+            "Clarification information received during triage, if any"
+          ],
+          "expected_outputs": [
+            "Likely issue category and any material uncertainty",
+            "Assessment of apparent seriousness, scope, and customer business impact"
+          ]
+        },
+        {
+          "agentic_task_id": "AGT003",
+          "agentic_task_name": "Select handling team and route the ticket",
+          "description": "Select the appropriate handling team or specialist based on the issue category and apparent seriousness, then route the ticket with a concise summary of symptoms, impact, relevant evidence, and unresolved uncertainty.",
+          "source_subtask_ids": [
+            "SUB007"
+          ],
+          "required_inputs": [
+            "Issue category and material uncertainty",
+            "Assessment of apparent seriousness and customer impact",
+            "Relevant symptoms, evidence, and customer context"
+          ],
+          "expected_outputs": [
+            "Selected handling team or specialist",
+            "Routed ticket containing a concise summary of symptoms, impact, relevant evidence, and unresolved uncertainty"
+          ]
+        },
+        {
+          "agentic_task_id": "AGT004",
+          "agentic_task_name": "Update the customer on next steps",
+          "description": "Send the customer a concise update describing the triage disposition, the team handling the ticket, and the next expected step without implying that the underlying problem has been resolved.",
+          "source_subtask_ids": [
+            "SUB008"
+          ],
+          "required_inputs": [
+            "Triage disposition and selected handling team",
+            "Next expected step for the customer"
+          ],
+          "expected_outputs": [
+            "Customer update describing the triage disposition, handling team, and next expected step"
+          ]
+        }
+      ],
+      "provenance_refs": []
+    },
+    "human_agent_activity_modeling": {
+      "task": {
+        "task_id": null,
+        "task_name": "Triage a software customer support ticket",
+        "task_description": "You work in customer support at a B2B software company. A customer reports that several employees can't access their reporting dashboard after a recent software update. They've included a short description, screenshots, and roughly when the problem started. You can look up their account information, previous support tickets, product documentation, and known incidents. Your job is to figure out what kind of issue this is, how serious it might be, and how it's affecting the customer's business. Some tickets are straightforward, while others may involve widespread outages, unclear symptoms, or problems that need specialist attention. Decide who should handle the issue, make sure the ticket gets to the right team with the relevant information, and let the customer know what happens next. You're responsible for triaging the ticket, not troubleshooting or resolving the underlying problem."
+      },
+      "activities": [
+        {
+          "activity_id": "HA001",
+          "activity_name": "Review and validate the agent's triage disposition",
+          "description": "Review the agent's evidence summary, issue category, impact assessment, routing, and customer update as one connected triage disposition. Assess whether the conclusions and communication are supported by the reported information, account context, and cited product or incident evidence; pay particular attention to material uncertainty or conflicting evidence. Correct or follow up on material errors before relying on the disposition. This review supports the support agent's ownership of the customer response and does not require formal approval or repeat the agent's research.",
+          "category": "AI_VERIFICATION",
+          "agentic_task_ids": [
+            "AGT001",
+            "AGT002",
+            "AGT003",
+            "AGT004"
+          ],
+          "trigger": "For each triaged ticket, when the agent has produced its findings, routing, and customer update and those outputs are to be accepted as completing triage.",
+          "expected_action": "Evaluate the agent's outputs for consistency, evidential support, appropriate handling-team selection, and accurate next-step messaging; correct or request revision when material issues are found."
+        }
+      ],
+      "provenance_refs": []
+    },
+    "activity_effort_estimation": {
+      "task": {
+        "task_id": null,
+        "task_name": "Triage a software customer support ticket",
+        "task_description": "You work in customer support at a B2B software company. A customer reports that several employees can't access their reporting dashboard after a recent software update. They've included a short description, screenshots, and roughly when the problem started. You can look up their account information, previous support tickets, product documentation, and known incidents. Your job is to figure out what kind of issue this is, how serious it might be, and how it's affecting the customer's business. Some tickets are straightforward, while others may involve widespread outages, unclear symptoms, or problems that need specialist attention. Decide who should handle the issue, make sure the ticket gets to the right team with the relevant information, and let the customer know what happens next. You're responsible for triaging the ticket, not troubleshooting or resolving the underlying problem."
+      },
+      "activity_effort_estimates": [
+        {
+          "activity_id": "HA001",
+          "expected_occurrences_per_parent_output": "1",
+          "active_effort_per_occurrence": {
+            "value": "5",
+            "unit": "minutes",
+            "time_basis": "per_operation"
+          },
+          "expected_effort_per_parent_output": {
+            "value": "5",
+            "unit": "minutes",
+            "time_basis": "per_operation"
+          },
+          "rationale": "One integrated review per ticket of the agent's evidence summary, classification, impact assessment, routing, and customer update. Five active minutes allows the support agent to check consistency and evidential support, paying particular attention to uncertainty or conflicts, and to make or request any material correction. This reuses the agent's gathered information rather than repeating research.",
+          "assumptions": [
+            "The agent presents its findings and proposed customer update together for review.",
+            "Most tickets require review but not extensive correction; troubleshooting and downstream team work are outside the triage boundary."
+          ],
+          "provenance_refs": []
+        }
+      ],
+      "provenance_refs": []
+    },
+    "baseline_calibration_source": "baseline_bottom_up",
+    "accounting": {
+      "accounting_mode": "normalized",
+      "baseline_human_effort": null,
+      "retained_human_work": null,
+      "gross_removed_work": null,
+      "ai_interaction_work": null,
+      "ai_verification_work": null,
+      "added_human_work": null,
+      "net_human_effort": null,
+      "w0": "1",
+      "w1": "0.1785714285714285714285714286",
+      "gross_removed_work_ratio": "1.000000000000000000000000000",
+      "added_human_work_ratio": "0.1785714285714285714285714286",
+      "net_remaining_work_ratio": "0.1785714285714285714285714286",
+      "net_substitution_ratio": "0.8214285714285714285714285714",
+      "net_augmentation_multiplier": "5.599999999999999999999999999",
+      "effect": "gain",
+      "provenance_refs": []
+    },
+    "provenance_refs": [],
+    "provider_provenance": [
+      {
+        "provider_id": "openai",
+        "stage": "operational_decomposition",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      },
+      {
+        "provider_id": "openai",
+        "stage": "retain_remove_classification",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      },
+      {
+        "provider_id": "openai",
+        "stage": "agentic_task_synthesis",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      },
+      {
+        "provider_id": "openai",
+        "stage": "human_agent_activity_modeling",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      },
+      {
+        "provider_id": "openai",
+        "stage": "activity_effort_estimation",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      }
+    ],
+    "normalized_work_estimates": [
+      {
+        "subtask_id": "SUB001",
+        "subtask_name": "Review the reported symptoms and evidence",
+        "baseline_work_units": "17.85714285714285714285714286",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "17.85714285714285714285714286",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "AI can review ticket text, screenshots, and timing to identify the reported behavior and evidence with limited recurring human execution."
+      },
+      {
+        "subtask_id": "SUB002",
+        "subtask_name": "Review account and ticket history",
+        "baseline_work_units": "14.28571428571428571428571429",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "14.28571428571428571428571429",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Integrated search can retrieve account details and prior tickets and summarize relevant customer context with limited recurring human execution."
+      },
+      {
+        "subtask_id": "SUB003",
+        "subtask_name": "Check product guidance and known incidents",
+        "baseline_work_units": "21.42857142857142857142857143",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "21.42857142857142857142857143",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Search and AI comparison tools can match reported symptoms and timing against product guidance and known incidents with limited recurring human execution."
+      },
+      {
+        "subtask_id": "SUB004",
+        "subtask_name": "Seek clarification when material details are missing",
+        "baseline_work_units": "3.571428571428571428571428571",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "3.571428571428571428571428571",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "AI can identify material information gaps, ask focused questions, and assess customer replies with limited recurring human execution."
+      },
+      {
+        "subtask_id": "SUB005",
+        "subtask_name": "Determine the issue category",
+        "baseline_work_units": "10.71428571428571428571428571",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "10.71428571428571428571428571",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "AI can categorize the issue from the reported and gathered evidence while noting uncertainty with limited recurring human execution."
+      },
+      {
+        "subtask_id": "SUB006",
+        "subtask_name": "Assess seriousness and customer impact",
+        "baseline_work_units": "14.28571428571428571428571429",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "14.28571428571428571428571429",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "AI can assess apparent scope and business effect from affected-user counts, account context, and incident information with limited recurring human execution."
+      },
+      {
+        "subtask_id": "SUB007",
+        "subtask_name": "Select the handling team and route the ticket",
+        "baseline_work_units": "10.71428571428571428571428571",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "10.71428571428571428571428571",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "AI classification and workflow routing can select a handling team and transfer a concise evidence-based summary with limited recurring human execution."
+      },
+      {
+        "subtask_id": "SUB008",
+        "subtask_name": "Tell the customer what happens next",
+        "baseline_work_units": "7.142857142857142857142857143",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "7.142857142857142857142857143",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "AI can prepare and send a concise customer update from the triage disposition and next step with limited recurring human execution."
+      }
+    ],
+    "estimation_assumptions": [
+      "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity."
+    ]
+  },
+  "normalized_estimates": [
+    {
+      "subtask_id": "SUB001",
+      "subtask_name": "Review the reported symptoms and evidence",
+      "baseline_work_units": "17.85714285714285714285714286",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "17.85714285714285714285714286",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "AI can review ticket text, screenshots, and timing to identify the reported behavior and evidence with limited recurring human execution."
+    },
+    {
+      "subtask_id": "SUB002",
+      "subtask_name": "Review account and ticket history",
+      "baseline_work_units": "14.28571428571428571428571429",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "14.28571428571428571428571429",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Integrated search can retrieve account details and prior tickets and summarize relevant customer context with limited recurring human execution."
+    },
+    {
+      "subtask_id": "SUB003",
+      "subtask_name": "Check product guidance and known incidents",
+      "baseline_work_units": "21.42857142857142857142857143",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "21.42857142857142857142857143",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Search and AI comparison tools can match reported symptoms and timing against product guidance and known incidents with limited recurring human execution."
+    },
+    {
+      "subtask_id": "SUB004",
+      "subtask_name": "Seek clarification when material details are missing",
+      "baseline_work_units": "3.571428571428571428571428571",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "3.571428571428571428571428571",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "AI can identify material information gaps, ask focused questions, and assess customer replies with limited recurring human execution."
+    },
+    {
+      "subtask_id": "SUB005",
+      "subtask_name": "Determine the issue category",
+      "baseline_work_units": "10.71428571428571428571428571",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "10.71428571428571428571428571",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "AI can categorize the issue from the reported and gathered evidence while noting uncertainty with limited recurring human execution."
+    },
+    {
+      "subtask_id": "SUB006",
+      "subtask_name": "Assess seriousness and customer impact",
+      "baseline_work_units": "14.28571428571428571428571429",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "14.28571428571428571428571429",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "AI can assess apparent scope and business effect from affected-user counts, account context, and incident information with limited recurring human execution."
+    },
+    {
+      "subtask_id": "SUB007",
+      "subtask_name": "Select the handling team and route the ticket",
+      "baseline_work_units": "10.71428571428571428571428571",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "10.71428571428571428571428571",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "AI classification and workflow routing can select a handling team and transfer a concise evidence-based summary with limited recurring human execution."
+    },
+    {
+      "subtask_id": "SUB008",
+      "subtask_name": "Tell the customer what happens next",
+      "baseline_work_units": "7.142857142857142857142857143",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "7.142857142857142857142857143",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "AI can prepare and send a concise customer update from the triage disposition and next step with limited recurring human execution."
+    }
+  ],
+  "input_case_id": "saas_customer_support"
+}

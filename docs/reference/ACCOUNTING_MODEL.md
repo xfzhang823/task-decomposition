@@ -49,12 +49,14 @@ gross_removed_work_ratio = gross_removed_work / W0
 added_human_work_ratio   = added_human_work / W0
 net_remaining_work_ratio = W1 / W0
 net_substitution_ratio   = 1 - net_remaining_work_ratio
-net_augmentation_multiplier = 1 / net_remaining_work_ratio
+net_augmentation_multiplier = 1 / net_remaining_work_ratio, when W1 > 0
 ```
 
 For absolute accounting, the multiplier is calculated equivalently as `W0 / W1`.
-Ratios are not clamped. If support work exceeds gross removal, `W1 > W0`, net
-substitution is negative, and the effect is `DEGRADATION`.
+If `W1 = 0`, the multiplier is undefined and is reported as `None`; the other
+accounting fields remain valid. Ratios are not clamped. If support work exceeds
+gross removal, `W1 > W0`, net substitution is negative, and the effect is
+`DEGRADATION`.
 
 Example: if `W0 = 100`, retained work is `60`, gross removed work is `40`, and
 resolved support work is `10`, then:
@@ -122,7 +124,7 @@ do not own accounting formulas, and application layers must not duplicate them.
 - Effort values are finite and non-negative.
 - Absolute units and time bases must be compatible before arithmetic.
 - Full removal with zero support produces `W1 = 0`; the augmentation
-  multiplier is undefined and raises `InvalidDenominatorError`.
+  multiplier is undefined and is reported as `None`.
 - Absolute accounting rejects a non-positive baseline with `ZeroBaselineError`.
 - Effect classification uses the canonical tolerance and returns `GAIN`,
   `NEUTRAL`, or `DEGRADATION` without clamping values.

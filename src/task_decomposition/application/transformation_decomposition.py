@@ -1,4 +1,27 @@
-"""Application capability for evaluating a fixed task decomposition."""
+"""Evaluate a specified transformation against an existing task decomposition.
+
+This module implements the second half of the library's canonical flow. It
+receives an already-validated ``TaskDecomposition`` -- the baseline of finished
+human work, ``W0`` -- and answers one question: what happens to that work under
+the specified transformation?
+
+The work is split into provider-facing semantic stages and one deterministic
+assembly step:
+
+1. Classify every baseline subtask as ``RETAIN`` or ``REMOVE``.
+2. Synthesise the agentic tasks that the transformation leaves behind.
+3. Model the added human/agent activity the transformation introduces.
+4. Estimate the effort carried by those activities, including support work.
+
+Providers only supply semantic judgements. The numeric outcome is produced by
+deterministic code: a single baseline calibration is selected, support work is
+resolved, and all arithmetic is delegated to
+``task_decomposition.domain.accounting``. A semantic evaluation runs last as a
+diagnostic checkpoint; its findings never mutate the accounting result.
+
+The baseline is consumed, never regenerated. Transformation decomposition must
+not re-derive the operational decomposition it was given.
+"""
 
 from task_decomposition.application._provider_stage import (
     call_stage,
@@ -31,7 +54,19 @@ from task_decomposition.contracts.stages import TransformationDecompositionResul
 from task_decomposition.errors import (
     IncompatibleEffortUnitError,
     MissingAccountingInputError,
+    ProviderError,
+    ProviderExecutionError,
     ProviderOutputError,
+    SemanticEvaluatorContractError,
+    SemanticEvaluatorUnavailableError,
+)
+from task_decomposition.evaluation.contracts import (
+    SemanticEvaluation,
+    SemanticEvaluationDecision,
+    TransformationSemanticEvaluationRequest,
+)
+from task_decomposition.evaluation.rubric import (
+    TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION,
 )
 from task_decomposition.interfaces.provider import TransformationDecompositionProvider
 from task_decomposition.tracing import TraceLogger, current_tracer
@@ -41,10 +76,52 @@ def decompose_transformation(
     request: TransformationDecompositionRequest,
     provider: TransformationDecompositionProvider | str,
     *,
+    evaluator=None,
     model: str | None = None,
     max_output_tokens: int | None = None,
 ) -> TransformationDecompositionResult:
-    """Classify and account for a supplied, reusable task decomposition."""
+    """Evaluate a transformation against an existing, reusable baseline.
+
+    This is the public entry point for the second half of the canonical flow. It
+    accepts a finished baseline (``request.task_decomposition``) plus the
+    transformation description, drives the provider through classification,
+    synthesis, activity modelling, and effort estimation, then returns a fully
+    assembled :class:`TransformationDecompositionResult` with deterministic
+    accounting attached.
+
+    Two relationships are preserved in the result:
+
+    * the baseline partition stays intact, ``W0 = retained + gross_removed``;
+    * post-transformation effort is ``W1 = retained + resolved_support_work``,
+      so gross removal is never reported as a net reduction by itself.
+
+    Args:
+        request: Baseline decomposition, transformation context, and the
+            accounting input that says how absolute effort is known.
+        provider: A constructed ``TransformationDecompositionProvider``, or one
+            of the built-in provider names (``"openai"``, ``"gemini"``,
+            ``"deepseek"``).
+        evaluator: Optional semantic evaluator for the post-accounting
+            checkpoint. When omitted, the provider's own ``evaluate()``
+            capability is used; if neither exists the checkpoint fails loudly
+            instead of being skipped.
+        model: Model override for a named provider. Cannot be combined with an
+            already-constructed provider object.
+        max_output_tokens: Optional output-token cap applied to every stage of
+            this run.
+
+    Returns:
+        The transformation result: classification, agentic task synthesis,
+        activity model, effort estimation, accounting, provenance, and semantic
+        evaluation.
+
+    Raises:
+        ProviderOutputError: The provider lacks the required capability.
+        MissingAccountingInputError: Neither supplied absolute effort nor a
+            bottom-up baseline estimate is available.
+        SemanticEvaluatorUnavailableError: No evaluator is available for the
+            post-accounting checkpoint.
+    """
     provider = resolve_provider(
         provider, model=model, max_output_tokens=max_output_tokens
     )
@@ -57,10 +134,13 @@ def decompose_transformation(
         current_tracer() or getattr(provider, "tracer", None) or TraceLogger.from_env()
     )
     with tracer.session(request.request_id):
-        return _decompose_transformation(request, provider, provider_name)
+        return _decompose_transformation(
+            request, provider, provider_name, evaluator=evaluator
+        )
 
 
-def _decompose_transformation(request, provider, provider_name):
+def _decompose_transformation(request, provider, provider_name, *, evaluator=None):
+    """Run the semantic stages first, then assemble the deterministic result."""
     classification, synthesis, activities, estimation, responses = (
         _classify_transformation(request, provider, provider_name)
     )
@@ -73,10 +153,24 @@ def _decompose_transformation(request, provider, provider_name):
         activities,
         estimation,
         responses,
+        evaluator=evaluator,
     )
 
 
 def _classify_transformation(request, provider, provider_name):
+    """Drive the four semantic provider stages, validating each output in turn.
+
+    The order is fixed because every request embeds the accepted output of the
+    previous stage: RETAIN/REMOVE classification, agentic task synthesis,
+    human/agent activity modelling, and activity effort estimation. Provider
+    responses are untrusted, so each one is validated against the baseline
+    before it is passed downstream.
+
+    Returns:
+        A tuple of ``(classification, synthesis, activities, estimation,
+        responses)`` where ``responses`` keeps the raw provider responses so
+        their provenance survives into the final result.
+    """
     baseline = request.task_decomposition.operational_decomposition
     classification_response = call_stage(
         provider_name,
@@ -153,9 +247,20 @@ def _assemble_transformation_result(
     estimation,
     responses,
     *,
+    evaluator=None,
     normalized_work_estimates=(),
     estimation_assumptions=(),
 ):
+    """Turn validated stage outputs into the final result and its accounting.
+
+    Support work is resolved from the activity model first, then the baseline
+    calibration (``W0``) is chosen once and reused so that every downstream
+    value shares a single unit and time basis. The arithmetic itself is
+    delegated to ``domain.accounting`` through the staged pipeline. Provenance
+    from the baseline and every provider stage is concatenated rather than
+    reinterpreted. The semantic evaluation runs after accounting and is
+    attached without changing any number.
+    """
     (
         classification_response,
         synthesis_response,
@@ -190,7 +295,7 @@ def _assemble_transformation_result(
     portable_refs = tuple(
         ref for provenance in provider_provenance for ref in provenance.references
     )
-    return TransformationDecompositionResult(
+    result = TransformationDecompositionResult(
         task_decomposition=request.task_decomposition,
         retain_remove_classification=classification,
         agentic_task_synthesis=synthesis,
@@ -211,9 +316,93 @@ def _assemble_transformation_result(
         normalized_work_estimates=normalized_work_estimates,
         estimation_assumptions=estimation_assumptions,
     )
+    evaluation = _evaluate_transformation(
+        request,
+        result,
+        provider,
+        evaluator=evaluator,
+    )
+    return result.model_copy(update={"semantic_evaluation": evaluation})
+
+
+def _evaluate_transformation(request, result, provider, *, evaluator=None):
+    """Run the single post-accounting semantic transformation checkpoint."""
+
+    selected = (
+        evaluator if evaluator is not None else getattr(provider, "evaluate", None)
+    )
+    if not callable(selected) and not callable(getattr(selected, "evaluate", None)):
+        raise SemanticEvaluatorUnavailableError(
+            "transformation semantic evaluation requires an evaluator; inject one "
+            "or use a provider with an evaluate() capability"
+        )
+
+    tracer = (
+        current_tracer() or getattr(provider, "tracer", None) or TraceLogger.from_env()
+    )
+    evaluation_request = TransformationSemanticEvaluationRequest(
+        task=request.task_decomposition.operational_decomposition.task,
+        transformation_context=request.transformation_context,
+        parent_output_contract=request.task_decomposition.parent_output_contract,
+        task_decomposition=request.task_decomposition,
+        retain_remove_classification=result.retain_remove_classification,
+        agentic_task_synthesis=result.agentic_task_synthesis,
+        human_agent_activity_modeling=result.human_agent_activity_modeling,
+        activity_effort_estimation=result.activity_effort_estimation,
+        accounting=result.accounting,
+        rubric_version=TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION,
+        request_id=request.request_id,
+        correlation_id=tracer.current_correlation_id(request.request_id),
+    )
+    try:
+        raw = (
+            selected.evaluate(evaluation_request)
+            if hasattr(selected, "evaluate")
+            else selected(evaluation_request)
+        )
+    except ProviderError:
+        raise
+    except Exception as exc:
+        tracer.emit(
+            "evaluator.exception",
+            stage="transformation_semantic_evaluation",
+            data={"exception_type": type(exc).__name__, "message": str(exc)},
+        )
+        raise ProviderExecutionError(
+            f"semantic evaluator failed during transformation_semantic_evaluation: {exc}"
+        ) from exc
+    try:
+        evaluation = SemanticEvaluation.model_validate(raw)
+        if evaluation.rubric_version != evaluation_request.rubric_version:
+            raise ValueError("evaluator returned an unexpected rubric version")
+        if any(finding.criterion is None for finding in evaluation.findings):
+            raise ValueError("transformation findings must identify a criterion")
+    except Exception as exc:
+        raise SemanticEvaluatorContractError(
+            f"transformation semantic evaluator returned an invalid evaluation: {exc}"
+        ) from exc
+    tracer.validation(
+        phase="evaluation",
+        stage="transformation_semantic_evaluation",
+        result=evaluation.decision.value,
+        errors=tuple(finding.message for finding in evaluation.findings),
+        response=evaluation,
+    )
+    if evaluation.decision is not SemanticEvaluationDecision.ACCEPT:
+        # This phase is diagnostic-only: findings are exposed, but no repair or
+        # output mutation is attempted.
+        return evaluation
+    return evaluation
 
 
 def _apply_baseline_allocation(classification, request):
+    """Attach baseline effort to each classified subtask for accounting.
+
+    In absolute mode the subtask carries a calibrated (or directly allocated)
+    effort value; in normalized mode it carries the provider's
+    ``weight_ratio`` so accounting can scale it against ``W0``. Subtasks with no
+    usable allocation are passed through untouched.
+    """
     allocations = {
         item.subtask_id: item
         for item in request.task_decomposition.baseline_effort_allocations

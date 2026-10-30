@@ -19,7 +19,6 @@ from task_decomposition.contracts.accounting import EffectClassification
 from task_decomposition.errors import (
     AccountingInvariantError,
     IncompatibleEffortUnitError,
-    InvalidDenominatorError,
     RatioBasisError,
     ZeroBaselineError,
 )
@@ -192,11 +191,12 @@ def test_negative_effort_is_rejected():
         EffortQuantity(value=-1, unit=UNIT, time_basis=PER_OPERATION)
 
 
-def test_zero_baseline_and_zero_net_are_explicit_errors():
+def test_zero_baseline_is_error_but_zero_net_reports_undefined_multiplier():
     with pytest.raises(ZeroBaselineError):
         account_absolute(absolute_input(w0=0, retained=0, removed=0))
-    with pytest.raises(InvalidDenominatorError):
-        account_normalized(normalized_input(retained=0, removed=1, values=(0, 0)))
+    result = account_normalized(normalized_input(retained=0, removed=1, values=(0, 0)))
+    assert result.w1 == 0
+    assert result.net_augmentation_multiplier is None
 
 
 def test_ratio_basis_is_required_and_absolute_metadata_is_required():

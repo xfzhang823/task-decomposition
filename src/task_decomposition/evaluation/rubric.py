@@ -1,6 +1,7 @@
 """Versioned, provider-neutral semantic evaluation rubric."""
 
 SEMANTIC_EVALUATION_RUBRIC_VERSION = "1.3"
+TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION = "1.0"
 
 SEMANTIC_EVALUATION_RUBRIC = """
 Evaluate whether the supplied operational decomposition adequately represents the work required by the original task, at a granularity suitable for independent automation assessment.
@@ -40,8 +41,39 @@ Severity and decision boundary:
 Return concise, observable findings. Do not use keyword matching, an operational-verb allowlist, numerical quality scores, or a requirement that every subtask produce a physical or externally visible action. Do not reject a decomposition solely because an effort estimate is approximate when its assumptions are transparent and directionally coherent.
 """.strip()
 
+TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC = """
+Evaluate the complete transformation of the frozen baseline decomposition against
+the original task and parent-output contract. Do not redesign the baseline, change
+accounting, or require human involvement where the supplied context supports
+autonomous execution.
+
+Evaluate these criteria and report the criterion in every finding:
+- HUMAN_RESPONSIBILITY_COMPLETENESS (high): retain necessary authorization,
+  approval, management judgment, exception resolution, escalation decisions, and
+  required oversight. Distinguish deciding from communicating or recording.
+- DOUBLE_COUNTING (high): identify duplicated effort across retained subtasks,
+  added human-agent activities, or multiple activities. Accept genuinely separate
+  verification and incremental intervention.
+- TASK_BOUNDARY (high): keep transformed responsibilities and human activities
+  within the original parent-output contract, completion boundary, and exclusions.
+  Exclude downstream work outside that boundary.
+- ACTIVE_HUMAN_EFFORT (medium): effort must be active human work, excluding passive
+  waiting, external delays, autonomous AI execution, and machine processing.
+- OCCURRENCE_ASSUMPTIONS (medium): expected occurrences must fit activity triggers
+  and stated assumptions. Accept reasonable model-generated planning assumptions
+  without empirical evidence; flag contradictions, unsupported precision, or
+  clearly implausible frequencies.
+
+Use concise, observable findings. Include affected references using the supplied
+IDs when applicable. Suggestions are nonblocking; repairable findings are material
+local defects; blocking findings prevent reliable evaluation. Do not recalculate
+W0 or W1, duplicate deterministic validation, or propose automatic repairs.
+""".strip()
+
 
 __all__ = [
     "SEMANTIC_EVALUATION_RUBRIC",
     "SEMANTIC_EVALUATION_RUBRIC_VERSION",
+    "TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC",
+    "TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION",
 ]

@@ -3,6 +3,8 @@
 from task_decomposition.evaluation.rubric import (
     SEMANTIC_EVALUATION_RUBRIC,
     SEMANTIC_EVALUATION_RUBRIC_VERSION,
+    TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC,
+    TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION,
 )
 
 OPERATIONAL_DECOMPOSITION_PROMPT = """
@@ -30,9 +32,10 @@ Subtask Structure:
 - Omit unnecessary metadata; use empty dependency and provenance arrays unless needed.
 
 Parent Output Contract:
-- Define one defined parent output unit, its completion boundary, and excluded downstream work.
+- Treat the supplied or inferred parent-output contract as the authoritative scope boundary: one bounded task output, its completion boundary, and excluded downstream work.
 - Infer the contract from the task description when not supplied.
 - Do not include downstream adjudication, approval, settlement, or other work beyond the parent-task completion boundary.
+- Do not assume one executor, a staffing arrangement, or sequential execution; decompose the operational work required to produce the output.
 
 Bottom-Up Baseline Effort:
 - Provide exactly one `baseline_effort_estimate` per operational subtask, using the supplied schema.
@@ -44,6 +47,7 @@ Bottom-Up Baseline Effort:
 
 Effort Estimation Principles:
 - Use the same parent output denominator for every subtask, even when subtasks have different native work units. Include internal workload once and exclude external parent-output volume.
+- Estimate expected active human effort per completed parent output, not elapsed cycle time. Sum contributing effort independently of staffing, sequencing, or concurrency.
 - Expected occurrences may be zero, fractional, one, or greater than one. Account for conditional work, repetition, and active rework without assuming every subtask occurs once.
 - Distinguish routine assessments performed for every output from conditional follow-up work. Apply conditional frequencies only to work actually triggered by the condition.
 - Estimate each subtask's marginal active effort within the complete parent-task workflow, not the time required to perform it independently from scratch.
@@ -51,8 +55,12 @@ Effort Estimation Principles:
 - For assessments and decisions based on existing findings, estimate only the additional reasoning, verification, or action required. Do not allocate another full review duration.
 - For routing, recording, and handoff activities, estimate actual preparation, interaction, and execution time using available information and systems. Do not assume substantial effort merely because an activity is a separate subtask.
 - Estimate effort per occurrence considering actual complexity, coordination, information availability, and internal workload.
+- Include active clarification, verification, exception handling, and handoff work when it is within the parent-output boundary.
 - Attribute shared information gathering, observations, and reasoning only once. Preserve genuinely additional analysis, verification, documentation, or decision-making effort.
 - Do not double-count workload across occurrence frequency, effort per occurrence, or related subtasks.
+- Build a shared-work ledger before assigning durations: identify which facts, records, or analysis are gathered once, charge that work to the subtask that performs it, and estimate later subtasks as incremental use or decision-making over those findings.
+- Separate routine case work from conditional complexity. If a complication affects only a subset of parent outputs, represent its expected frequency with fractional occurrences or conditional rework; do not apply the complex-case duration to every parent output unless the task states that every case is complex.
+- Use a representative routine occurrence for recurring work and state any case-mix assumption. Do not use a worst-case duration as the default for all outputs.
 - Splitting an activity into multiple subtasks must not increase total estimated effort unless the split reveals genuinely additional work. Granularity alone does not justify more effort.
 - Use supplied operational facts when available; otherwise generate reasonable occupational planning estimates informed by general knowledge and relevant industry practices.
 - Do not require users to supply measured durations or workload volumes.
@@ -145,6 +153,10 @@ reference each subtask by its exact supplied subtask_id. Do not invent, rename,
 renumber, omit, duplicate, or reorder subtask references. Do not modify the
 decomposition; the application restores canonical names and sequence metadata.
 
+Use the supplied task reference and parent-output contract as authoritative. Classify
+only the operational work required to produce that bounded output; downstream work
+outside its completion boundary remains out of scope.
+
 Classification Rules:
 - For each subtask, identify the core operational activity and assess it independently without inventing additional responsibilities.
 - Assess whether current technology can execute most of that core activity under realistic conditions, using existing AI, software integrations, workflow automation, optimization algorithms, conventional automation, and transferable capabilities from other domains.
@@ -169,6 +181,7 @@ AGENTIC_TASK_SYNTHESIS_PROMPT = """
 Group the frozen baseline subtasks classified REMOVE into coherent agentic tasks that describe what AI is responsible for in the transformed workflow.
 
 - Use only source subtask IDs from the supplied decomposition, and only IDs classified REMOVE.
+- Preserve the supplied task identity and parent-output contract; the transformed responsibility remains within the same bounded output.
 - Assign every REMOVE subtask to exactly one agentic task. Assign no RETAIN subtask.
 - Group subtasks when they share a coherent responsibility, required inputs, and expected deliverables; keep meaningfully distinct responsibilities separate.
 - Preserve the required work and deliverables of every replaced subtask across the combined agentic tasks. Do not invent responsibilities unrelated to the transformation.
@@ -187,41 +200,59 @@ Identify the human activities required to interact with agentic tasks and verify
 
 Activity Identification:
 - Reference only supplied agentic task IDs. Do not reconstruct or regroup baseline subtasks.
-- Model meaningful human actions, including routine interaction, verification, and conditional intervention when required.
+- Assess human interaction and verification independently of the technological automation potential used to classify baseline subtasks as RETAIN or REMOVE.
+- Agent ownership of a responsibility does not imply that human interaction or verification is unnecessary.
+- Identify meaningful human actions arising from the post-AI operating model, including routine interaction, verification, and conditional intervention.
+- Consider the agentic responsibilities, expected outputs, information availability, uncertainty, reliability limitations, and requirements for accepting or acting on agent outputs.
 - Use only AI_INTERACTION and AI_VERIFICATION. Classify activities by what the human does, not why the activity is triggered.
 - One activity may reference multiple agentic tasks. Do not create separate activities merely because multiple agents are involved.
-- Do not invent human work for activities agents can complete autonomously.
+- Distinguish technical capability for autonomous execution from the human involvement required in the intended operating model.
+- Do not invent human activities solely because AI is involved, and do not exclude them solely because agents can technically perform the underlying work autonomously.
 
 AI_INTERACTION:
 - Model human communication or collaboration with agents, including queries, explanations, clarifications, instructions, and additional context.
-- Include routine interaction when required by the operating model and conditional interaction when additional guidance is needed.
+- Identify routine interaction when required or reasonably implied by the operating model.
+- Identify conditional interaction when agents need human clarification, additional context, guidance, or assistance to complete their responsibilities.
 - Do not assume every output requires a human query or conversation.
+- Do not duplicate interaction already covered by another activity.
 
 AI_VERIFICATION:
 - Model human review, validation, correction, or approval of agent outputs and recommendations.
-- Include routine verification when required by the operating model.
+- Identify routine verification when explicitly required or reasonably implied by the operating model, output acceptance requirements, or agent responsibilities.
+- Consider conditional verification when uncertainty, conflicting evidence, reliability limitations, or consequential errors make human assessment necessary.
 - Consolidate shared verification into one activity when a single review covers multiple agentic tasks.
-- Do not assume mandatory approval unless required by the operating model.
+- Distinguish verification from formal approval. Do not assume mandatory human approval solely because an agent produces findings, recommendations, or decisions.
 - Verification should assess agent outputs, not independently repeat the original human work.
 
 Exceptions and Edge Cases:
 - Treat exceptions, uncertainty, and agent failures as activity triggers, not separate categories.
-- Distinguish unusual business conditions from situations requiring human intervention. An agent identifying, flagging, or appropriately routing an unusual case does not by itself require additional human work.
-- Model intervention when the agent cannot reliably complete its responsibility, its output requires human validation, or human judgment is necessary to determine the next action.
+- Distinguish unusual business conditions from situations requiring human intervention.
+- An agent identifying, flagging, or appropriately routing an unusual case does not automatically require additional human work.
+- Identify conditional human intervention when the agent cannot reliably complete its responsibility, requires human clarification, or produces an output that needs human evaluation before the parent task can be completed.
 - Classify intervention as AI_INTERACTION when the human primarily clarifies or guides the agent, and AI_VERIFICATION when the human primarily evaluates, corrects, or authorizes its output.
 - Group related exception triggers when they require substantially the same human action. Separate activities only when their human responsibilities or effort-driving work differ meaningfully.
 - Do not duplicate intervention already covered by routine interaction or verification.
 
+Operating Model Assumptions:
+- Follow explicit operating-model requirements for human involvement, including mandatory verification, approval, conditional intervention, or fully autonomous execution.
+- When human oversight requirements are unspecified, assess plausible human interaction and verification based on the agentic responsibilities, expected outputs, operational context, and realistic limitations of AI execution.
+- Do not interpret unspecified oversight requirements as confirmation of fully autonomous operation.
+- Do not invent mandatory human approval, organizational policies, or regulatory requirements that are not supplied.
+- When human involvement is inferred rather than explicitly required, describe the operational assumption or trigger in the activity definition.
+- Fully autonomous execution with no additional human activity remains valid when supported by the intended operating model and agentic responsibilities.
+
 Scope and Boundaries:
 - Preserve the original parent-task completion boundary. Exclude downstream decisions, adjudication, settlement, and later-process execution unless explicitly included in the parent task.
-- Do not recreate REMOVE work, duplicate RETAIN responsibilities, or invent unrelated human work. Retained approval, escalation, and accountability remain human-owned.
+- Do not recreate REMOVE work, duplicate RETAIN responsibilities, or invent unrelated human work.
+- Retained approval, escalation, and accountability remain human-owned and must not be counted again as added human-agent activities.
 - Define each activity by its human action, trigger, and associated agentic tasks.
 - Keep activities distinct but avoid overlapping reviews, repeated approvals, and unnecessary fragmentation.
 - A single interaction may include reviewing findings, questioning the agent, and confirming a recommendation. Split it only when the human actions represent meaningfully different responsibilities.
 
 Estimation Boundary:
 - Define semantic activities only. Do not estimate occurrences, time, effort, savings, capacity, throughput, or financial impact.
-- Return zero activities when there are no agentic tasks or no additional human activity is required.
+- Return zero activities when there are no agentic tasks or when the intended operating model and agentic responsibilities support execution without additional human interaction or verification.
+- Do not force activities to produce a positive post-AI human-effort estimate.
 
 Return only the requested JSON object.
 """.strip()
@@ -231,10 +262,13 @@ Estimate active human effort for the supplied human-agent activities under the p
 
 Estimation Rules:
 - Use one parent-task output as the common denominator for all activities.
+- Use the same parent-output denominator and completion boundary as the baseline decomposition when resolving post-AI human effort for W1.
+- Estimate active human effort per completed parent output, not elapsed cycle time. Staffing, sequencing, concurrency, and AI execution time are not human effort.
 - Estimate expected occurrences per parent output and active human effort per occurrence, including routine and conditional activities.
 - For conditional activities, incorporate expected frequency once. Allow fractional occurrences and do not assume every activity occurs for every output.
 - Estimate incremental human effort within the complete human-agent workflow. Reuse information, findings, and prior interactions rather than estimating each activity independently from scratch.
 - Count shared review, clarification, verification, and correction work only once. Additional interaction or intervention must represent effort beyond work already counted.
+- Keep retained human responsibilities separate from newly introduced human-agent activities; do not count retained verification, authorization, exception handling, or handoffs again as added work.
 - Consider activity triggers, agentic responsibilities, available information, retained human work, and the intended operating model.
 - Estimate shared activities once, even when they reference multiple agentic tasks. Do not estimate separately per replaced baseline subtask.
 - Exclude passive waiting, autonomous agent execution, machine processing, and downstream work outside the parent-task boundary.
@@ -271,6 +305,22 @@ RUBRIC:
 {SEMANTIC_EVALUATION_RUBRIC}
 """.strip()
 
+TRANSFORMATION_SEMANTIC_EVALUATION_PROMPT = f"""
+Evaluate the complete frozen AI transformation in the supplied input JSON. Return
+only the structured evaluation object.
+
+Decision Rules:
+- Apply RUBRIC VERSION: {TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION}.
+- Treat the transformation rubric as the authority for criteria and severity.
+- Do not redesign or modify the baseline, recalculate W0/W1, duplicate structural
+  validation, or propose automatic repairs.
+- Every finding must set criterion to one of the transformation criteria and should
+  include affected_references when specific IDs are involved.
+
+TRANSFORMATION RUBRIC:
+{TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC}
+""".strip()
+
 __all__ = [
     "ACTIVITY_EFFORT_ESTIMATION_PROMPT",
     "AGENTIC_TASK_SYNTHESIS_PROMPT",
@@ -279,4 +329,5 @@ __all__ = [
     "OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT",
     "RETAIN_REMOVE_PROMPT",
     "SEMANTIC_EVALUATION_PROMPT",
+    "TRANSFORMATION_SEMANTIC_EVALUATION_PROMPT",
 ]

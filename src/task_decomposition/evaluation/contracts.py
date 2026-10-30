@@ -4,8 +4,15 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from task_decomposition.contracts.accounting import CanonicalTransformationImpact
 from task_decomposition.contracts.stages import (
+    ActivityEffortEstimation,
+    AgenticTaskSynthesis,
+    HumanAgentActivityModel,
     OperationalDecomposition,
+    ParentOutputContract,
+    RetainRemoveClassification,
+    TaskDecomposition,
     TaskReference,
 )
 
@@ -24,6 +31,16 @@ class SemanticFindingSeverity(str, Enum):
     SUGGESTION = "suggestion"
     REPAIRABLE = "repairable"
     BLOCKING = "blocking"
+
+
+class TransformationSemanticCriterion(str, Enum):
+    """Criteria reported by the transformation semantic checkpoint."""
+
+    HUMAN_RESPONSIBILITY_COMPLETENESS = "human_responsibility_completeness"
+    DOUBLE_COUNTING = "double_counting"
+    TASK_BOUNDARY = "task_boundary"
+    ACTIVE_HUMAN_EFFORT = "active_human_effort"
+    OCCURRENCE_ASSUMPTIONS = "occurrence_assumptions"
 
 
 class SemanticFindingCategory(str, Enum):
@@ -77,6 +94,25 @@ class SemanticEvaluationRequest(BaseModel):
     correlation_id: str | None = None
 
 
+class TransformationSemanticEvaluationRequest(BaseModel):
+    """Complete frozen transformation presented to the semantic evaluator."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    task: TaskReference
+    transformation_context: dict[str, str] = Field(default_factory=dict)
+    parent_output_contract: ParentOutputContract | None = None
+    task_decomposition: TaskDecomposition
+    retain_remove_classification: RetainRemoveClassification
+    agentic_task_synthesis: AgenticTaskSynthesis
+    human_agent_activity_modeling: HumanAgentActivityModel
+    activity_effort_estimation: ActivityEffortEstimation
+    accounting: CanonicalTransformationImpact
+    rubric_version: str = Field(min_length=1)
+    request_id: str | None = None
+    correlation_id: str | None = None
+
+
 class SemanticFinding(BaseModel):
     """Actionable semantic feedback about a decomposition or subtask."""
 
@@ -88,6 +124,8 @@ class SemanticFinding(BaseModel):
     severity: SemanticFindingSeverity
     message: str = Field(min_length=1)
     evidence: str | None = None
+    criterion: TransformationSemanticCriterion | None = None
+    affected_references: tuple[str, ...] = ()
 
 
 class SemanticEvaluation(BaseModel):
@@ -133,4 +171,6 @@ __all__ = [
     "SemanticFindingCategory",
     "SemanticFindingCode",
     "SemanticFindingSeverity",
+    "TransformationSemanticCriterion",
+    "TransformationSemanticEvaluationRequest",
 ]

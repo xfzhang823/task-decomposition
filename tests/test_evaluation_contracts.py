@@ -22,7 +22,12 @@ from task_decomposition.evaluation import (
     SemanticFindingSeverity,
 )
 from task_decomposition.interfaces import SemanticEvaluator
-from task_decomposition.providers.prompts import OPERATIONAL_DECOMPOSITION_PROMPT
+from task_decomposition.providers.prompts import (
+    ACTIVITY_EFFORT_ESTIMATION_PROMPT,
+    AGENTIC_TASK_SYNTHESIS_PROMPT,
+    OPERATIONAL_DECOMPOSITION_PROMPT,
+    RETAIN_REMOVE_PROMPT,
+)
 
 
 def operational_decomposition():
@@ -419,7 +424,7 @@ def test_rubric_covers_effort_plausibility_without_absolute_measurements():
 
 def test_operational_prompt_defines_parent_output_and_effort_boundaries():
     for phrase in (
-        "one defined parent output unit",
+        "one bounded task output",
         "different native work units",
         "Include internal workload once",
         "external parent-output volume",
@@ -428,6 +433,28 @@ def test_operational_prompt_defines_parent_output_and_effort_boundaries():
         "unsupported precision",
     ):
         assert phrase in OPERATIONAL_DECOMPOSITION_PROMPT
+
+
+def test_operational_prompt_protects_shared_work_and_case_mix_calibration():
+    for phrase in (
+        "shared-work ledger",
+        "conditional complexity",
+        "worst-case duration",
+    ):
+        assert phrase in OPERATIONAL_DECOMPOSITION_PROMPT
+
+
+def test_transformation_prompts_preserve_task_scope_and_effort_denominator():
+    assert "parent-output contract as authoritative" in RETAIN_REMOVE_PROMPT
+    assert "parent-output contract" in AGENTIC_TASK_SYNTHESIS_PROMPT
+    for phrase in (
+        "same parent-output denominator",
+        "completion boundary",
+        "elapsed cycle time",
+        "AI execution time",
+        "retained human responsibilities",
+    ):
+        assert phrase in ACTIVITY_EFFORT_ESTIMATION_PROMPT
 
 
 def test_scope_regression_cases_preserve_acceptance_and_blocking_boundaries():

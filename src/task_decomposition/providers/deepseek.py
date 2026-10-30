@@ -28,6 +28,7 @@ from task_decomposition.evaluation.contracts import (
 from task_decomposition.providers._semantic import (
     SEMANTIC_EVALUATION_STAGE,
     parse_semantic_evaluation,
+    semantic_evaluation_prompt,
     semantic_payload,
 )
 from task_decomposition.providers._shared import (
@@ -47,7 +48,6 @@ from task_decomposition.providers.prompts import (
     OPERATIONAL_DECOMPOSITION_PROMPT,
     OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT,
     RETAIN_REMOVE_PROMPT,
-    SEMANTIC_EVALUATION_PROMPT,
 )
 from task_decomposition.tracing import TraceLogger
 
@@ -109,7 +109,7 @@ class DeepSeekDecompositionProvider:
         self.tracer = tracer or TraceLogger.from_env()
 
     def evaluate(self, request: SemanticEvaluationRequest) -> SemanticEvaluation:
-        """Evaluate a complete operational decomposition with DeepSeek."""
+        """Evaluate a complete baseline or transformation with DeepSeek."""
 
         with self.tracer.session(request.correlation_id or request.request_id):
             payload = semantic_payload(request)
@@ -117,7 +117,9 @@ class DeepSeekDecompositionProvider:
                 {
                     "role": "system",
                     "content": stage_text(
-                        SEMANTIC_EVALUATION_PROMPT, payload, schema=SemanticEvaluation
+                        semantic_evaluation_prompt(request),
+                        payload,
+                        schema=SemanticEvaluation,
                     ),
                 },
                 {"role": "user", "content": "Return the requested JSON object."},

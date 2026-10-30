@@ -1,0 +1,1116 @@
+{
+  "run_id": "02b301201630",
+  "timestamp": "2026-10-29T23:28:55.184048+00:00",
+  "case_key": "production_scheduling",
+  "provider": "OpenAI",
+  "model": "gpt-6-luna",
+  "stage": "transformation",
+  "validation_status": "passed",
+  "assumptions": [
+    "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity."
+  ],
+  "result": {
+    "task_decomposition": {
+      "operational_decomposition": {
+        "task": {
+          "task_id": null,
+          "task_name": "Prepare a weekly production schedule",
+          "task_description": "You're a production planner at a packaged food factory, and you need to put together next week's schedule for several packaging lines. You have customer orders, demand forecasts, inventory levels, equipment availability, staff schedules, and planned maintenance times to work with. Products take different amounts of time to run and need different packaging setups. Switching products can also mean stopping to clean and reset the equipment. Your task is to build a schedule the factory can actually deliver, taking into account deadlines, line capacity, available materials, staffing, and production priorities. If there isn't enough capacity or some materials won't be available, work through the options with production management before sending the schedule to the factory floor."
+        },
+        "operational_subtasks": [
+          {
+            "sequence_index": 1,
+            "subtask_id": "SUB001",
+            "subtask_name": "Review weekly planning inputs",
+            "description": "Gather and review the relevant customer orders, forecasts, inventory, equipment availability, staff schedules, and planned maintenance information.",
+            "relative_effort_weight": "0.1254480286738351254480286738",
+            "effort_rationale": "Assumes the listed planning records are available through routine systems and need a single review for the upcoming week; this estimate covers accessing and consolidating information, not analyzing production requirements.",
+            "depends_on": [],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 2,
+            "subtask_id": "SUB002",
+            "subtask_name": "Determine production requirements and priorities",
+            "description": "Translate orders and forecasts into product quantities and establish the required deadlines and production priorities.",
+            "relative_effort_weight": "0.1254480286738351254480286738",
+            "effort_rationale": "Assumes a representative weekly plan with several products and that order and forecast information from SUB001 is readily available. The estimate covers reconciling demand and determining what needs to be produced, without re-gathering source records.",
+            "depends_on": [
+              "SUB001"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 3,
+            "subtask_id": "SUB003",
+            "subtask_name": "Assess material availability",
+            "description": "Compare required production quantities with available inventory and identify material shortfalls or timing constraints.",
+            "relative_effort_weight": "0.08960573476702508960573476703",
+            "effort_rationale": "Assumes one comparison of required quantities against the available inventory information, with additional attention only to material constraints identified. This uses the requirements from SUB002 and inventory already reviewed in SUB001.",
+            "depends_on": [
+              "SUB001",
+              "SUB002"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 4,
+            "subtask_id": "SUB004",
+            "subtask_name": "Assess line and product requirements",
+            "description": "Determine feasible product-to-line assignments using production rates, packaging setup and cleaning/reset needs, equipment availability, staffing, and maintenance times.",
+            "relative_effort_weight": "0.1433691756272401433691756272",
+            "effort_rationale": "Assumes several packaging lines and products with differing run and changeover needs; the estimate covers matching those known requirements to available line, staff, and time information. It does not include building or validating the full schedule.",
+            "depends_on": [
+              "SUB001",
+              "SUB002"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 5,
+            "subtask_id": "SUB005",
+            "subtask_name": "Build draft production schedule",
+            "description": "Assign production quantities to lines and time periods, sequencing runs to account for priorities, deadlines, capacity, materials, staffing, and planned downtime.",
+            "relative_effort_weight": "0.2688172043010752688172043011",
+            "effort_rationale": "Assumes a routine multi-line weekly plan and that the demand, material, and line assessments are available from earlier work. The estimate covers constructing and adjusting a workable draft, not a separate full review of the inputs.",
+            "depends_on": [
+              "SUB002",
+              "SUB003",
+              "SUB004"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 6,
+            "subtask_id": "SUB006",
+            "subtask_name": "Check draft schedule feasibility",
+            "description": "Check the draft for conflicts or unmet requirements involving line capacity, deadlines, materials, staffing, equipment availability, and maintenance.",
+            "relative_effort_weight": "0.1075268817204301075268817204",
+            "effort_rationale": "One incremental feasibility check is expected for each weekly schedule; this uses the draft and prior findings rather than repeating their analysis. The estimate allows time to identify and characterize any constraints for resolution.",
+            "depends_on": [
+              "SUB005"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 7,
+            "subtask_id": "SUB007",
+            "subtask_name": "Discuss constraint options with production management",
+            "description": "When capacity or material constraints remain, discuss practical production options with production management and determine the agreed adjustments.",
+            "relative_effort_weight": "0.05376344086021505376344086022",
+            "effort_rationale": "Assumes this discussion is needed for approximately 0.3 of weekly schedules; this is a planning assumption, not a supplied operating rate. The per-occurrence estimate covers preparing for and discussing the identified options, using findings from SUB006.",
+            "depends_on": [
+              "SUB006"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 8,
+            "subtask_id": "SUB008",
+            "subtask_name": "Revise schedule for agreed adjustments",
+            "description": "Update the draft schedule to reflect adjustments agreed with production management.",
+            "relative_effort_weight": "0.03225806451612903225806451613",
+            "effort_rationale": "Assumes revision is needed when the conditional management discussion occurs, for approximately 0.3 occurrences per weekly schedule. The estimate covers incremental schedule changes using the existing draft and agreed decisions, not rebuilding the plan from scratch.",
+            "depends_on": [
+              "SUB007"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 9,
+            "subtask_id": "SUB009",
+            "subtask_name": "Send schedule to factory floor",
+            "description": "Prepare and send the final schedule, including line assignments and timing, to the factory-floor recipients who will use it.",
+            "relative_effort_weight": "0.05376344086021505376344086022",
+            "effort_rationale": "One distribution is expected per weekly schedule. The estimate covers preparing the usable schedule communication and sending it through the established channel, without including production execution or follow-up.",
+            "depends_on": [
+              "SUB006",
+              "SUB008"
+            ],
+            "provenance_refs": []
+          }
+        ],
+        "parent_output_contract": {
+          "output_unit": "One weekly production schedule for the factory's packaging lines",
+          "completion_boundary": "The schedule has been checked against the stated planning constraints, any required options have been discussed with production management and incorporated, and the final schedule has been sent to the factory floor.",
+          "scope_exclusions": [
+            "Executing production or monitoring schedule adherence",
+            "Procuring materials or carrying out other management actions agreed during constraint discussions",
+            "Changing customer orders or revising the schedule after it has been issued"
+          ],
+          "source": "provider_inferred",
+          "provenance_refs": []
+        },
+        "baseline_effort_estimates": [
+          {
+            "subtask_id": "SUB001",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "0.35",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "0.35",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Assumes the listed planning records are available through routine systems and need a single review for the upcoming week; this estimate covers accessing and consolidating information, not analyzing production requirements.",
+            "assumptions": [
+              "The listed order, forecast, inventory, equipment, staffing, and maintenance information is available for review."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB002",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "0.35",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "0.35",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Assumes a representative weekly plan with several products and that order and forecast information from SUB001 is readily available. The estimate covers reconciling demand and determining what needs to be produced, without re-gathering source records.",
+            "assumptions": [
+              "A routine weekly plan includes several products and requires reconciling orders and forecasts."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB003",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "0.25",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "0.25",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Assumes one comparison of required quantities against the available inventory information, with additional attention only to material constraints identified. This uses the requirements from SUB002 and inventory already reviewed in SUB001.",
+            "assumptions": [
+              "Required quantities and inventory information are available from prior subtasks."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB004",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "0.4",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "0.4",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Assumes several packaging lines and products with differing run and changeover needs; the estimate covers matching those known requirements to available line, staff, and time information. It does not include building or validating the full schedule.",
+            "assumptions": [
+              "Product run times, packaging setup and cleaning/reset needs, and relevant availability information can be identified from planning records."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB005",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "0.75",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "0.75",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Assumes a routine multi-line weekly plan and that the demand, material, and line assessments are available from earlier work. The estimate covers constructing and adjusting a workable draft, not a separate full review of the inputs.",
+            "assumptions": [
+              "The schedule covers several packaging lines and products; no unusually complex case is assumed as the default."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB006",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "0.3",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "0.3",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "rationale": "One incremental feasibility check is expected for each weekly schedule; this uses the draft and prior findings rather than repeating their analysis. The estimate allows time to identify and characterize any constraints for resolution.",
+            "assumptions": [
+              "A draft schedule is available for one focused feasibility check."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB007",
+            "expected_occurrences_per_parent_output": "0.3",
+            "active_effort_per_occurrence": {
+              "value": "0.5",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "0.15",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Assumes this discussion is needed for approximately 0.3 of weekly schedules; this is a planning assumption, not a supplied operating rate. The per-occurrence estimate covers preparing for and discussing the identified options, using findings from SUB006.",
+            "assumptions": [
+              "Approximately 30% of weekly schedules have a capacity or material constraint that requires options to be discussed with production management."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB008",
+            "expected_occurrences_per_parent_output": "0.3",
+            "active_effort_per_occurrence": {
+              "value": "0.3",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "0.09",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Assumes revision is needed when the conditional management discussion occurs, for approximately 0.3 occurrences per weekly schedule. The estimate covers incremental schedule changes using the existing draft and agreed decisions, not rebuilding the plan from scratch.",
+            "assumptions": [
+              "When a management discussion is needed, an agreed adjustment requires a schedule revision."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB009",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "0.15",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "0.15",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "rationale": "One distribution is expected per weekly schedule. The estimate covers preparing the usable schedule communication and sending it through the established channel, without including production execution or follow-up.",
+            "assumptions": [
+              "A usual communication channel and factory-floor recipients are available."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          }
+        ],
+        "provenance_refs": []
+      },
+      "parent_output_contract": {
+        "output_unit": "One weekly production schedule for the factory's packaging lines",
+        "completion_boundary": "The schedule has been checked against the stated planning constraints, any required options have been discussed with production management and incorporated, and the final schedule has been sent to the factory floor.",
+        "scope_exclusions": [
+          "Executing production or monitoring schedule adherence",
+          "Procuring materials or carrying out other management actions agreed during constraint discussions",
+          "Changing customer orders or revising the schedule after it has been issued"
+        ],
+        "source": "provider_inferred",
+        "provenance_refs": []
+      },
+      "baseline_effort_estimation": {
+        "task": {
+          "task_id": null,
+          "task_name": "Prepare a weekly production schedule",
+          "task_description": "You're a production planner at a packaged food factory, and you need to put together next week's schedule for several packaging lines. You have customer orders, demand forecasts, inventory levels, equipment availability, staff schedules, and planned maintenance times to work with. Products take different amounts of time to run and need different packaging setups. Switching products can also mean stopping to clean and reset the equipment. Your task is to build a schedule the factory can actually deliver, taking into account deadlines, line capacity, available materials, staffing, and production priorities. If there isn't enough capacity or some materials won't be available, work through the options with production management before sending the schedule to the factory floor."
+        },
+        "estimates": [
+          {
+            "subtask_id": "SUB001",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "0.35",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "0.35",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Assumes the listed planning records are available through routine systems and need a single review for the upcoming week; this estimate covers accessing and consolidating information, not analyzing production requirements.",
+            "assumptions": [
+              "The listed order, forecast, inventory, equipment, staffing, and maintenance information is available for review."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB002",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "0.35",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "0.35",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Assumes a representative weekly plan with several products and that order and forecast information from SUB001 is readily available. The estimate covers reconciling demand and determining what needs to be produced, without re-gathering source records.",
+            "assumptions": [
+              "A routine weekly plan includes several products and requires reconciling orders and forecasts."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB003",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "0.25",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "0.25",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Assumes one comparison of required quantities against the available inventory information, with additional attention only to material constraints identified. This uses the requirements from SUB002 and inventory already reviewed in SUB001.",
+            "assumptions": [
+              "Required quantities and inventory information are available from prior subtasks."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB004",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "0.4",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "0.4",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Assumes several packaging lines and products with differing run and changeover needs; the estimate covers matching those known requirements to available line, staff, and time information. It does not include building or validating the full schedule.",
+            "assumptions": [
+              "Product run times, packaging setup and cleaning/reset needs, and relevant availability information can be identified from planning records."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB005",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "0.75",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "0.75",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Assumes a routine multi-line weekly plan and that the demand, material, and line assessments are available from earlier work. The estimate covers constructing and adjusting a workable draft, not a separate full review of the inputs.",
+            "assumptions": [
+              "The schedule covers several packaging lines and products; no unusually complex case is assumed as the default."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB006",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "0.3",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "0.3",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "rationale": "One incremental feasibility check is expected for each weekly schedule; this uses the draft and prior findings rather than repeating their analysis. The estimate allows time to identify and characterize any constraints for resolution.",
+            "assumptions": [
+              "A draft schedule is available for one focused feasibility check."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB007",
+            "expected_occurrences_per_parent_output": "0.3",
+            "active_effort_per_occurrence": {
+              "value": "0.5",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "0.15",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Assumes this discussion is needed for approximately 0.3 of weekly schedules; this is a planning assumption, not a supplied operating rate. The per-occurrence estimate covers preparing for and discussing the identified options, using findings from SUB006.",
+            "assumptions": [
+              "Approximately 30% of weekly schedules have a capacity or material constraint that requires options to be discussed with production management."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB008",
+            "expected_occurrences_per_parent_output": "0.3",
+            "active_effort_per_occurrence": {
+              "value": "0.3",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "0.09",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Assumes revision is needed when the conditional management discussion occurs, for approximately 0.3 occurrences per weekly schedule. The estimate covers incremental schedule changes using the existing draft and agreed decisions, not rebuilding the plan from scratch.",
+            "assumptions": [
+              "When a management discussion is needed, an agreed adjustment requires a schedule revision."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB009",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "0.15",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "0.15",
+              "unit": "hours",
+              "time_basis": "per_operation"
+            },
+            "rationale": "One distribution is expected per weekly schedule. The estimate covers preparing the usable schedule communication and sending it through the established channel, without including production execution or follow-up.",
+            "assumptions": [
+              "A usual communication channel and factory-floor recipients are available."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          }
+        ],
+        "total_effort_per_parent_output": {
+          "value": "2.79",
+          "unit": "hours",
+          "time_basis": "per_operation"
+        },
+        "provenance_refs": []
+      },
+      "baseline_effort_allocations": [
+        {
+          "subtask_id": "SUB001",
+          "effort": null,
+          "weight_ratio": "0.1254480286738351254480286738",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB002",
+          "effort": null,
+          "weight_ratio": "0.1254480286738351254480286738",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB003",
+          "effort": null,
+          "weight_ratio": "0.08960573476702508960573476705",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB004",
+          "effort": null,
+          "weight_ratio": "0.1433691756272401433691756272",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB005",
+          "effort": null,
+          "weight_ratio": "0.2688172043010752688172043012",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB006",
+          "effort": null,
+          "weight_ratio": "0.1075268817204301075268817204",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB007",
+          "effort": null,
+          "weight_ratio": "0.05376344086021505376344086023",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB008",
+          "effort": null,
+          "weight_ratio": "0.03225806451612903225806451614",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB009",
+          "effort": null,
+          "weight_ratio": "0.05376344086021505376344086023",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        }
+      ],
+      "provenance_refs": [],
+      "provider_provenance": [
+        {
+          "provider_id": "openai",
+          "stage": "operational_decomposition",
+          "model_id": "gpt-6-luna",
+          "request_id": null,
+          "references": []
+        }
+      ]
+    },
+    "retain_remove_classification": {
+      "task": {
+        "task_id": null,
+        "task_name": "Prepare a weekly production schedule",
+        "task_description": "You're a production planner at a packaged food factory, and you need to put together next week's schedule for several packaging lines. You have customer orders, demand forecasts, inventory levels, equipment availability, staff schedules, and planned maintenance times to work with. Products take different amounts of time to run and need different packaging setups. Switching products can also mean stopping to clean and reset the equipment. Your task is to build a schedule the factory can actually deliver, taking into account deadlines, line capacity, available materials, staffing, and production priorities. If there isn't enough capacity or some materials won't be available, work through the options with production management before sending the schedule to the factory floor."
+      },
+      "classified_subtasks": [
+        {
+          "subtask_id": "SUB001",
+          "subtask_name": "Review weekly planning inputs",
+          "sequence_index": 1,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1254480286738351254480286738",
+          "rationale": "Software integrations can gather and consolidate routine order, forecast, inventory, equipment, staffing, and maintenance records with limited recurring human effort."
+        },
+        {
+          "subtask_id": "SUB002",
+          "subtask_name": "Determine production requirements and priorities",
+          "sequence_index": 2,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1254480286738351254480286738",
+          "rationale": "AI and planning software can reconcile orders with forecasts and apply defined deadlines and priorities to determine production requirements."
+        },
+        {
+          "subtask_id": "SUB003",
+          "subtask_name": "Assess material availability",
+          "sequence_index": 3,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.08960573476702508960573476705",
+          "rationale": "Integrated inventory and production data can be compared automatically to identify material shortfalls and timing constraints."
+        },
+        {
+          "subtask_id": "SUB004",
+          "subtask_name": "Assess line and product requirements",
+          "sequence_index": 4,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1433691756272401433691756272",
+          "rationale": "Constraint-solving tools can match products to lines using run rates, setup and cleaning needs, staffing, equipment availability, and maintenance windows."
+        },
+        {
+          "subtask_id": "SUB005",
+          "subtask_name": "Build draft production schedule",
+          "sequence_index": 5,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.2688172043010752688172043012",
+          "rationale": "Scheduling optimization software can assign and sequence production across lines and time periods while accounting for priorities, deadlines, capacity, materials, staffing, and downtime."
+        },
+        {
+          "subtask_id": "SUB006",
+          "subtask_name": "Check draft schedule feasibility",
+          "sequence_index": 6,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1075268817204301075268817204",
+          "rationale": "Automated schedule validation can check capacity, deadlines, materials, staffing, equipment availability, and maintenance for conflicts or unmet requirements."
+        },
+        {
+          "subtask_id": "SUB007",
+          "subtask_name": "Discuss constraint options with production management",
+          "sequence_index": 7,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.05376344086021505376344086023",
+          "rationale": "AI can identify practical constraint options, present them to production management, and capture the selected adjustment through an automated approval workflow."
+        },
+        {
+          "subtask_id": "SUB008",
+          "subtask_name": "Revise schedule for agreed adjustments",
+          "sequence_index": 8,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.03225806451612903225806451614",
+          "rationale": "Scheduling software can apply agreed adjustments to the existing draft and update affected assignments and timings."
+        },
+        {
+          "subtask_id": "SUB009",
+          "subtask_name": "Send schedule to factory floor",
+          "sequence_index": 9,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.05376344086021505376344086023",
+          "rationale": "Workflow automation can format the final schedule and distribute it to factory-floor recipients through the established channel."
+        }
+      ],
+      "provenance_refs": []
+    },
+    "agentic_task_synthesis": {
+      "task": {
+        "task_id": null,
+        "task_name": "Prepare a weekly production schedule",
+        "task_description": "You're a production planner at a packaged food factory, and you need to put together next week's schedule for several packaging lines. You have customer orders, demand forecasts, inventory levels, equipment availability, staff schedules, and planned maintenance times to work with. Products take different amounts of time to run and need different packaging setups. Switching products can also mean stopping to clean and reset the equipment. Your task is to build a schedule the factory can actually deliver, taking into account deadlines, line capacity, available materials, staffing, and production priorities. If there isn't enough capacity or some materials won't be available, work through the options with production management before sending the schedule to the factory floor."
+      },
+      "agentic_tasks": [
+        {
+          "agentic_task_id": "AGT001",
+          "agentic_task_name": "Consolidate planning inputs and production requirements",
+          "description": "Review the weekly planning records, reconcile customer orders with forecasts, establish required product quantities, deadlines, and priorities, and identify material shortfalls or timing constraints.",
+          "source_subtask_ids": [
+            "SUB001",
+            "SUB002",
+            "SUB003"
+          ],
+          "required_inputs": [
+            "Customer orders and demand forecasts",
+            "Inventory information",
+            "Equipment availability, staff schedules, and planned maintenance information"
+          ],
+          "expected_outputs": [
+            "Consolidated weekly planning inputs",
+            "Product quantities, deadlines, and priorities",
+            "Material availability findings and identified shortfalls or timing constraints"
+          ]
+        },
+        {
+          "agentic_task_id": "AGT002",
+          "agentic_task_name": "Develop and validate the draft production schedule",
+          "description": "Determine feasible product-to-line assignments using run rates, packaging setups, cleaning and reset needs, equipment availability, staffing, and maintenance times. Assign and sequence production quantities across lines and time periods, then check the draft for conflicts or unmet requirements.",
+          "source_subtask_ids": [
+            "SUB004",
+            "SUB005",
+            "SUB006"
+          ],
+          "required_inputs": [
+            "Product quantities, deadlines, and priorities",
+            "Material availability findings",
+            "Product run rates and packaging setup and cleaning/reset requirements",
+            "Line, equipment, staffing, and maintenance availability"
+          ],
+          "expected_outputs": [
+            "Draft weekly production schedule with line assignments, quantities, and timing",
+            "Feasibility findings identifying conflicts or unmet requirements involving deadlines, line capacity, materials, staffing, equipment, or maintenance"
+          ]
+        },
+        {
+          "agentic_task_id": "AGT003",
+          "agentic_task_name": "Prepare constraint options for production management",
+          "description": "For remaining capacity or material constraints, identify practical production options and present them to production management. Record the adjustment selected by management without making the management decision.",
+          "source_subtask_ids": [
+            "SUB007"
+          ],
+          "required_inputs": [
+            "Draft schedule and feasibility findings",
+            "Identified capacity or material constraints"
+          ],
+          "expected_outputs": [
+            "Practical options for addressing identified constraints",
+            "Record of the adjustment selected by production management, when applicable"
+          ]
+        },
+        {
+          "agentic_task_id": "AGT004",
+          "agentic_task_name": "Finalize and distribute the production schedule",
+          "description": "Apply any adjustments selected by production management to the draft schedule, update affected assignments and timings, and prepare and send the final schedule to factory-floor recipients.",
+          "source_subtask_ids": [
+            "SUB008",
+            "SUB009"
+          ],
+          "required_inputs": [
+            "Validated draft production schedule",
+            "Production management's selected adjustment, when applicable"
+          ],
+          "expected_outputs": [
+            "Final weekly production schedule with updated line assignments and timing",
+            "Final schedule provided to factory-floor recipients"
+          ]
+        }
+      ],
+      "provenance_refs": []
+    },
+    "human_agent_activity_modeling": {
+      "task": {
+        "task_id": null,
+        "task_name": "Prepare a weekly production schedule",
+        "task_description": "You're a production planner at a packaged food factory, and you need to put together next week's schedule for several packaging lines. You have customer orders, demand forecasts, inventory levels, equipment availability, staff schedules, and planned maintenance times to work with. Products take different amounts of time to run and need different packaging setups. Switching products can also mean stopping to clean and reset the equipment. Your task is to build a schedule the factory can actually deliver, taking into account deadlines, line capacity, available materials, staffing, and production priorities. If there isn't enough capacity or some materials won't be available, work through the options with production management before sending the schedule to the factory floor."
+      },
+      "activities": [
+        {
+          "activity_id": "ACT001",
+          "activity_name": "Review the schedule before release",
+          "description": "Review the agent-generated schedule and its feasibility findings before it is released to the factory floor. Check that the proposed assignments and timing appear consistent with the planning requirements and identified constraints; request corrections if needed. This review is required by the stated operating model and is not a separate approval.",
+          "category": "AI_VERIFICATION",
+          "agentic_task_ids": [
+            "AGT001",
+            "AGT002",
+            "AGT004"
+          ],
+          "trigger": "A final schedule is ready for release.",
+          "expected_action": "Assess the schedule and relevant findings for issues that could make the schedule infeasible or inconsistent with the planning requirements, and identify any corrections needed before release."
+        },
+        {
+          "activity_id": "ACT002",
+          "activity_name": "Communicate management's selected constraint adjustment",
+          "description": "When the agent presents options for an identified capacity or material constraint, communicate the adjustment selected by production management to the agent and clarify the details needed to apply it. The activity covers interaction with the agent, not making or repeating the management decision.",
+          "category": "AI_INTERACTION",
+          "agentic_task_ids": [
+            "AGT003",
+            "AGT004"
+          ],
+          "trigger": "The agent identifies a remaining capacity or material constraint and presents options, and production management selects an adjustment.",
+          "expected_action": "Provide the selected adjustment and any necessary clarification so the agent can record it and update the schedule."
+        }
+      ],
+      "provenance_refs": []
+    },
+    "activity_effort_estimation": {
+      "task": {
+        "task_id": null,
+        "task_name": "Prepare a weekly production schedule",
+        "task_description": "You're a production planner at a packaged food factory, and you need to put together next week's schedule for several packaging lines. You have customer orders, demand forecasts, inventory levels, equipment availability, staff schedules, and planned maintenance times to work with. Products take different amounts of time to run and need different packaging setups. Switching products can also mean stopping to clean and reset the equipment. Your task is to build a schedule the factory can actually deliver, taking into account deadlines, line capacity, available materials, staffing, and production priorities. If there isn't enough capacity or some materials won't be available, work through the options with production management before sending the schedule to the factory floor."
+      },
+      "activity_effort_estimates": [
+        {
+          "activity_id": "ACT001",
+          "expected_occurrences_per_parent_output": "1",
+          "active_effort_per_occurrence": {
+            "value": "0.25",
+            "unit": "hours",
+            "time_basis": "per_operation"
+          },
+          "expected_effort_per_parent_output": {
+            "value": "0.25",
+            "unit": "hours",
+            "time_basis": "per_operation"
+          },
+          "rationale": "One focused review of the agent-generated schedule and its feasibility findings before release. The estimate covers checking consistency with planning requirements and identifying issues, without repeating the agent's underlying analysis or counting correction work separately.",
+          "assumptions": [
+            "The agent presents a consolidated schedule and relevant findings in a reviewable format.",
+            "A routine weekly schedule does not require unusually extensive investigation during review."
+          ],
+          "provenance_refs": []
+        },
+        {
+          "activity_id": "ACT002",
+          "expected_occurrences_per_parent_output": "0.3",
+          "active_effort_per_occurrence": {
+            "value": "0.1",
+            "unit": "hours",
+            "time_basis": "per_operation"
+          },
+          "expected_effort_per_parent_output": {
+            "value": "0.03",
+            "unit": "hours",
+            "time_basis": "per_operation"
+          },
+          "rationale": "When an adjustment is selected by production management, allow a brief interaction to communicate the decision and clarify details needed by the agent. The frequency uses the supplied planning assumption that constraint discussions are needed for approximately 30% of weekly schedules; effort excludes making or repeating the management decision and agent schedule updates.",
+          "assumptions": [
+            "A selected adjustment is communicated in approximately 30% of weekly schedules, consistent with the supplied constraint-discussion assumption.",
+            "The selected adjustment and necessary details are available to the human communicating with the agent."
+          ],
+          "provenance_refs": []
+        }
+      ],
+      "provenance_refs": []
+    },
+    "baseline_calibration_source": "baseline_bottom_up",
+    "accounting": {
+      "accounting_mode": "normalized",
+      "baseline_human_effort": null,
+      "retained_human_work": null,
+      "gross_removed_work": null,
+      "ai_interaction_work": null,
+      "ai_verification_work": null,
+      "added_human_work": null,
+      "net_human_effort": null,
+      "w0": "1",
+      "w1": "0.1003584229390681003584229391",
+      "gross_removed_work_ratio": "0.9999999999999999999999999999",
+      "added_human_work_ratio": "0.1003584229390681003584229391",
+      "net_remaining_work_ratio": "0.1003584229390681003584229391",
+      "net_substitution_ratio": "0.8996415770609318996415770609",
+      "net_augmentation_multiplier": "9.964285714285714285714285711",
+      "effect": "gain",
+      "provenance_refs": []
+    },
+    "provenance_refs": [],
+    "provider_provenance": [
+      {
+        "provider_id": "openai",
+        "stage": "operational_decomposition",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      },
+      {
+        "provider_id": "openai",
+        "stage": "retain_remove_classification",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      },
+      {
+        "provider_id": "openai",
+        "stage": "agentic_task_synthesis",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      },
+      {
+        "provider_id": "openai",
+        "stage": "human_agent_activity_modeling",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      },
+      {
+        "provider_id": "openai",
+        "stage": "activity_effort_estimation",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      }
+    ],
+    "normalized_work_estimates": [
+      {
+        "subtask_id": "SUB001",
+        "subtask_name": "Review weekly planning inputs",
+        "baseline_work_units": "12.54480286738351254480286738",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "12.54480286738351254480286738",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Software integrations can gather and consolidate routine order, forecast, inventory, equipment, staffing, and maintenance records with limited recurring human effort."
+      },
+      {
+        "subtask_id": "SUB002",
+        "subtask_name": "Determine production requirements and priorities",
+        "baseline_work_units": "12.54480286738351254480286738",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "12.54480286738351254480286738",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "AI and planning software can reconcile orders with forecasts and apply defined deadlines and priorities to determine production requirements."
+      },
+      {
+        "subtask_id": "SUB003",
+        "subtask_name": "Assess material availability",
+        "baseline_work_units": "8.960573476702508960573476705",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "8.960573476702508960573476705",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Integrated inventory and production data can be compared automatically to identify material shortfalls and timing constraints."
+      },
+      {
+        "subtask_id": "SUB004",
+        "subtask_name": "Assess line and product requirements",
+        "baseline_work_units": "14.33691756272401433691756272",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "14.33691756272401433691756272",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Constraint-solving tools can match products to lines using run rates, setup and cleaning needs, staffing, equipment availability, and maintenance windows."
+      },
+      {
+        "subtask_id": "SUB005",
+        "subtask_name": "Build draft production schedule",
+        "baseline_work_units": "26.88172043010752688172043012",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "26.88172043010752688172043012",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Scheduling optimization software can assign and sequence production across lines and time periods while accounting for priorities, deadlines, capacity, materials, staffing, and downtime."
+      },
+      {
+        "subtask_id": "SUB006",
+        "subtask_name": "Check draft schedule feasibility",
+        "baseline_work_units": "10.75268817204301075268817204",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "10.75268817204301075268817204",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Automated schedule validation can check capacity, deadlines, materials, staffing, equipment availability, and maintenance for conflicts or unmet requirements."
+      },
+      {
+        "subtask_id": "SUB007",
+        "subtask_name": "Discuss constraint options with production management",
+        "baseline_work_units": "5.376344086021505376344086023",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "5.376344086021505376344086023",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "AI can identify practical constraint options, present them to production management, and capture the selected adjustment through an automated approval workflow."
+      },
+      {
+        "subtask_id": "SUB008",
+        "subtask_name": "Revise schedule for agreed adjustments",
+        "baseline_work_units": "3.225806451612903225806451614",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "3.225806451612903225806451614",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Scheduling software can apply agreed adjustments to the existing draft and update affected assignments and timings."
+      },
+      {
+        "subtask_id": "SUB009",
+        "subtask_name": "Send schedule to factory floor",
+        "baseline_work_units": "5.376344086021505376344086023",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "5.376344086021505376344086023",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Workflow automation can format the final schedule and distribute it to factory-floor recipients through the established channel."
+      }
+    ],
+    "estimation_assumptions": [
+      "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity."
+    ]
+  },
+  "normalized_estimates": [
+    {
+      "subtask_id": "SUB001",
+      "subtask_name": "Review weekly planning inputs",
+      "baseline_work_units": "12.54480286738351254480286738",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "12.54480286738351254480286738",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Software integrations can gather and consolidate routine order, forecast, inventory, equipment, staffing, and maintenance records with limited recurring human effort."
+    },
+    {
+      "subtask_id": "SUB002",
+      "subtask_name": "Determine production requirements and priorities",
+      "baseline_work_units": "12.54480286738351254480286738",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "12.54480286738351254480286738",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "AI and planning software can reconcile orders with forecasts and apply defined deadlines and priorities to determine production requirements."
+    },
+    {
+      "subtask_id": "SUB003",
+      "subtask_name": "Assess material availability",
+      "baseline_work_units": "8.960573476702508960573476705",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "8.960573476702508960573476705",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Integrated inventory and production data can be compared automatically to identify material shortfalls and timing constraints."
+    },
+    {
+      "subtask_id": "SUB004",
+      "subtask_name": "Assess line and product requirements",
+      "baseline_work_units": "14.33691756272401433691756272",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "14.33691756272401433691756272",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Constraint-solving tools can match products to lines using run rates, setup and cleaning needs, staffing, equipment availability, and maintenance windows."
+    },
+    {
+      "subtask_id": "SUB005",
+      "subtask_name": "Build draft production schedule",
+      "baseline_work_units": "26.88172043010752688172043012",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "26.88172043010752688172043012",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Scheduling optimization software can assign and sequence production across lines and time periods while accounting for priorities, deadlines, capacity, materials, staffing, and downtime."
+    },
+    {
+      "subtask_id": "SUB006",
+      "subtask_name": "Check draft schedule feasibility",
+      "baseline_work_units": "10.75268817204301075268817204",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "10.75268817204301075268817204",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Automated schedule validation can check capacity, deadlines, materials, staffing, equipment availability, and maintenance for conflicts or unmet requirements."
+    },
+    {
+      "subtask_id": "SUB007",
+      "subtask_name": "Discuss constraint options with production management",
+      "baseline_work_units": "5.376344086021505376344086023",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "5.376344086021505376344086023",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "AI can identify practical constraint options, present them to production management, and capture the selected adjustment through an automated approval workflow."
+    },
+    {
+      "subtask_id": "SUB008",
+      "subtask_name": "Revise schedule for agreed adjustments",
+      "baseline_work_units": "3.225806451612903225806451614",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "3.225806451612903225806451614",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Scheduling software can apply agreed adjustments to the existing draft and update affected assignments and timings."
+    },
+    {
+      "subtask_id": "SUB009",
+      "subtask_name": "Send schedule to factory floor",
+      "baseline_work_units": "5.376344086021505376344086023",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "5.376344086021505376344086023",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Workflow automation can format the final schedule and distribute it to factory-floor recipients through the established channel."
+    }
+  ],
+  "input_case_id": "production_scheduling"
+}

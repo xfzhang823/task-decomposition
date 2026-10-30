@@ -29,6 +29,7 @@ from task_decomposition.evaluation.contracts import (
 from task_decomposition.providers._semantic import (
     SEMANTIC_EVALUATION_STAGE,
     parse_semantic_evaluation,
+    semantic_evaluation_prompt,
     semantic_payload,
 )
 from task_decomposition.providers._shared import (
@@ -48,7 +49,6 @@ from task_decomposition.providers.prompts import (
     OPERATIONAL_DECOMPOSITION_PROMPT,
     OPERATIONAL_DECOMPOSITION_REPAIR_PROMPT,
     RETAIN_REMOVE_PROMPT,
-    SEMANTIC_EVALUATION_PROMPT,
 )
 from task_decomposition.tracing import TraceLogger
 
@@ -86,11 +86,11 @@ class GeminiDecompositionProvider:
         self.tracer = tracer or TraceLogger.from_env()
 
     def evaluate(self, request: SemanticEvaluationRequest) -> SemanticEvaluation:
-        """Evaluate a complete operational decomposition with Gemini."""
+        """Evaluate a complete baseline or transformation with Gemini."""
 
         with self.tracer.session(request.correlation_id or request.request_id):
             payload = semantic_payload(request)
-            contents = stage_text(SEMANTIC_EVALUATION_PROMPT, payload)
+            contents = stage_text(semantic_evaluation_prompt(request), payload)
             config: dict[str, Any] = {
                 "response_mime_type": "application/json",
                 "response_json_schema": SemanticEvaluation.model_json_schema(),

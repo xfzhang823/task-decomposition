@@ -1,0 +1,973 @@
+{
+  "run_id": "883491b5addb",
+  "timestamp": "2026-10-30T00:09:51.889700+00:00",
+  "case_key": "customer_support",
+  "provider": "OpenAI",
+  "model": "gpt-6-luna",
+  "stage": "transformation",
+  "validation_status": "passed",
+  "assumptions": [
+    "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity."
+  ],
+  "result": {
+    "task_decomposition": {
+      "operational_decomposition": {
+        "task": {
+          "task_id": null,
+          "task_name": "Triage a software customer support ticket",
+          "task_description": "Investigate a customer report that several employees cannot open a reporting dashboard after a software update, assess its severity and business impact, check for a known fix, determine whether to assist directly or escalate, and respond to the customer."
+        },
+        "operational_subtasks": [
+          {
+            "sequence_index": 1,
+            "subtask_id": "SUB001",
+            "subtask_name": "Review ticket report and evidence",
+            "description": "Examine the reported dashboard symptom, screenshots, affected employees, and stated start time to establish the issue details and chronology.",
+            "relative_effort_weight": "0.1449275362318840579710144928",
+            "effort_rationale": "Assumes the submitted description and screenshots are available together; one focused review is needed to identify the reported failure and relevant timing.",
+            "depends_on": [],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 2,
+            "subtask_id": "SUB002",
+            "subtask_name": "Review customer account and support history",
+            "description": "Look up the subscription, relevant account history, and earlier support tickets for context related to the dashboard issue.",
+            "relative_effort_weight": "0.1449275362318840579710144928",
+            "effort_rationale": "Planning assumption: one account lookup and a targeted scan of relevant history take about four active minutes; unrelated account details are not reviewed.",
+            "depends_on": [],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 3,
+            "subtask_id": "SUB003",
+            "subtask_name": "Assess business impact and urgency",
+            "description": "Evaluate the reported employee impact and available account context to judge the issue's business effect and urgency.",
+            "relative_effort_weight": "0.1086956521739130434782608696",
+            "effort_rationale": "Assumes the ticket and account review provide enough context for an initial impact assessment; this is incremental judgment, not a repeat of those reviews.",
+            "depends_on": [
+              "SUB001",
+              "SUB002"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 4,
+            "subtask_id": "SUB004",
+            "subtask_name": "Investigate documentation and known incidents",
+            "description": "Compare the reported symptoms and timing with product documentation and known incidents, and determine whether an applicable fix is documented.",
+            "relative_effort_weight": "0.2898550724637681159420289855",
+            "effort_rationale": "Planning assumption: a targeted search across documentation and incident information takes about eight active minutes for a routine report; findings from the ticket review remain available.",
+            "depends_on": [
+              "SUB001"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 5,
+            "subtask_id": "SUB005",
+            "subtask_name": "Choose direct assistance or escalation",
+            "description": "Use the issue findings, impact assessment, and any applicable known fix to decide whether customer support can assist directly or should pass the issue to technical support or engineering.",
+            "relative_effort_weight": "0.1086956521739130434782608696",
+            "effort_rationale": "Assumes one disposition decision using information already gathered; the estimate covers incremental comparison and judgment, not another full investigation.",
+            "depends_on": [
+              "SUB003",
+              "SUB004"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 6,
+            "subtask_id": "SUB006",
+            "subtask_name": "Prepare and route technical handoff",
+            "description": "For tickets selected for escalation, send technical support or engineering the symptom, timing, relevant evidence, impact, and investigation findings needed to take up the issue.",
+            "relative_effort_weight": "0.05797101449275362318840579710",
+            "effort_rationale": "Assumes an escalation is needed for approximately 0.4 of tickets as a planning case-mix assumption, not a supplied frequency; each handoff takes about four active minutes using gathered findings.",
+            "depends_on": [
+              "SUB005"
+            ],
+            "provenance_refs": []
+          },
+          {
+            "sequence_index": 7,
+            "subtask_id": "SUB007",
+            "subtask_name": "Send customer response with next steps",
+            "description": "Send the customer a concise response describing the applicable direct guidance or the escalation path and what happens next.",
+            "relative_effort_weight": "0.1449275362318840579710144928",
+            "effort_rationale": "One response is sent per ticket; composing and sending it takes about four active minutes, using the existing findings and disposition rather than repeating the investigation.",
+            "depends_on": [
+              "SUB005",
+              "SUB006"
+            ],
+            "provenance_refs": []
+          }
+        ],
+        "parent_output_contract": {
+          "output_unit": "One triaged customer support ticket",
+          "completion_boundary": "The ticket's symptoms and impact have been assessed, a direct-assistance or escalation disposition has been made, any required technical handoff has been sent, and the customer has received a response explaining the next steps.",
+          "scope_exclusions": [
+            "Technical investigation or remediation performed after the handoff",
+            "Ongoing monitoring, follow-up, or later customer communications",
+            "Final resolution of the underlying software issue"
+          ],
+          "source": "provider_inferred",
+          "provenance_refs": []
+        },
+        "baseline_effort_estimates": [
+          {
+            "subtask_id": "SUB001",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "One review of the supplied description, screenshots, affected-user count, and timing is assumed for each ticket.",
+            "assumptions": [
+              "The submitted evidence is accessible in the ticket."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB002",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "One targeted account lookup and scan of relevant subscription and support history is assumed; this work supplies context for later assessment without repeating the ticket review.",
+            "assumptions": [
+              "Relevant account and ticket history is available through the stated systems.",
+              "The review is limited to records relevant to the reported dashboard issue."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB003",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "3",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "3",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "One incremental assessment of business effect and urgency is assumed, based on the affected employees and account context already gathered.",
+            "assumptions": [
+              "The ticket and account information support an initial assessment without a separate customer interview."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB004",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "8",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "8",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "A focused search and comparison across documentation and known incidents is assumed for every ticket; the estimate allows for checking whether a documented fix matches the reported symptoms.",
+            "assumptions": [
+              "Documentation and incident information are available in searchable systems.",
+              "The ticket represents a routine investigation rather than an unusually complex technical diagnosis."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB005",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "3",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "3",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "One disposition decision is required per ticket; effort covers applying the existing findings and impact assessment, not rechecking the source material.",
+            "assumptions": [
+              "The available findings are sufficient for an initial support-versus-escalation decision."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB006",
+            "expected_occurrences_per_parent_output": "0.4",
+            "active_effort_per_occurrence": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "1.6",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Only tickets selected for escalation require a handoff. An approximate 0.4 occurrence per ticket is a planning assumption; preparing and sending a concise handoff takes about four minutes using existing findings.",
+            "assumptions": [
+              "Approximately 40% of tickets in the assumed case mix require technical support or engineering; this frequency is not supplied."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB007",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "One customer response is required per ticket; the estimate covers tailoring and sending the next-step explanation using the completed disposition and any findings already gathered.",
+            "assumptions": [
+              "The response communicates either applicable direct guidance or the escalation path, without including later follow-up."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          }
+        ],
+        "provenance_refs": []
+      },
+      "parent_output_contract": {
+        "output_unit": "One triaged customer support ticket",
+        "completion_boundary": "The ticket's symptoms and impact have been assessed, a direct-assistance or escalation disposition has been made, any required technical handoff has been sent, and the customer has received a response explaining the next steps.",
+        "scope_exclusions": [
+          "Technical investigation or remediation performed after the handoff",
+          "Ongoing monitoring, follow-up, or later customer communications",
+          "Final resolution of the underlying software issue"
+        ],
+        "source": "provider_inferred",
+        "provenance_refs": []
+      },
+      "baseline_effort_estimation": {
+        "task": {
+          "task_id": null,
+          "task_name": "Triage a software customer support ticket",
+          "task_description": "Investigate a customer report that several employees cannot open a reporting dashboard after a software update, assess its severity and business impact, check for a known fix, determine whether to assist directly or escalate, and respond to the customer."
+        },
+        "estimates": [
+          {
+            "subtask_id": "SUB001",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "One review of the supplied description, screenshots, affected-user count, and timing is assumed for each ticket.",
+            "assumptions": [
+              "The submitted evidence is accessible in the ticket."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB002",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "One targeted account lookup and scan of relevant subscription and support history is assumed; this work supplies context for later assessment without repeating the ticket review.",
+            "assumptions": [
+              "Relevant account and ticket history is available through the stated systems.",
+              "The review is limited to records relevant to the reported dashboard issue."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB003",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "3",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "3",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "One incremental assessment of business effect and urgency is assumed, based on the affected employees and account context already gathered.",
+            "assumptions": [
+              "The ticket and account information support an initial assessment without a separate customer interview."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB004",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "8",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "8",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "A focused search and comparison across documentation and known incidents is assumed for every ticket; the estimate allows for checking whether a documented fix matches the reported symptoms.",
+            "assumptions": [
+              "Documentation and incident information are available in searchable systems.",
+              "The ticket represents a routine investigation rather than an unusually complex technical diagnosis."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB005",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "3",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "3",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "One disposition decision is required per ticket; effort covers applying the existing findings and impact assessment, not rechecking the source material.",
+            "assumptions": [
+              "The available findings are sufficient for an initial support-versus-escalation decision."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB006",
+            "expected_occurrences_per_parent_output": "0.4",
+            "active_effort_per_occurrence": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "1.6",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "Only tickets selected for escalation require a handoff. An approximate 0.4 occurrence per ticket is a planning assumption; preparing and sending a concise handoff takes about four minutes using existing findings.",
+            "assumptions": [
+              "Approximately 40% of tickets in the assumed case mix require technical support or engineering; this frequency is not supplied."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          },
+          {
+            "subtask_id": "SUB007",
+            "expected_occurrences_per_parent_output": "1",
+            "active_effort_per_occurrence": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "expected_effort_per_parent_output": {
+              "value": "4",
+              "unit": "minutes",
+              "time_basis": "per_operation"
+            },
+            "rationale": "One customer response is required per ticket; the estimate covers tailoring and sending the next-step explanation using the completed disposition and any findings already gathered.",
+            "assumptions": [
+              "The response communicates either applicable direct guidance or the escalation path, without including later follow-up."
+            ],
+            "estimate_source": "estimated",
+            "provenance_refs": []
+          }
+        ],
+        "total_effort_per_parent_output": {
+          "value": "27.6",
+          "unit": "minutes",
+          "time_basis": "per_operation"
+        },
+        "provenance_refs": []
+      },
+      "baseline_effort_allocations": [
+        {
+          "subtask_id": "SUB001",
+          "effort": null,
+          "weight_ratio": "0.1449275362318840579710144928",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB002",
+          "effort": null,
+          "weight_ratio": "0.1449275362318840579710144928",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB003",
+          "effort": null,
+          "weight_ratio": "0.1086956521739130434782608696",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB004",
+          "effort": null,
+          "weight_ratio": "0.2898550724637681159420289855",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB005",
+          "effort": null,
+          "weight_ratio": "0.1086956521739130434782608696",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB006",
+          "effort": null,
+          "weight_ratio": "0.0579710144927536231884057971",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        },
+        {
+          "subtask_id": "SUB007",
+          "effort": null,
+          "weight_ratio": "0.1449275362318840579710144928",
+          "allocation_source": "estimated",
+          "provenance_refs": []
+        }
+      ],
+      "provenance_refs": [],
+      "provider_provenance": [
+        {
+          "provider_id": "openai",
+          "stage": "operational_decomposition",
+          "model_id": "gpt-6-luna",
+          "request_id": null,
+          "references": []
+        }
+      ]
+    },
+    "retain_remove_classification": {
+      "task": {
+        "task_id": null,
+        "task_name": "Triage a software customer support ticket",
+        "task_description": "Investigate a customer report that several employees cannot open a reporting dashboard after a software update, assess its severity and business impact, check for a known fix, determine whether to assist directly or escalate, and respond to the customer."
+      },
+      "classified_subtasks": [
+        {
+          "subtask_id": "SUB001",
+          "subtask_name": "Review ticket report and evidence",
+          "sequence_index": 1,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1449275362318840579710144928",
+          "rationale": "AI can extract the symptom, affected employees, timing, and evidence from ticket text and attachments with limited recurring human review."
+        },
+        {
+          "subtask_id": "SUB002",
+          "subtask_name": "Review customer account and support history",
+          "sequence_index": 2,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1449275362318840579710144928",
+          "rationale": "Software integrations can retrieve subscription details and relevant support history and summarize them for the issue."
+        },
+        {
+          "subtask_id": "SUB003",
+          "subtask_name": "Assess business impact and urgency",
+          "sequence_index": 3,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1086956521739130434782608696",
+          "rationale": "AI can assess reported user impact and account context against urgency rules to produce a routine impact and priority judgment."
+        },
+        {
+          "subtask_id": "SUB004",
+          "subtask_name": "Investigate documentation and known incidents",
+          "sequence_index": 4,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.2898550724637681159420289855",
+          "rationale": "Search and AI matching tools can compare the symptoms and timing with documentation and known incidents and identify applicable fixes."
+        },
+        {
+          "subtask_id": "SUB005",
+          "subtask_name": "Choose direct assistance or escalation",
+          "sequence_index": 5,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1086956521739130434782608696",
+          "rationale": "A workflow can apply support and escalation criteria to the gathered findings and select the appropriate disposition for routine tickets."
+        },
+        {
+          "subtask_id": "SUB006",
+          "subtask_name": "Prepare and route technical handoff",
+          "sequence_index": 6,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.0579710144927536231884057971",
+          "rationale": "Automation can assemble the existing evidence and findings into a technical handoff and route it to the designated team."
+        },
+        {
+          "subtask_id": "SUB007",
+          "subtask_name": "Send customer response with next steps",
+          "sequence_index": 7,
+          "classification": "remove",
+          "effort": null,
+          "baseline_effort_ratio": "0.1449275362318840579710144928",
+          "rationale": "AI can tailor and send a customer response with direct guidance or escalation next steps using the ticket findings and disposition."
+        }
+      ],
+      "provenance_refs": []
+    },
+    "agentic_task_synthesis": {
+      "task": {
+        "task_id": null,
+        "task_name": "Triage a software customer support ticket",
+        "task_description": "Investigate a customer report that several employees cannot open a reporting dashboard after a software update, assess its severity and business impact, check for a known fix, determine whether to assist directly or escalate, and respond to the customer."
+      },
+      "agentic_tasks": [
+        {
+          "agentic_task_id": "AT001",
+          "agentic_task_name": "Compile ticket and account context",
+          "description": "Review the customer\u2019s report and evidence, then gather relevant subscription and support-history details to establish the issue symptoms, affected employees, timing, and pertinent account context.",
+          "source_subtask_ids": [
+            "SUB001",
+            "SUB002"
+          ],
+          "required_inputs": [
+            "Ticket description and submitted evidence",
+            "Customer account, subscription, and relevant support-history records"
+          ],
+          "expected_outputs": [
+            "Summary of reported symptoms, evidence, affected employees, and chronology",
+            "Summary of relevant account and support-history context"
+          ]
+        },
+        {
+          "agentic_task_id": "AT002",
+          "agentic_task_name": "Assess business impact and urgency",
+          "description": "Evaluate the reported employee impact and relevant account context to produce an initial assessment of the issue\u2019s business effect and urgency.",
+          "source_subtask_ids": [
+            "SUB003"
+          ],
+          "required_inputs": [
+            "Issue and chronology summary",
+            "Relevant account context"
+          ],
+          "expected_outputs": [
+            "Business-impact assessment",
+            "Urgency assessment"
+          ]
+        },
+        {
+          "agentic_task_id": "AT003",
+          "agentic_task_name": "Identify applicable documentation and known fixes",
+          "description": "Compare the reported symptoms and timing with product documentation and known incidents, and determine whether an applicable fix is documented.",
+          "source_subtask_ids": [
+            "SUB004"
+          ],
+          "required_inputs": [
+            "Issue and chronology summary",
+            "Product documentation",
+            "Known-incident information"
+          ],
+          "expected_outputs": [
+            "Findings on relevant documentation or known incidents",
+            "Identification of any applicable documented fix"
+          ]
+        },
+        {
+          "agentic_task_id": "AT004",
+          "agentic_task_name": "Determine ticket disposition",
+          "description": "Apply the issue findings, impact assessment, urgency, and any applicable known fix to determine whether the ticket is suitable for direct customer assistance or should be escalated.",
+          "source_subtask_ids": [
+            "SUB005"
+          ],
+          "required_inputs": [
+            "Issue and account-context findings",
+            "Business-impact and urgency assessment",
+            "Known-incident and documented-fix findings"
+          ],
+          "expected_outputs": [
+            "Direct-assistance or escalation disposition",
+            "Disposition rationale based on the available findings"
+          ]
+        },
+        {
+          "agentic_task_id": "AT005",
+          "agentic_task_name": "Prepare and route technical handoff",
+          "description": "For tickets selected for escalation, prepare and send a technical handoff containing the symptoms, timing, relevant evidence, impact, and investigation findings needed by the receiving technical team.",
+          "source_subtask_ids": [
+            "SUB006"
+          ],
+          "required_inputs": [
+            "Escalation disposition",
+            "Issue symptoms, timing, and relevant evidence",
+            "Impact assessment",
+            "Investigation findings"
+          ],
+          "expected_outputs": [
+            "Technical handoff with relevant issue details and findings",
+            "Handoff routed to technical support or engineering"
+          ]
+        },
+        {
+          "agentic_task_id": "AT006",
+          "agentic_task_name": "Prepare and send customer next-step response",
+          "description": "Use the ticket findings and disposition to send the customer a concise response describing applicable direct guidance or the escalation path and what happens next.",
+          "source_subtask_ids": [
+            "SUB007"
+          ],
+          "required_inputs": [
+            "Ticket findings",
+            "Direct-assistance or escalation disposition",
+            "Applicable direct guidance or escalation-path details"
+          ],
+          "expected_outputs": [
+            "Customer response explaining the applicable guidance or escalation path and next steps"
+          ]
+        }
+      ],
+      "provenance_refs": []
+    },
+    "human_agent_activity_modeling": {
+      "task": {
+        "task_id": null,
+        "task_name": "Triage a software customer support ticket",
+        "task_description": "Investigate a customer report that several employees cannot open a reporting dashboard after a software update, assess its severity and business impact, check for a known fix, determine whether to assist directly or escalate, and respond to the customer."
+      },
+      "activities": [
+        {
+          "activity_id": "HA001",
+          "activity_name": "Verify triage findings and customer-facing outputs",
+          "description": "Review the agent\u2019s issue and account summaries, impact and urgency assessment, known-fix findings, and disposition rationale. Check that any technical handoff and customer response accurately reflect the available evidence and are appropriate to the disposition; correct issues before the response is sent. This review is inferred from the support agent\u2019s ownership of the customer response and does not constitute a separate formal approval.",
+          "category": "AI_VERIFICATION",
+          "agentic_task_ids": [
+            "AT001",
+            "AT002",
+            "AT003",
+            "AT004",
+            "AT005",
+            "AT006"
+          ],
+          "trigger": "As the agent\u2019s triage outputs are prepared for use in the technical handoff or customer response, and before the customer response is sent.",
+          "expected_action": "Evaluate the agent\u2019s findings, disposition, handoff, and proposed response for accuracy, consistency, and appropriate next steps; correct material errors or unsupported claims."
+        },
+        {
+          "activity_id": "HA002",
+          "activity_name": "Clarify or guide the agent when needed",
+          "description": "Provide the agent with clarification, missing context, or direction if it cannot reliably interpret the available ticket or account information, assess impact, identify a relevant fix, or determine a disposition. This is conditional and does not imply a routine customer interview.",
+          "category": "AI_INTERACTION",
+          "agentic_task_ids": [
+            "AT001",
+            "AT002",
+            "AT003",
+            "AT004"
+          ],
+          "trigger": "The agent identifies missing or conflicting information, asks for clarification, or indicates it cannot reliably complete an assessment or disposition from the available inputs.",
+          "expected_action": "Answer the agent\u2019s specific question, provide relevant context or guidance, or clarify how to proceed within the ticket-triage boundary."
+        }
+      ],
+      "provenance_refs": []
+    },
+    "activity_effort_estimation": {
+      "task": {
+        "task_id": null,
+        "task_name": "Triage a software customer support ticket",
+        "task_description": "Investigate a customer report that several employees cannot open a reporting dashboard after a software update, assess its severity and business impact, check for a known fix, determine whether to assist directly or escalate, and respond to the customer."
+      },
+      "activity_effort_estimates": [
+        {
+          "activity_id": "HA001",
+          "expected_occurrences_per_parent_output": "1",
+          "active_effort_per_occurrence": {
+            "value": "3",
+            "unit": "minutes",
+            "time_basis": "per_operation"
+          },
+          "expected_effort_per_parent_output": {
+            "value": "3",
+            "unit": "minutes",
+            "time_basis": "per_operation"
+          },
+          "rationale": "One focused review of the assembled findings, disposition, any required handoff, and customer response is assumed per ticket. This includes checking consistency and correcting material issues, without repeating the underlying investigation.",
+          "assumptions": [
+            "The agent presents the triage outputs together for review.",
+            "Routine tickets generally require a brief review rather than extensive correction."
+          ],
+          "provenance_refs": []
+        },
+        {
+          "activity_id": "HA002",
+          "expected_occurrences_per_parent_output": "0.2",
+          "active_effort_per_occurrence": {
+            "value": "4",
+            "unit": "minutes",
+            "time_basis": "per_operation"
+          },
+          "expected_effort_per_parent_output": {
+            "value": "0.8",
+            "unit": "minutes",
+            "time_basis": "per_operation"
+          },
+          "rationale": "Clarification or guidance is expected only when the agent encounters missing or conflicting context or cannot complete an assessment. The estimate covers a brief incremental response, not routine review or a customer interview.",
+          "assumptions": [
+            "For planning, this intervention is expected on approximately one in five tickets; no measured frequency was supplied.",
+            "The agent can usually use the available ticket, account, and knowledge sources without human clarification."
+          ],
+          "provenance_refs": []
+        }
+      ],
+      "provenance_refs": []
+    },
+    "baseline_calibration_source": "baseline_bottom_up",
+    "accounting": {
+      "accounting_mode": "normalized",
+      "baseline_human_effort": null,
+      "retained_human_work": null,
+      "gross_removed_work": null,
+      "ai_interaction_work": null,
+      "ai_verification_work": null,
+      "added_human_work": null,
+      "net_human_effort": null,
+      "w0": "1",
+      "w1": "0.1376811594202898550724637682",
+      "gross_removed_work_ratio": "1.000000000000000000000000000",
+      "added_human_work_ratio": "0.1376811594202898550724637682",
+      "net_remaining_work_ratio": "0.1376811594202898550724637682",
+      "net_substitution_ratio": "0.8623188405797101449275362318",
+      "net_augmentation_multiplier": "7.263157894736842105263157890",
+      "effect": "gain",
+      "provenance_refs": []
+    },
+    "provenance_refs": [],
+    "provider_provenance": [
+      {
+        "provider_id": "openai",
+        "stage": "operational_decomposition",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      },
+      {
+        "provider_id": "openai",
+        "stage": "retain_remove_classification",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      },
+      {
+        "provider_id": "openai",
+        "stage": "agentic_task_synthesis",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      },
+      {
+        "provider_id": "openai",
+        "stage": "human_agent_activity_modeling",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      },
+      {
+        "provider_id": "openai",
+        "stage": "activity_effort_estimation",
+        "model_id": "gpt-6-luna",
+        "request_id": null,
+        "references": []
+      }
+    ],
+    "normalized_work_estimates": [
+      {
+        "subtask_id": "SUB001",
+        "subtask_name": "Review ticket report and evidence",
+        "baseline_work_units": "14.49275362318840579710144928",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "14.49275362318840579710144928",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "AI can extract the symptom, affected employees, timing, and evidence from ticket text and attachments with limited recurring human review."
+      },
+      {
+        "subtask_id": "SUB002",
+        "subtask_name": "Review customer account and support history",
+        "baseline_work_units": "14.49275362318840579710144928",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "14.49275362318840579710144928",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Software integrations can retrieve subscription details and relevant support history and summarize them for the issue."
+      },
+      {
+        "subtask_id": "SUB003",
+        "subtask_name": "Assess business impact and urgency",
+        "baseline_work_units": "10.86956521739130434782608696",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "10.86956521739130434782608696",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "AI can assess reported user impact and account context against urgency rules to produce a routine impact and priority judgment."
+      },
+      {
+        "subtask_id": "SUB004",
+        "subtask_name": "Investigate documentation and known incidents",
+        "baseline_work_units": "28.98550724637681159420289855",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "28.98550724637681159420289855",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Search and AI matching tools can compare the symptoms and timing with documentation and known incidents and identify applicable fixes."
+      },
+      {
+        "subtask_id": "SUB005",
+        "subtask_name": "Choose direct assistance or escalation",
+        "baseline_work_units": "10.86956521739130434782608696",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "10.86956521739130434782608696",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "A workflow can apply support and escalation criteria to the gathered findings and select the appropriate disposition for routine tickets."
+      },
+      {
+        "subtask_id": "SUB006",
+        "subtask_name": "Prepare and route technical handoff",
+        "baseline_work_units": "5.797101449275362318840579710",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "5.797101449275362318840579710",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "Automation can assemble the existing evidence and findings into a technical handoff and route it to the designated team."
+      },
+      {
+        "subtask_id": "SUB007",
+        "subtask_name": "Send customer response with next steps",
+        "baseline_work_units": "14.49275362318840579710144928",
+        "retained_work_units": "0",
+        "gross_removed_work_units": "14.49275362318840579710144928",
+        "estimate_source": "model_classification",
+        "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+        "rationale": "AI can tailor and send a customer response with direct guidance or escalation next steps using the ticket findings and disposition."
+      }
+    ],
+    "estimation_assumptions": [
+      "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity."
+    ]
+  },
+  "normalized_estimates": [
+    {
+      "subtask_id": "SUB001",
+      "subtask_name": "Review ticket report and evidence",
+      "baseline_work_units": "14.49275362318840579710144928",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "14.49275362318840579710144928",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "AI can extract the symptom, affected employees, timing, and evidence from ticket text and attachments with limited recurring human review."
+    },
+    {
+      "subtask_id": "SUB002",
+      "subtask_name": "Review customer account and support history",
+      "baseline_work_units": "14.49275362318840579710144928",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "14.49275362318840579710144928",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Software integrations can retrieve subscription details and relevant support history and summarize them for the issue."
+    },
+    {
+      "subtask_id": "SUB003",
+      "subtask_name": "Assess business impact and urgency",
+      "baseline_work_units": "10.86956521739130434782608696",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "10.86956521739130434782608696",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "AI can assess reported user impact and account context against urgency rules to produce a routine impact and priority judgment."
+    },
+    {
+      "subtask_id": "SUB004",
+      "subtask_name": "Investigate documentation and known incidents",
+      "baseline_work_units": "28.98550724637681159420289855",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "28.98550724637681159420289855",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Search and AI matching tools can compare the symptoms and timing with documentation and known incidents and identify applicable fixes."
+    },
+    {
+      "subtask_id": "SUB005",
+      "subtask_name": "Choose direct assistance or escalation",
+      "baseline_work_units": "10.86956521739130434782608696",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "10.86956521739130434782608696",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "A workflow can apply support and escalation criteria to the gathered findings and select the appropriate disposition for routine tickets."
+    },
+    {
+      "subtask_id": "SUB006",
+      "subtask_name": "Prepare and route technical handoff",
+      "baseline_work_units": "5.797101449275362318840579710",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "5.797101449275362318840579710",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "Automation can assemble the existing evidence and findings into a technical handoff and route it to the designated team."
+    },
+    {
+      "subtask_id": "SUB007",
+      "subtask_name": "Send customer response with next steps",
+      "baseline_work_units": "14.49275362318840579710144928",
+      "retained_work_units": "0",
+      "gross_removed_work_units": "14.49275362318840579710144928",
+      "estimate_source": "model_classification",
+      "assumption": "Baseline work units are a relative-effort normalization for comparison, not measured hours, capacity, or productivity.",
+      "rationale": "AI can tailor and send a customer response with direct guidance or escalation next steps using the ticket findings and disposition."
+    }
+  ],
+  "input_case_id": "customer_support"
+}

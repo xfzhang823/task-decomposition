@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -366,6 +366,9 @@ class TransformationDecompositionResult(BaseModel):
     provider_provenance: tuple[ProviderProvenance, ...] = ()
     normalized_work_estimates: tuple[NormalizedWorkEstimate, ...] = ()
     estimation_assumptions: tuple[str, ...] = ()
+    # Kept as Any to avoid a contracts -> evaluation -> contracts import cycle.
+    # The application stores a validated SemanticEvaluation instance here.
+    semantic_evaluation: Any = None
 
 
 __all__ = [

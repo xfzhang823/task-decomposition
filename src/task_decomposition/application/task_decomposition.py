@@ -1,4 +1,19 @@
-"""Application capability for reusable task decomposition."""
+"""Produce a reusable, output-based baseline of operational work.
+
+This module implements the first half of the library's canonical flow: it turns
+a task reference into a validated ``TaskDecomposition`` that later
+transformation runs consume unchanged.
+
+The flow is deliberately narrow. A provider proposes operational subtasks and
+bottom-up effort estimates; the application validates the untrusted response,
+runs one semantic evaluation checkpoint (with at most two bounded repair
+attempts), derives relative effort shares from the validated estimates, and
+normalizes them to ``W0 = 1.0`` through the deterministic allocation utility.
+
+Transformation context and transformation accounting are deliberately absent
+here: this baseline answers "what work exists?", never "what happens to it
+under a change?".
+"""
 
 from task_decomposition.application._provider_stage import (
     call_stage,
@@ -48,10 +63,38 @@ def decompose_task(
 ) -> TaskDecomposition:
     """Generate and validate a reusable output-based task decomposition.
 
-    The provider supplies bottom-up subtask effort inputs. The application
-    deterministically calculates expected effort per parent output and derives
-    relative shares from those absolute estimates. Transformation context and
-    accounting are deliberately absent.
+    This is the public entry point for the first half of the canonical flow. It
+    asks the provider for operational subtasks and bottom-up effort estimates,
+    validates the response, runs the semantic checkpoint, then attaches the
+    parent-output contract and deterministic baseline allocations.
+
+    The returned baseline is reusable: transformation runs consume it without
+    regenerating it. Transformation context and accounting are not part of this
+    output.
+
+    Args:
+        request: Task reference, optional task context, optional measured
+            baseline effort, and an optional parent-output contract.
+        provider: A constructed ``TaskDecompositionProvider``, or one of the
+            built-in provider names (``"openai"``, ``"gemini"``,
+            ``"deepseek"``).
+        evaluator: Optional semantic evaluator. When omitted, the provider's own
+            ``evaluate()`` capability is used; if neither exists the checkpoint
+            fails rather than being skipped.
+        model: Model override for a named provider. Cannot be combined with an
+            already-constructed provider object.
+        max_output_tokens: Optional output-token cap applied to this run.
+
+    Returns:
+        A ``TaskDecomposition`` with the validated operational subtasks, parent
+        output contract, bottom-up effort estimation, normalized baseline
+        allocations, and provenance.
+
+    Raises:
+        ProviderOutputError: The provider lacks the required capability.
+        ProviderSemanticValidationError: The checkpoint rejected the output and
+            no acceptable repair was produced.
+        SemanticEvaluatorUnavailableError: No evaluator is available.
     """
     provider = resolve_provider(
         provider, model=model, max_output_tokens=max_output_tokens
@@ -94,6 +137,18 @@ def decompose_task(
 def _validate_or_repair_operational(
     provider, provider_name, request, response, *, evaluator=None
 ):
+    """Validate the operational response, then accept, repair, or reject it.
+
+    The parsed response is checked structurally first, then handed to the single
+    semantic checkpoint. An ``ACCEPT`` returns immediately; a ``REJECT`` fails
+    without repair; anything in between triggers at most two repair attempts
+    that feed the evaluator's findings back to the provider.
+
+    Returns:
+        ``(operational, response)`` for the accepted decomposition, carrying the
+        provider response that produced it so provenance follows the winning
+        attempt.
+    """
     tracer = current_tracer() or getattr(provider, "tracer", TraceLogger.from_env())
     operational = _prepare_operational(request, validate_operational_response(response))
     selected = _resolve_evaluator(provider, evaluator)
@@ -159,6 +214,7 @@ def _validate_or_repair_operational(
 
 
 def _resolve_evaluator(provider, evaluator):
+    """Select the injected evaluator, falling back to the provider's own."""
     selected = (
         evaluator if evaluator is not None else getattr(provider, "evaluate", None)
     )
@@ -171,6 +227,14 @@ def _resolve_evaluator(provider, evaluator):
 
 
 def _evaluate(evaluator, request, operational, *, tracer, attempt=None):
+    """Run one semantic evaluation pass and validate the evaluator's contract.
+
+    Transport failures and contract violations stay distinguishable: provider
+    errors propagate unchanged, unexpected exceptions become
+    ``ProviderExecutionError``, and a malformed evaluation becomes
+    ``SemanticEvaluatorContractError``, so callers can tell bad infrastructure
+    from bad judgement.
+    """
     evaluation_request = SemanticEvaluationRequest(
         task=request.task,
         task_context=request.task_context,
@@ -223,6 +287,7 @@ def _evaluate(evaluator, request, operational, *, tracer, attempt=None):
 
 
 def _finding_feedback(findings: tuple[SemanticFinding, ...]) -> tuple[str, ...]:
+    """Render findings as stable feedback strings for repair prompts."""
     return tuple(
         f"[{finding.code.value}] [{finding.severity.value}] "
         f"subtask={finding.subtask_id or 'decomposition'}: {finding.message}"
@@ -233,6 +298,7 @@ def _finding_feedback(findings: tuple[SemanticFinding, ...]) -> tuple[str, ...]:
 def _semantic_failure(
     evaluation, rejected_response, final_response, attempts, *, unavailable=False
 ):
+    """Build the error that carries the rejected output and its findings."""
     feedback = _finding_feedback(evaluation.findings)
     suffix = "; repair capability unavailable" if unavailable else ""
     return ProviderSemanticValidationError(
@@ -247,6 +313,13 @@ def _semantic_failure(
 
 
 def _allocate_baseline(request, operational):
+    """Derive normalized and optional absolute allocations from provider weights.
+
+    Provider ``relative_effort_weight`` values are the canonical allocation
+    source: they are normalized to ``W0 = 1.0`` here, and a supplied measured
+    baseline simply materializes absolute values alongside them. If any subtask
+    lacks a weight, no allocation is produced.
+    """
     subtasks = operational.operational_subtasks
     raw_weights = tuple(subtask.relative_effort_weight for subtask in subtasks)
     if any(weight is None for weight in raw_weights):

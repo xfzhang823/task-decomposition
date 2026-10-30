@@ -95,6 +95,10 @@ def decompose_transformation(
     * post-transformation effort is ``W1 = retained + resolved_support_work``,
       so gross removal is never reported as a net reduction by itself.
 
+    Accounting may be normalized (``W0 = 1``) or absolute with an explicit
+    effort unit and time basis. This function does not infer missing ratios or
+    regenerate the supplied baseline.
+
     Args:
         request: Baseline decomposition, transformation context, and the
             accounting input that says how absolute effort is known.
@@ -106,7 +110,9 @@ def decompose_transformation(
             capability is used; if neither exists the checkpoint fails loudly
             instead of being skipped.
         model: Model override for a named provider. Cannot be combined with an
-            already-constructed provider object.
+            already-constructed provider object. If omitted, the provider's
+            configured default is used; OpenAI may route transformation
+            semantic evaluation through its dedicated evaluator model.
         max_output_tokens: Optional output-token cap applied to every stage of
             this run.
 

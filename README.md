@@ -96,7 +96,7 @@ The supported application entry points are:
 baseline = decompose_task(request, provider="openai", model="your-model-id")
 ```
 
-The selected model and optional output-token cap are used across every stage of that run. Overrides cannot be combined with an already-constructed provider object; this prevents shared provider instances from being mutated. `max_output_tokens` is forwarded to the provider's existing output-token setting; omit it to preserve provider defaults.
+The selected model and optional output-token cap are used across the generation and baseline-evaluation stages of that run. OpenAI transformation semantic evaluation uses the configured transformation evaluator model (default `gpt-6-luna` when the provider model remains its default); an explicit transformation evaluator override takes precedence. Overrides cannot be combined with an already-constructed provider object; this prevents shared provider instances from being mutated. `max_output_tokens` is forwarded to the provider's existing output-token setting; omit it to preserve provider defaults.
 
 Added-work estimation supports `AI_INTERACTION` and `AI_VERIFICATION` rows with explicit causal REMOVE-subtask references and reference-class estimates. Baseline references are normalized by their estimated occurrences per parent execution; external references require a compatible quantitative per-occurrence anchor. Support selection defaults to host inputs and can be switched to `estimate` or `auto` through `SupportWorkMode`; canonical accounting remains deterministic and provider-independent.
 
@@ -173,6 +173,8 @@ The deterministic contracts and accounting functions are available without invok
 ## Minimal provider-driven usage
 
 The concrete live example is in [`examples/openai_decompose.py`](examples/openai_decompose.py). A custom or fake provider can use the same application contracts without installing an SDK.
+
+For the primary end-to-end use case, [`examples/supplier_invoice_transformation.py`](examples/supplier_invoice_transformation.py) shows a supplier-invoice task flowing from `TaskDecompositionRequest` and `TaskReference` through `decompose_task()` and provider-assisted `estimate_transformation()`. It prints normalized W0/W1, gross removal, substitution, and augmentation metrics, plus the structured baseline, classifications, activities, estimates, assumptions, rationales, and provenance available in the result contracts. It uses `openai` with an explicit model; running it requires credentials and makes live provider calls.
 
 Task decomposition only:
 

@@ -1,6 +1,6 @@
 # Semantic Evaluator Contracts and Rubric
 
-**Status:** Prompt 2 implementation. This document covers contracts, the provider-neutral rubric, and foundational tests only. Provider calls and application orchestration are deferred to Prompt 3 and later.
+**Status:** historical phase record. Provider calls and application orchestration were deferred at the time of writing. For the current implementation, see [`docs/reference/SEMANTIC_EVALUATION.md`](../reference/SEMANTIC_EVALUATION.md).
 
 ## 1. Implemented scope
 

@@ -1,5 +1,7 @@
 # Final Verification
 
+Status: current release verification reference. Historical phase reports are not current test or file inventories.
+
 ## Final repository purpose
 
 The repository is a standalone, host-neutral library for operational task decomposition, reusable baseline effort allocation, transformation decomposition, deterministic transformation accounting, validation, and optional provider integrations.
@@ -50,16 +52,16 @@ README.md, AGENTS.md, docs/reference/DECOMPOSITION_MODEL.md, and docs/reference/
 
 ## Repository hygiene
 
-No generated artifacts are tracked: there are no tracked caches, bytecode files, egg-info directories, build outputs, distribution outputs, or local .env files. The local .env is ignored and was not inspected. .env.example contains empty OpenAI, Gemini, and DeepSeek placeholders only. The top-level tree.py is a standalone developer tree-printing utility, is not imported by the package, and is retained because it is not part of the runtime library or generated clutter.
+Build outputs, bytecode, and local environments are ignored and are not package contents. The repository retains benchmark replay JSON fixtures under `notebooks/outputs/`; the four active transformation fixtures are used by `benchmarks/replay_transformations.py`. `.env.example` contains empty OpenAI, Gemini, and DeepSeek placeholders only. The top-level `tree.py` is a standalone developer tree-printing utility, is not imported by the package, and is retained because it is not runtime library code or generated clutter.
 
 ## Test coverage by capability
 
 - Contracts and validation: tests/test_accounting.py, tests/test_staged_pipeline.py, and tests/test_task_transformation_boundaries.py.
 - Accounting and allocation: tests/test_mathematical_validation.py, tests/test_domain_utilities.py, and staged-pipeline tests.
-- Task and transformation application: tests/test_task_transformation_boundaries.py and tests/test_provider_application.py.
-- Provider adapters and parity: tests/test_openai_provider.py, tests/test_gemini_provider.py, tests/test_deepseek_provider.py, and tests/test_provider_parity.py.
+- Task and transformation application: tests/test_task_transformation_boundaries.py, tests/test_staged_pipeline.py, and tests/test_transformation_semantic_evaluation.py.
+- Provider adapters and parity: tests/test_semantic_evaluator_providers.py, tests/test_stage_output_tokens.py, and provider import-isolation tests.
 - Import boundaries and package smoke: tests/test_import_boundary.py, tests/test_provider_import_isolation.py, and tests/test_package_smoke.py.
-- Semantic benchmark infrastructure: tests/test_semantic_benchmarks.py and the opt-in tests/test_semantic_benchmark_live.py.
+- Semantic benchmark infrastructure: tests/test_transformation_replay.py and the opt-in tests/test_semantic_benchmark_live.py.
 
 The review identified no untested critical production path that blocks finalization. Live-provider quality and repeated-run stability remain intentionally outside credential-free CI.
 
@@ -69,7 +71,7 @@ The focused migrated consumer tests passed: 13 passed for test_task_decompositio
 
 ## Verification commands
 
-- pytest -q: 101 passed, 6 skipped.
+- pytest -q: 199 passed, 3 skipped.
 - ruff check src tests benchmarks: passed.
 - ruff format --check src tests benchmarks: passed.
 - python -m compileall -q src: passed using a temporary bytecode cache.
@@ -81,7 +83,7 @@ The focused migrated consumer tests passed: 13 passed for test_task_decompositio
 
 ## Corrections made during S5
 
-The only correction was documentation-only: src/task_decomposition/application/README.md no longer described the removed transformation-intent request shape and now documents the canonical transformation context and result contract. No production behavior, accounting formula, provider, packaging dependency, or public API was changed.
+The current release preparation also documents the dedicated transformation semantic-evaluator model route, adds the canonical semantic-evaluation reference, refreshes this verification inventory, and records the PEP 639-compatible build requirements. No application behavior, accounting formula, evaluator rubric, or transformation generation logic was changed.
 
 ## Accepted limitations
 

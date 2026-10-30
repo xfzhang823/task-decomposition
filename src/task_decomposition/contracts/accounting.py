@@ -15,7 +15,7 @@ no persistence, workflow, scenario, or execution concerns.
 from decimal import Decimal
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from task_decomposition.contracts.effort import EffortQuantity, RatioBasis
 from task_decomposition.contracts.provenance import ProvenanceRef
@@ -95,23 +95,56 @@ class CanonicalTransformationImpact(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    accounting_mode: AccountingMode
-    baseline_human_effort: EffortQuantity | None
-    retained_human_work: EffortQuantity | None
-    gross_removed_work: EffortQuantity | None
-    ai_interaction_work: EffortQuantity | None
-    ai_verification_work: EffortQuantity | None
-    added_human_work: EffortQuantity | None
-    net_human_effort: EffortQuantity | None
-    w0: Decimal
-    w1: Decimal
-    gross_removed_work_ratio: Decimal
-    added_human_work_ratio: Decimal
-    net_remaining_work_ratio: Decimal
-    net_substitution_ratio: Decimal
-    net_augmentation_multiplier: Decimal | None
-    effect: EffectClassification
-    provenance_refs: tuple[ProvenanceRef, ...] = ()
+    accounting_mode: AccountingMode = Field(
+        description="Whether values are normalized or use absolute effort units."
+    )
+    baseline_human_effort: EffortQuantity | None = Field(
+        description="Original human effort W0 in absolute mode; None when normalized."
+    )
+    retained_human_work: EffortQuantity | None = Field(
+        description="Baseline effort classified RETAIN; part of W0 in absolute mode."
+    )
+    gross_removed_work: EffortQuantity | None = Field(
+        description="Baseline effort classified REMOVE before support work."
+    )
+    ai_interaction_work: EffortQuantity | None = Field(
+        description="Post-transformation human effort interacting with or operating AI."
+    )
+    ai_verification_work: EffortQuantity | None = Field(
+        description="Post-transformation human effort checking or approving AI output."
+    )
+    added_human_work: EffortQuantity | None = Field(
+        description="Sum of interaction and verification support work."
+    )
+    net_human_effort: EffortQuantity | None = Field(
+        description="Post-transformation absolute human effort W1."
+    )
+    w0: Decimal = Field(
+        description="Original baseline human effort; exactly 1 in normalized mode."
+    )
+    w1: Decimal = Field(
+        description="Post-transformation human effort: retained work plus support work."
+    )
+    gross_removed_work_ratio: Decimal = Field(
+        description="Gross removed baseline work divided by W0; not net substitution."
+    )
+    added_human_work_ratio: Decimal = Field(
+        description="Added human support work divided by W0."
+    )
+    net_remaining_work_ratio: Decimal = Field(description="W1 divided by W0.")
+    net_substitution_ratio: Decimal = Field(
+        description="1 minus net_remaining_work_ratio; net reduction after support work."
+    )
+    net_augmentation_multiplier: Decimal | None = Field(
+        description="W0 divided by W1 when W1 is positive; None when undefined."
+    )
+    effect: EffectClassification = Field(
+        description="Tolerance-aware direction of change from W0 to W1."
+    )
+    provenance_refs: tuple[ProvenanceRef, ...] = Field(
+        default=(),
+        description="References supporting accounting inputs or classifications.",
+    )
 
 
 __all__ = [

@@ -1,6 +1,6 @@
 # Semantic Evaluation Final Verification
 
-Status: complete for the operational semantic-evaluation migration.
+Status: historical operational-evaluation snapshot. It predates transformation-level semantic evaluation and the current release verification. See [`docs/reference/SEMANTIC_EVALUATION.md`](../reference/SEMANTIC_EVALUATION.md) for the current implementation.
 
 ## 1. Final architecture
 

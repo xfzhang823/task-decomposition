@@ -15,6 +15,7 @@ from task_decomposition.contracts.provider import (
 )
 from task_decomposition.contracts.stages import (
     NormalizedWorkEstimate,
+    TaskDecomposition,
     TransformationDecompositionResult,
 )
 from task_decomposition.domain.allocation import DEFAULT_TOLERANCE
@@ -100,8 +101,8 @@ def normalized_accounting_from_classification(
 
 
 def estimate_transformation(
-    task_decomposition,
-    provider,
+    task_decomposition: TaskDecomposition,
+    provider: TransformationDecompositionProvider | str,
     *,
     evaluator=None,
     transformation_context: dict[str, str] | None = None,
@@ -109,12 +110,45 @@ def estimate_transformation(
     max_output_tokens: int | None = None,
     request_id: str | None = None,
 ) -> TransformationDecompositionResult:
-    """Classify a task and account for it using a normalized 100-unit baseline.
+    """Estimate and account for a transformation using normalized work units.
 
-    This is intentionally separate from ``decompose_transformation``. The
-    canonical API remains strict and requires host-supplied accounting input;
-    this opt-in path derives that input from the completed task allocation and
-    the provider's RETAIN/REMOVE classifications.
+    This opt-in path consumes an existing frozen ``TaskDecomposition``. It
+    derives retained and gross-removed work from provider RETAIN/REMOVE
+    classifications, fixes ``W0`` to 1.0, estimates added human support work,
+    and delegates W1 and all ratios to deterministic accounting. The 100-unit
+    baseline is relative comparison effort, not measured time, capacity, or
+    productivity. No retained-work or removed-work ratios are supplied by the
+    caller.
+
+    Args:
+        task_decomposition: Completed baseline with a complete relative-effort
+            allocation. It is consumed unchanged and is never regenerated.
+        provider: A provider object or ``"openai"``, ``"gemini"``, or
+            ``"deepseek"`` implementing transformation stages.
+        evaluator: Optional transformation semantic evaluator. If omitted, the
+            provider's evaluator capability is used after deterministic
+            accounting succeeds.
+        transformation_context: Description of the requested transformation.
+            Defaults to an empty context.
+        model: Optional model override when ``provider`` is a provider name.
+            If omitted, the provider's configured default is used.
+        max_output_tokens: Optional output-token cap for provider stages.
+        request_id: Optional correlation identifier for provenance and tracing.
+
+    Returns:
+        A ``TransformationDecompositionResult`` with normalized ``W0``/``W1``,
+        retained and removed work, support-work estimates, classifications,
+        available assumptions/rationales, provenance, and accounting ratios.
+
+    Raises:
+        MissingEffortAllocationError: If the frozen baseline lacks a complete
+            allocation for every subtask.
+        ProviderOutputError: If the provider lacks transformation capability.
+        SemanticEvaluatorUnavailableError: If no transformation evaluator is
+            available for the diagnostic checkpoint.
+
+    This path does not accept or calculate caller-supplied accounting ratios,
+    does not modify the baseline, and does not automatically repair output.
     """
 
     provider = resolve_provider(

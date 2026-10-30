@@ -95,6 +95,12 @@ def decompose_task(
         ProviderSemanticValidationError: The checkpoint rejected the output and
             no acceptable repair was produced.
         SemanticEvaluatorUnavailableError: No evaluator is available.
+
+    When ``provider`` is a name, the named provider's configured model is used
+    unless ``model`` overrides it for this call. The returned baseline has
+    normalized relative allocations when provider estimates are used; those
+    ratios are not measured time or capacity. The ``TaskReference`` describes
+    the task only and does not choose the provider or model.
     """
     provider = resolve_provider(
         provider, model=model, max_output_tokens=max_output_tokens

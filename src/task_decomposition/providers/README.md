@@ -120,7 +120,7 @@ result = decompose_task(
 
 The model override is intentionally run-scoped, not part of `TaskDecompositionRequest` or `TransformationDecompositionRequest`. A caller may also pass an already-constructed provider object, but cannot combine that object with a model override. This prevents the application from mutating a shared provider instance or silently ignoring a requested model.
 
-One provider instance—and therefore one model and output-token cap—is used across all stages of a run. Stage-specific output-token limits are supported by provider config objects; stage-specific model selection is not.
+One provider instance is used across all stages of a run. Generation and baseline evaluation use `model`; transformation semantic evaluation can use `transformation_evaluator_model` and defaults to `gpt-6-luna` when the configured model remains the provider default. Stage-specific output-token limits are supported by provider config objects.
 
 The effective provider and model are recorded through existing provenance and tracing facilities. Provider responses carry `ProviderProvenance.model_id`, and tracing records the model on each invocation.
 

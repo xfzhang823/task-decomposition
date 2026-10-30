@@ -1,5 +1,7 @@
 # Canonicalization Final Verification
 
+Status: historical migration record. Paths and counts below describe the repository state at the time of the canonicalization work; use the current reference documents for release guidance.
+
 Verification date: 2026-10-20
 
 ## Conclusion

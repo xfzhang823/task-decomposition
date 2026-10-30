@@ -11,8 +11,8 @@ This directory separates current reference material, active topic work, historic
 
 ## Audits
 
-- [Architecture audit](audits/architecture-audit.md) — current package ownership, execution flow, boundaries, findings, and incremental roadmap.
-- [Canonicalization audit](audits/canonicalization-audit.md) — legacy paths, duplication, ownership, and dependency-aware deletion plan.
+- [Architecture audit](audits/architecture-audit.md) — historical package ownership, execution flow, boundaries, findings, and incremental roadmap.
+- [Canonicalization audit](audits/canonicalization-audit.md) — historical legacy-path, duplication, ownership, and dependency-aware deletion findings.
 - [Baseline effort weighting audit](audits/baseline-effort-weighting.md) — provider-generated baseline ratios, prompt semantics, validation, normalization, and interpretability limitations.
 - [Downstream consumer audit](audits/downstream-consumer-audit.md) — accessible
   consumer usage and required public-API migrations after Phase 3.
@@ -21,7 +21,7 @@ This directory separates current reference material, active topic work, historic
 
 - [Added-work taxonomy](added-work-taxonomy/README.md) — AI interaction and verification taxonomy and its accounting alignment.
 - [Automation classification](automation-classification/README.md) — RETAIN/REMOVE classification reliability work.
-- [Semantic evaluation](semantic-evaluation/01_architecture_audit.md) — evaluator contract and provider integration sequence.
+- [Semantic evaluation](reference/SEMANTIC_EVALUATION.md) — current evaluator responsibilities, routing, contracts, and verification boundaries.
 
 ## Historical records
 

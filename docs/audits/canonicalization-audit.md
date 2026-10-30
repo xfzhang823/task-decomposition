@@ -1,5 +1,7 @@
 # Canonicalization and Duplication Audit
 
+Status: historical audit snapshot. The paths and implementation claims below preserve migration evidence and are not current release guidance.
+
 ## 1. Executive summary
 
 The current runtime has one authoritative accounting implementation and one canonical public decomposition flow. The approved interfaces migration and Phases 1–3 added-work/public API consolidation are complete; remaining findings are unrelated provider/configuration and boundary-maintenance items:

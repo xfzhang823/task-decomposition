@@ -1,5 +1,7 @@
 # Task Decomposition Architecture Audit
 
+Status: historical audit snapshot. Refer to the current reference and verification documents for release guidance.
+
 ## 1. Executive summary
 
 The repository has a coherent two-stage ownership model:

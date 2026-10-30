@@ -48,12 +48,26 @@ class TaskDecompositionRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    task: TaskReference
-    task_context: dict[str, str] = Field(default_factory=dict)
-    parent_output_contract: ParentOutputContract | None = None
-    baseline_effort: "EffortQuantity | None" = None
-    request_id: str | None = None
-    provenance_refs: tuple[ProvenanceRef, ...] = ()
+    task: TaskReference = Field(
+        description="Operational task identity; provider/model selection is separate."
+    )
+    task_context: dict[str, str] = Field(
+        default_factory=dict,
+        description="Host-supplied context relevant to the baseline decomposition.",
+    )
+    parent_output_contract: ParentOutputContract | None = Field(
+        default=None, description="Optional completion boundary and scope exclusions."
+    )
+    baseline_effort: "EffortQuantity | None" = Field(
+        default=None,
+        description="Optional measured baseline effort; otherwise provider estimates are normalized.",
+    )
+    request_id: str | None = Field(
+        default=None, description="Optional correlation identifier for tracing."
+    )
+    provenance_refs: tuple[ProvenanceRef, ...] = Field(
+        default=(), description="Host references supporting the request."
+    )
 
 
 class TransformationDecompositionRequest(BaseModel):
@@ -67,11 +81,22 @@ class TransformationDecompositionRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    task_decomposition: TaskDecomposition
-    transformation_context: dict[str, str] = Field(default_factory=dict)
-    accounting_input: AbsoluteEffortInput | NormalizedAccountingInput
-    request_id: str | None = None
-    provenance_refs: tuple[ProvenanceRef, ...] = ()
+    task_decomposition: TaskDecomposition = Field(
+        description="Frozen baseline to transform; it is not regenerated."
+    )
+    transformation_context: dict[str, str] = Field(
+        default_factory=dict,
+        description="Description of the requested transformation and its constraints.",
+    )
+    accounting_input: AbsoluteEffortInput | NormalizedAccountingInput = Field(
+        description="Explicit absolute or normalized accounting basis for W0/W1."
+    )
+    request_id: str | None = Field(
+        default=None, description="Optional correlation identifier for tracing."
+    )
+    provenance_refs: tuple[ProvenanceRef, ...] = Field(
+        default=(), description="Host references supporting the transformation request."
+    )
 
 
 class TransformationProposalRequest(BaseModel):
@@ -84,10 +109,19 @@ class TransformationProposalRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    task_decomposition: TaskDecomposition
-    transformation_context: dict[str, str] = Field(default_factory=dict)
-    request_id: str | None = None
-    provenance_refs: tuple[ProvenanceRef, ...] = ()
+    task_decomposition: TaskDecomposition = Field(
+        description="Frozen baseline used for provider-assisted estimation."
+    )
+    transformation_context: dict[str, str] = Field(
+        default_factory=dict,
+        description="Description of the requested transformation and constraints.",
+    )
+    request_id: str | None = Field(
+        default=None, description="Optional correlation identifier for tracing."
+    )
+    provenance_refs: tuple[ProvenanceRef, ...] = Field(
+        default=(), description="Host references supporting the proposal request."
+    )
 
 
 class OperationalDecompositionRequest(BaseModel):

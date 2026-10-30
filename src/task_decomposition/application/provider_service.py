@@ -28,7 +28,38 @@ def decompose(
     model: str | None = None,
     max_output_tokens: int | None = None,
 ) -> TransformationDecompositionResult:
-    """Compose task decomposition and transformation decomposition directly."""
+    """Run the canonical baseline-to-transformation flow in one call.
+
+    ``decompose`` first creates a reusable baseline with ``decompose_task``
+    and then evaluates the requested transformation with
+    ``decompose_transformation``. Unlike ``estimate_transformation``, this
+    strict composition requires the caller to provide the authoritative
+    absolute or normalized accounting input.
+
+    Args:
+        request: Task identity, description, context, and optional parent
+            output contract used to create the baseline.
+        provider: A provider object or ``"openai"``, ``"gemini"``, or
+            ``"deepseek"``.
+        transformation_context: The requested change to apply to the frozen
+            baseline; it does not change the task identity.
+        accounting_input: Absolute or normalized accounting basis. The
+            deterministic accounting domain uses this input for W0/W1.
+        model: Optional model override when ``provider`` is a provider name.
+            If omitted, the provider's configured default is used.
+        max_output_tokens: Optional output-token cap for provider stages.
+
+    Returns:
+        A ``TransformationDecompositionResult`` containing the frozen
+        baseline, transformation stages, accounting impact, and provenance.
+
+    Raises:
+        MissingAccountingInputError: If ``accounting_input`` is ``None``.
+        ProviderOutputError: If the selected provider lacks both capabilities.
+
+    The provider object is not mutated. A model or token override cannot be
+    combined with an already-constructed provider object.
+    """
     if accounting_input is None:
         raise MissingAccountingInputError(
             "provider-driven decomposition requires explicit Wave 1 accounting input"

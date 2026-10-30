@@ -1,6 +1,6 @@
 # Semantic Evaluation Architecture Audit
 
-**Status:** analysis only. This document records the current implementation and a proposed migration plan. No production behavior is changed by this audit.
+**Status:** historical analysis. This document records the pre-migration implementation and proposed plan. For the current implementation, see [`docs/reference/SEMANTIC_EVALUATION.md`](../reference/SEMANTIC_EVALUATION.md).
 
 ## 1. Executive summary
 

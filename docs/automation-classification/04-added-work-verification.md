@@ -10,31 +10,31 @@ This is an audit-only verification. No production code, prompt, schema, validato
 
 1. **AI_INTERACTION represents genuinely new execution-time human interaction with AI**
    - Status: Implemented.
-   - Evidence: The prompt defines instructing, guiding, clarifying, intervening, redirecting, retrying, and similar execution-time interaction as `AI_INTERACTION` (`src/task_decomposition/providers/prompts.py:71-75`). The taxonomy establishes the same boundary (`docs/added-work-taxonomy/02-design.md:3-20`).
+   - Evidence: The prompt defines instructing, guiding, clarifying, intervening, redirecting, retrying, and similar execution-time interaction as `AI_INTERACTION` (`src/task_transmorph/providers/prompts.py:71-75`). The taxonomy establishes the same boundary (`docs/added-work-taxonomy/02-design.md:3-20`).
 
 2. **AI_VERIFICATION represents genuinely new verification of AI-generated work**
    - Status: Implemented.
-   - Evidence: The prompt defines inspecting, validating, correcting, and approving AI-generated outputs as `AI_VERIFICATION` (`src/task_decomposition/providers/prompts.py:73-74`). The public enum contains only the two canonical execution categories (`src/task_decomposition/contracts/stages.py:139-143`).
+   - Evidence: The prompt defines inspecting, validating, correcting, and approving AI-generated outputs as `AI_VERIFICATION` (`src/task_transmorph/providers/prompts.py:73-74`). The public enum contains only the two canonical execution categories (`src/task_transmorph/contracts/stages.py:139-143`).
 
 3. **Existing baseline work is not relabeled as added work**
    - Status: Implemented.
-   - Evidence: The prompt explicitly excludes existing baseline work even when AI participates, and tells the provider not to disguise added work as RETAIN/REMOVE rows (`src/task_decomposition/providers/prompts.py:72,75`). The added-work contract is separate from `ClassifiedSubtask` (`src/task_decomposition/contracts/stages.py:146-173`).
+   - Evidence: The prompt explicitly excludes existing baseline work even when AI participates, and tells the provider not to disguise added work as RETAIN/REMOVE rows (`src/task_transmorph/providers/prompts.py:72,75`). The added-work contract is separate from `ClassifiedSubtask` (`src/task_transmorph/contracts/stages.py:146-173`).
 
 4. **System lifecycle work is excluded**
    - Status: Implemented.
-   - Evidence: Design, implementation, deployment, technical documentation, guardrails, infrastructure/model maintenance, and passive waiting are excluded from execution-level added work (`src/task_decomposition/providers/prompts.py:74`; `docs/added-work-taxonomy/02-design.md:11-16`).
+   - Evidence: Design, implementation, deployment, technical documentation, guardrails, infrastructure/model maintenance, and passive waiting are excluded from execution-level added work (`src/task_transmorph/providers/prompts.py:74`; `docs/added-work-taxonomy/02-design.md:11-16`).
 
 5. **Added work does not reinterpret RETAIN/REMOVE**
    - Status: Implemented.
-   - Evidence: Added-work validation receives the prior classification only for cross-stage identity context; it does not infer rows from labels (`src/task_decomposition/validation/stages.py:120-153`). There is no REMOVE-to-added-work requirement.
+   - Evidence: Added-work validation receives the prior classification only for cross-stage identity context; it does not infer rows from labels (`src/task_transmorph/validation/stages.py:120-153`). There is no REMOVE-to-added-work requirement.
 
 6. **Empty added work is valid**
    - Status: Implemented.
-   - Evidence: The prompt expressly permits `added_work_rows` to be empty (`src/task_decomposition/providers/prompts.py:75`), the contract defaults the tuple to empty (`src/task_decomposition/contracts/stages.py:166-173`), and tests verify empty output and complete root fields (`tests/test_added_work_taxonomy.py:76-91`).
+   - Evidence: The prompt expressly permits `added_work_rows` to be empty (`src/task_transmorph/providers/prompts.py:75`), the contract defaults the tuple to empty (`src/task_transmorph/contracts/stages.py:166-173`), and tests verify empty output and complete root fields (`tests/test_added_work_taxonomy.py:76-91`).
 
 7. **Nonempty rows have structural validation**
    - Status: Implemented.
-   - Evidence: Validation enforces task identity, unique work IDs, known subtask dependencies, and all-or-none sequence indexes (`src/task_decomposition/validation/stages.py:120-136`). It does not require a row for every REMOVE label, which is correct for the taxonomy.
+   - Evidence: Validation enforces task identity, unique work IDs, known subtask dependencies, and all-or-none sequence indexes (`src/task_transmorph/validation/stages.py:120-136`). It does not require a row for every REMOVE label, which is correct for the taxonomy.
 
 8. **Nonempty rows with missing estimates are handled explicitly**
    - Status: Implemented.
@@ -46,7 +46,7 @@ This is an audit-only verification. No production code, prompt, schema, validato
 
 10. **Support units, time bases, and ratio bases are preserved**
     - Status: Implemented.
-    - Evidence: Absolute support requires unit and time basis; normalized and ratio bases reject those metadata (`src/task_decomposition/contracts/effort.py:62-96`). The canonical resolver preserves those units and bases.
+    - Evidence: Absolute support requires unit and time basis; normalized and ratio bases reject those metadata (`src/task_transmorph/contracts/effort.py:62-96`). The canonical resolver preserves those units and bases.
 
 11. **Explicit accounting inputs have defined precedence**
     - Status: Implemented.
@@ -58,15 +58,15 @@ This is an audit-only verification. No production code, prompt, schema, validato
 
 13. **Accounting formulas are deterministic and provider-independent**
     - Status: Implemented.
-    - Evidence: The staged pipeline delegates to `account_absolute()` or `account_normalized()` and explicitly prohibits providers from inventing effort (`src/task_decomposition/application/staged_pipeline.py:40-67`). Known-answer, absolute/normalized equivalence, zero-support, and monotonicity tests cover the accounting domain (`tests/test_mathematical_validation.py:123-216`).
+    - Evidence: The staged pipeline delegates to `account_absolute()` or `account_normalized()` and explicitly prohibits providers from inventing effort (`src/task_transmorph/application/staged_pipeline.py:40-67`). Known-answer, absolute/normalized equivalence, zero-support, and monotonicity tests cover the accounting domain (`tests/test_mathematical_validation.py:123-216`).
 
 14. **Provider parity and cross-stage handoff are preserved**
     - Status: Implemented.
-    - Evidence: OpenAI, Gemini, and DeepSeek parity tests produce identical canonical accounting (`tests/test_provider_parity.py:99-138`). The application validates operational output, RETAIN/REMOVE output, and added-work output before accounting (`src/task_decomposition/validation/stages.py:139-154`; `src/task_decomposition/application/transformation_decomposition.py:43-72`).
+    - Evidence: OpenAI, Gemini, and DeepSeek parity tests produce identical canonical accounting (`tests/test_provider_parity.py:99-138`). The application validates operational output, RETAIN/REMOVE output, and added-work output before accounting (`src/task_transmorph/validation/stages.py:139-154`; `src/task_transmorph/application/transformation_decomposition.py:43-72`).
 
 15. **Final accounting is traceable to provider and host inputs**
     - Status: Partial.
-    - Evidence: The returned result contains validated added-work rows, provenance, and deterministic accounting (`src/task_decomposition/application/transformation_decomposition.py:74-93`). However, the provider trace records the added-work request, response, and structural validation but not the host-side accounting input or final accounting result. The named trace therefore proves an empty provider array, not the exact accounting path that produced the reported zero support.
+    - Evidence: The returned result contains validated added-work rows, provenance, and deterministic accounting (`src/task_transmorph/application/transformation_decomposition.py:74-93`). However, the provider trace records the added-work request, response, and structural validation but not the host-side accounting input or final accounting result. The named trace therefore proves an empty provider array, not the exact accounting path that produced the reported zero support.
 
 ## Architecture and accounting handoff
 
@@ -83,11 +83,11 @@ TaskDecomposition
   -> TransformationDecompositionResult
 ```
 
-`stage_payload()` sends the task, transformation context, operational decomposition, and—only for added work—the prior RETAIN/REMOVE classification (`src/task_decomposition/providers/_shared.py:55-84`). It does not send accounting input. This keeps providers from supplying authoritative W0/W1 metrics; the prompt returns semantic evidence and estimates, while Python resolves all accounting values.
+`stage_payload()` sends the task, transformation context, operational decomposition, and—only for added work—the prior RETAIN/REMOVE classification (`src/task_transmorph/providers/_shared.py:55-84`). It does not send accounting input. This keeps providers from supplying authoritative W0/W1 metrics; the prompt returns semantic evidence and estimates, while Python resolves all accounting values.
 
 The canonical transformation path resolves support inputs once and passes the concrete result into the internal accounting handoff. Provider rows describe semantic added work; host or estimate mode determines support quantities before deterministic accounting. Empty categories remain explicit zero values with compatible units.
 
-The accounting domain preserves the established bases. Normalized contribution and baseline-relative support values remain baseline-relative; gross-removed-work ratios are multiplied by gross removed work only once; absolute support is divided by W0 for normalized outputs and requires matching absolute units/time bases (`src/task_decomposition/domain/accounting.py:47-82`). W1 is retained work plus AI interaction plus AI verification, with no provider arithmetic.
+The accounting domain preserves the established bases. Normalized contribution and baseline-relative support values remain baseline-relative; gross-removed-work ratios are multiplied by gross removed work only once; absolute support is divided by W0 for normalized outputs and requires matching absolute units/time bases (`src/task_transmorph/domain/accounting.py:47-82`). W1 is retained work plus AI interaction plus AI verification, with no provider arithmetic.
 
 ## Distinctions the current stage can and cannot establish
 

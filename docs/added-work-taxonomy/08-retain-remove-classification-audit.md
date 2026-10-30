@@ -135,15 +135,15 @@ Therefore the confirmed root cause is **semantic/accounting inputs are independe
 
 ## 5. Relevant code paths
 
-- `src/task_decomposition/providers/prompts.py`: baseline operational prompt, semantic evaluation prompt, and RETAIN/REMOVE prompt.
-- `src/task_decomposition/providers/_shared.py:stage_payload`: serializes transformation context and operational decomposition, but no AI execution model or accounting input.
-- `src/task_decomposition/application/task_decomposition.py:_validate_or_repair_operational`: semantic evaluation occurs on the baseline only.
-- `src/task_decomposition/application/transformation_decomposition.py:_decompose_transformation`: invokes classification, applies frozen baseline allocation, invokes added work, and calls accounting.
-- `src/task_decomposition/application/transformation_decomposition.py:_apply_baseline_allocation`: overwrites provider effort fields with host/frozen baseline allocations when available.
-- `src/task_decomposition/validation/stages.py:validate_retain_remove_classification`: checks task identity, exact coverage, unique IDs, and optional sequence order; no atomicity or semantic classification check.
-- `src/task_decomposition/application/staged_pipeline.py:_validate_effort_handoff`: checks row-to-accounting totals only when row-level effort/ratios are present; otherwise allows the explicit accounting input through.
-- `src/task_decomposition/domain/accounting.py`: sole deterministic W0/W1 and ratio authority; no classification inference.
-- `src/task_decomposition/contracts/provider.py` and `contracts/stages.py`: transformation context is untyped string metadata; classification has optional rationale but the prompt requires it to be null.
+- `src/task_transmorph/providers/prompts.py`: baseline operational prompt, semantic evaluation prompt, and RETAIN/REMOVE prompt.
+- `src/task_transmorph/providers/_shared.py:stage_payload`: serializes transformation context and operational decomposition, but no AI execution model or accounting input.
+- `src/task_transmorph/application/task_decomposition.py:_validate_or_repair_operational`: semantic evaluation occurs on the baseline only.
+- `src/task_transmorph/application/transformation_decomposition.py:_decompose_transformation`: invokes classification, applies frozen baseline allocation, invokes added work, and calls accounting.
+- `src/task_transmorph/application/transformation_decomposition.py:_apply_baseline_allocation`: overwrites provider effort fields with host/frozen baseline allocations when available.
+- `src/task_transmorph/validation/stages.py:validate_retain_remove_classification`: checks task identity, exact coverage, unique IDs, and optional sequence order; no atomicity or semantic classification check.
+- `src/task_transmorph/application/staged_pipeline.py:_validate_effort_handoff`: checks row-to-accounting totals only when row-level effort/ratios are present; otherwise allows the explicit accounting input through.
+- `src/task_transmorph/domain/accounting.py`: sole deterministic W0/W1 and ratio authority; no classification inference.
+- `src/task_transmorph/contracts/provider.py` and `contracts/stages.py`: transformation context is untyped string metadata; classification has optional rationale but the prompt requires it to be null.
 
 ## Confirmed defects versus decisions requiring approval
 

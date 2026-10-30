@@ -6,7 +6,7 @@ This audit covers the task-decomposition repository at the requested change boun
 
 ## Current ownership and flow
 
-The canonical added-work category is `AddedWorkCategory` in `src/task_decomposition/contracts/stages.py`. It is used by `AddedWorkItem`, then validated by `validate_added_work_classification()` in `src/task_decomposition/validation/stages.py`, and produced by the provider stage in `application/transformation_decomposition.py` through `classify_added_work()`.
+The canonical added-work category is `AddedWorkCategory` in `src/task_transmorph/contracts/stages.py`. It is used by `AddedWorkItem`, then validated by `validate_added_work_classification()` in `src/task_transmorph/validation/stages.py`, and produced by the provider stage in `application/transformation_decomposition.py` through `classify_added_work()`.
 
 The OpenAI, Gemini, and DeepSeek adapters share the `ADDED_WORK_PROMPT` in `providers/prompts.py` and the `AddedWorkClassification` response model. The OpenAI adapter also rewrites the provider-facing `SupportWorkInput.value` schema to a numeric representation and canonicalizes returned values to `Decimal`.
 

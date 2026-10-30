@@ -13,13 +13,13 @@ import os
 from pathlib import Path
 from typing import Any
 
-from task_decomposition.contracts.stages import TransformationDecompositionResult
-from task_decomposition.evaluation.contracts import (
+from task_transmorph.contracts.stages import TransformationDecompositionResult
+from task_transmorph.evaluation.contracts import (
     SemanticEvaluation,
     TransformationSemanticCriterion,
     TransformationSemanticEvaluationRequest,
 )
-from task_decomposition.evaluation.rubric import (
+from task_transmorph.evaluation.rubric import (
     TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION,
 )
 

@@ -1,10 +1,10 @@
 import pytest
 
-from task_decomposition.contracts.provenance import ProviderStage
-from task_decomposition.providers._semantic import SEMANTIC_EVALUATION_STAGE
-from task_decomposition.providers.deepseek import DeepSeekProviderConfig
-from task_decomposition.providers.gemini import GeminiProviderConfig
-from task_decomposition.providers.openai import OpenAIProviderConfig
+from task_transmorph.contracts.provenance import ProviderStage
+from task_transmorph.providers._semantic import SEMANTIC_EVALUATION_STAGE
+from task_transmorph.providers.deepseek import DeepSeekProviderConfig
+from task_transmorph.providers.gemini import GeminiProviderConfig
+from task_transmorph.providers.openai import OpenAIProviderConfig
 
 CONFIGS = (OpenAIProviderConfig, GeminiProviderConfig, DeepSeekProviderConfig)
 

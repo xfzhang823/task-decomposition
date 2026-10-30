@@ -42,7 +42,7 @@ decompose_task
   -> accounting/staged transformation result
 ```
 
-`src/task_decomposition/application/provider_service.py:21-50` owns this convenience composition. Transformation decomposition consumes the existing task decomposition; it does not regenerate it (`src/task_decomposition/application/transformation_decomposition.py:41-91`).
+`src/task_transmorph/application/provider_service.py:21-50` owns this convenience composition. Transformation decomposition consumes the existing task decomposition; it does not regenerate it (`src/task_transmorph/application/transformation_decomposition.py:41-91`).
 
 ### Proposed execution path (not yet implemented)
 
@@ -75,22 +75,22 @@ This target architecture is approved but has not yet been implemented.
 
 ### Detailed task path
 
-1. `decompose_task` validates the provider capability, obtains a `TraceLogger` session, calls the operational provider operation through `call_stage`, and passes the result to `_validate_or_repair_operational` (`src/task_decomposition/application/task_decomposition.py:34-75`).
-2. Provider adapters produce a `ProviderStageResponse` whose payload is untrusted provider output (`src/task_decomposition/contracts/provider.py:81-90`). The operational request includes the task, context, effort, request ID, and provenance (`src/task_decomposition/contracts/provider.py:25-59`).
-3. `call_stage` invokes the operation, records provider exceptions, validates the response envelope, and checks returned stage and provider provenance (`src/task_decomposition/application/_provider_stage.py:32-73`).
-4. `validate_operational_response` calls `validate_operational_decomposition` and maps semantic failures to `ProviderSemanticValidationError`; other stage failures become `ProviderContractValidationError` (`src/task_decomposition/application/_provider_stage.py:76-99`).
-5. `validate_operational_decomposition` validates the Pydantic model, unique IDs, one-based contiguous sequence indexes, dependency references, self-dependencies, duplicate dependencies, and dependency precedence (`src/task_decomposition/validation/stages.py:25-66`). The eventual implementation removes the keyword semantic call from this structural path.
+1. `decompose_task` validates the provider capability, obtains a `TraceLogger` session, calls the operational provider operation through `call_stage`, and passes the result to `_validate_or_repair_operational` (`src/task_transmorph/application/task_decomposition.py:34-75`).
+2. Provider adapters produce a `ProviderStageResponse` whose payload is untrusted provider output (`src/task_transmorph/contracts/provider.py:81-90`). The operational request includes the task, context, effort, request ID, and provenance (`src/task_transmorph/contracts/provider.py:25-59`).
+3. `call_stage` invokes the operation, records provider exceptions, validates the response envelope, and checks returned stage and provider provenance (`src/task_transmorph/application/_provider_stage.py:32-73`).
+4. `validate_operational_response` calls `validate_operational_decomposition` and maps semantic failures to `ProviderSemanticValidationError`; other stage failures become `ProviderContractValidationError` (`src/task_transmorph/application/_provider_stage.py:76-99`).
+5. `validate_operational_decomposition` validates the Pydantic model, unique IDs, one-based contiguous sequence indexes, dependency references, self-dependencies, duplicate dependencies, and dependency precedence (`src/task_transmorph/validation/stages.py:25-66`). The eventual implementation removes the keyword semantic call from this structural path.
 6. The migrated `_validate_or_repair_operational` evaluates the complete structurally valid decomposition. On a `repair` decision it records findings, then attempts the optional provider method `repair_operational_decomposition` up to two times. Each repair goes through `call_stage`, structural validation, and semantic re-evaluation. Structural failure in repaired output is not bypassed.
-7. On semantic rejection after exhaustion, a semantic-validation error preserves findings, the original rejected response, the repair count, and the final response (`src/task_decomposition/errors.py:85-104`). Evaluator/API/schema failures use distinct execution or contract errors and are never represented as semantic rejection.
-8. A valid operational decomposition is allocated and assembled into the frozen `TaskDecomposition` result (`src/task_decomposition/application/task_decomposition.py:66-75` and the allocation code following the validation helper).
+7. On semantic rejection after exhaustion, a semantic-validation error preserves findings, the original rejected response, the repair count, and the final response (`src/task_transmorph/errors.py:85-104`). Evaluator/API/schema failures use distinct execution or contract errors and are never represented as semantic rejection.
+8. A valid operational decomposition is allocated and assembled into the frozen `TaskDecomposition` result (`src/task_transmorph/application/task_decomposition.py:66-75` and the allocation code following the validation helper).
 
 ### Provider and tracing boundaries
 
-The provider protocol currently requires only `provider_id` and `generate_operational_decomposition` for task decomposition (`src/task_decomposition/interfaces/provider.py:14-24`). The repair hook is discovered dynamically with `getattr` by the application, so adding it as a required protocol method would break custom providers.
+The provider protocol currently requires only `provider_id` and `generate_operational_decomposition` for task decomposition (`src/task_transmorph/interfaces/provider.py:14-24`). The repair hook is discovered dynamically with `getattr` by the application, so adding it as a required protocol method would break custom providers.
 
-OpenAI uses `responses.parse()` in its structured-stage implementation (`src/task_decomposition/providers/openai.py`). DeepSeek uses an OpenAI-compatible chat-completions call and JSON parsing; Gemini uses `generate_content` with a JSON schema. Their adapters have provider-specific transport code but share application-stage and tracing conventions.
+OpenAI uses `responses.parse()` in its structured-stage implementation (`src/task_transmorph/providers/openai.py`). DeepSeek uses an OpenAI-compatible chat-completions call and JSON parsing; Gemini uses `generate_content` with a JSON schema. Their adapters have provider-specific transport code but share application-stage and tracing conventions.
 
-`TraceLogger` is the shared tracing abstraction (`src/task_decomposition/tracing.py`). It emits JSONL request, response, parsed-output, validation, repair, exception, and execution-summary events. Traces are disabled by default, use timestamped files under `logs/llm/` when enabled, and carry one execution correlation ID. Provider SDK limitations can prevent OpenAI's raw response from being available when `responses.parse()` raises during internal Pydantic parsing; the tracer records raw-response availability separately from parsed-output state.
+`TraceLogger` is the shared tracing abstraction (`src/task_transmorph/tracing.py`). It emits JSONL request, response, parsed-output, validation, repair, exception, and execution-summary events. Traces are disabled by default, use timestamped files under `logs/llm/` when enabled, and carry one execution correlation ID. Provider SDK limitations can prevent OpenAI's raw response from being available when `responses.parse()` raises during internal Pydantic parsing; the tracer records raw-response availability separately from parsed-output state.
 
 ## 3. File and function ownership map
 
@@ -159,7 +159,7 @@ Consistency rules are deterministic at the evaluation-contract boundary: `accept
 
 ## 5. Current keyword validator and intentional removal
 
-`src/task_decomposition/validation/semantic.py:36-82` defines `_OPERATIONAL_VERBS` and `_ABSTRACT_LABELS`. The current operational check is:
+`src/task_transmorph/validation/semantic.py:36-82` defines `_OPERATIONAL_VERBS` and `_ABSTRACT_LABELS`. The current operational check is:
 
 ```python
 text = " ".join(
@@ -235,11 +235,11 @@ This boundary applies only to the operational decomposition stage. Retain/remove
 The provider-independent evaluation package is organized as:
 
 ```text
-src/task_decomposition/evaluation/
+src/task_transmorph/evaluation/
   __init__.py
   contracts.py
   rubric.py
-src/task_decomposition/interfaces/
+src/task_transmorph/interfaces/
   semantic_evaluator.py
 ```
 

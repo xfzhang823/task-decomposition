@@ -9,7 +9,7 @@ from test_task_transformation_boundaries import (
     transform_request,
 )
 
-from task_decomposition import (
+from task_transmorph import (
     CardinalityError,
     HumanAgentActivity,
     HumanAgentActivityCategory,
@@ -20,10 +20,10 @@ from task_decomposition import (
     decompose_transformation,
     validate_human_agent_activity_model,
 )
-from task_decomposition.contracts.stages import (
+from task_transmorph.contracts.stages import (
     RetainRemoveClassification,
 )
-from task_decomposition.providers.prompts import HUMAN_AGENT_ACTIVITY_MODELING_PROMPT
+from task_transmorph.providers.prompts import HUMAN_AGENT_ACTIVITY_MODELING_PROMPT
 
 
 def activity(

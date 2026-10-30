@@ -11,7 +11,7 @@ from typing import Any, Callable
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "tests"))
 
-from task_decomposition import (
+from task_transmorph import (
     AbsoluteEffortInput,
     EffortQuantity,
     EffortUnit,
@@ -22,9 +22,9 @@ from task_decomposition import (
     TimeBasis,
     decompose,
 )
-from task_decomposition.providers.deepseek import DeepSeekDecompositionProvider
-from task_decomposition.providers.gemini import GeminiDecompositionProvider
-from task_decomposition.providers.openai import OpenAIDecompositionProvider
+from task_transmorph.providers.deepseek import DeepSeekDecompositionProvider
+from task_transmorph.providers.gemini import GeminiDecompositionProvider
+from task_transmorph.providers.openai import OpenAIDecompositionProvider
 
 from benchmark_support import (
     check_hard_validity,

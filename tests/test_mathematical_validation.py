@@ -3,7 +3,7 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from task_decomposition import (
+from task_transmorph import (
     AbsoluteEffortInput,
     AccountingInvariantError,
     EffectClassification,
@@ -22,12 +22,12 @@ from task_decomposition import (
     allocate_effort,
     classify_effect,
 )
-from task_decomposition.application.staged_pipeline import _run_staged_pipeline
-from task_decomposition.contracts.decomposition import (
+from task_transmorph.application.staged_pipeline import _run_staged_pipeline
+from task_transmorph.contracts.decomposition import (
     TransformationClassification,
     TransformationRow,
 )
-from task_decomposition.errors import ZeroBaselineError
+from task_transmorph.errors import ZeroBaselineError
 
 UNIT = EffortUnit.EFFORT
 PER_OPERATION = TimeBasis.PER_OPERATION

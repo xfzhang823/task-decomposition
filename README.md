@@ -1,6 +1,6 @@
-# Task Decomposition
+# Task Transmorph
 
-`task-decomposition` is a host-neutral Python library for decomposing operational work and evaluating a specified transformation against a reusable baseline.
+`task-transmorph` is a host-neutral Python library for decomposing operational work and evaluating a specified transformation against a reusable baseline.
 
 ## Architecture
 
@@ -26,18 +26,18 @@ Transformation decomposition answers “What happens to that work under the spec
 
 ## Installation
 
-`task-decomposition` supports Python 3.10 and newer. The current package version is `0.1.0`.
+`task-transmorph` supports Python 3.10 and newer. The current package version is `0.1.0`.
 
 Install the release with pip:
 
 ```bash
-python -m pip install task-decomposition==0.1.0
+python -m pip install task-transmorph==0.1.0
 ```
 
 Add the release to a uv project:
 
 ```bash
-uv add task-decomposition==0.1.0
+uv add task-transmorph==0.1.0
 ```
 
 For development from a checkout, install it editable:
@@ -49,15 +49,15 @@ python -m pip install -e .
 Install optional provider integrations when needed:
 
 ```bash
-python -m pip install 'task-decomposition[openai]'
-python -m pip install 'task-decomposition[gemini]'
-python -m pip install 'task-decomposition[deepseek]'
+python -m pip install 'task-transmorph[openai]'
+python -m pip install 'task-transmorph[gemini]'
+python -m pip install 'task-transmorph[deepseek]'
 ```
 
 The `providers` extra installs all supported provider SDKs:
 
 ```bash
-python -m pip install 'task-decomposition[providers]'
+python -m pip install 'task-transmorph[providers]'
 ```
 
 Build the wheel and source distribution from the repository root:
@@ -71,7 +71,7 @@ python -m build
 The deterministic public API requires no provider SDK or paid LLM call:
 
 ```python
-from task_decomposition import TaskDecompositionRequest, TaskReference
+from task_transmorph import TaskDecompositionRequest, TaskReference
 
 request = TaskDecompositionRequest(
     task=TaskReference(
@@ -124,7 +124,7 @@ There is no sibling application-level `account_transformation(...)` operation. T
 
 ## Deterministic accounting
 
-`src/task_decomposition/domain/accounting.py` is the single mathematical authority. For baseline human work `W0`, the model is:
+`src/task_transmorph/domain/accounting.py` is the single mathematical authority. For baseline human work `W0`, the model is:
 
 ```text
 W0 = retained_human_work + gross_removed_work
@@ -142,7 +142,7 @@ Accounting supports normalized mode with `W0 = 1.0` and absolute mode with expli
 
 ## Providers
 
-The provider boundary is split by capability. Behavioral protocols live under `task_decomposition.interfaces`; data schemas live under `task_decomposition.contracts`:
+The provider boundary is split by capability. Behavioral protocols live under `task_transmorph.interfaces`; data schemas live under `task_transmorph.contracts`:
 
 ```text
 TaskDecompositionProvider
@@ -156,7 +156,7 @@ DecompositionProvider
   → composite capability for providers implementing both
 ```
 
-OpenAI, Gemini, and DeepSeek adapters may implement both capabilities while sharing only narrow provider infrastructure. Provider output is untrusted: the application validates it before advancing to the next stage, and providers never calculate authoritative W0, W1, substitution, augmentation, or effect values. Import protocols from `task_decomposition.interfaces`, for example `from task_decomposition.interfaces import DecompositionProvider`.
+OpenAI, Gemini, and DeepSeek adapters may implement both capabilities while sharing only narrow provider infrastructure. Provider output is untrusted: the application validates it before advancing to the next stage, and providers never calculate authoritative W0, W1, substitution, augmentation, or effect values. Import protocols from `task_transmorph.interfaces`, for example `from task_transmorph.interfaces import DecompositionProvider`.
 
 Install the library and add provider-specific dependencies as needed:
 
@@ -179,7 +179,7 @@ For the primary end-to-end use case, [`examples/supplier_invoice_transformation.
 Task decomposition only:
 
 ```python
-from task_decomposition import (
+from task_transmorph import (
     EffortQuantity,
     EffortUnit,
     TaskDecompositionRequest,
@@ -187,7 +187,7 @@ from task_decomposition import (
     TimeBasis,
     decompose_task,
 )
-from task_decomposition.providers.openai import OpenAIDecompositionProvider
+from task_transmorph.providers.openai import OpenAIDecompositionProvider
 
 request = TaskDecompositionRequest(
     task=TaskReference(
@@ -206,7 +206,7 @@ baseline = decompose_task(request, OpenAIDecompositionProvider())
 Transformation decomposition from that existing baseline:
 
 ```python
-from task_decomposition import (
+from task_transmorph import (
     AbsoluteEffortInput,
     EffortQuantity,
     EffortUnit,
@@ -215,7 +215,7 @@ from task_decomposition import (
     TransformationDecompositionRequest,
     decompose_transformation,
 )
-from task_decomposition.providers.openai import OpenAIDecompositionProvider
+from task_transmorph.providers.openai import OpenAIDecompositionProvider
 
 accounting_input = AbsoluteEffortInput(
     baseline_human_effort=EffortQuantity(
@@ -243,7 +243,7 @@ impact = decompose_transformation(
 Full convenience composition:
 
 ```python
-from task_decomposition import (
+from task_transmorph import (
     AbsoluteEffortInput,
     EffortQuantity,
     EffortUnit,
@@ -252,7 +252,7 @@ from task_decomposition import (
     TimeBasis,
     decompose,
 )
-from task_decomposition.providers.openai import OpenAIDecompositionProvider
+from task_transmorph.providers.openai import OpenAIDecompositionProvider
 
 request = TaskDecompositionRequest(
     task=TaskReference(task_name="Review an invoice"),
@@ -315,20 +315,20 @@ Provider tracing is disabled by default. To capture a redacted, machine-readable
 JSONL lifecycle trace for the OpenAI example:
 
 ```bash
-TASK_DECOMPOSITION_TRACE_ENABLED=true \
-TASK_DECOMPOSITION_TRACE_CONSOLE=true \
+TASK_TRANSMORPH_TRACE_ENABLED=true \
+TASK_TRANSMORPH_TRACE_CONSOLE=true \
 python examples/openai_decompose.py \
   --task-name "Review an invoice" \
   --task-description "Validate the invoice and approve or reject it."
 ```
 
 The detailed trace is written to a timestamped file such as
-`logs/llm/task_decomposition_2026-10-09_143012.jsonl`; each
+`logs/llm/task_transmorph_2026-10-09_143012.jsonl`; each
 line is one event linked by the execution-level `correlation_id`. Console output
 is a concise event summary. Tracing includes full prompts and structured responses,
 which may contain sensitive business data. API keys, authorization values, and
 common provider key formats are redacted, but the `logs/` directory must still
-be protected. Set `TASK_DECOMPOSITION_TRACE_DIR` to override the directory;
+be protected. Set `TASK_TRANSMORPH_TRACE_DIR` to override the directory;
 relative overrides resolve from the repository root.
 Each execution keeps its lifecycle in one file; if two executions start in the
 same second, the later file receives a short unique suffix.
@@ -336,7 +336,7 @@ same second, the later file receives a short unique suffix.
 Useful filters include:
 
 ```bash
-TRACE_FILE=$(ls -t logs/llm/task_decomposition_*.jsonl | head -1)
+TRACE_FILE=$(ls -t logs/llm/task_transmorph_*.jsonl | head -1)
 jq -c 'select(.correlation_id == "REQUEST_ID")' "$TRACE_FILE"
 jq -c 'select(.stage == "retain_remove_classification" or .event == "llm.exception")' "$TRACE_FILE"
 ```

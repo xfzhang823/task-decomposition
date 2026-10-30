@@ -1,6 +1,6 @@
 # Added-Work Taxonomy
 
-Status: implemented in `task_decomposition`; the coordinated `AgenticAICompass` migration is pending because that checkout is read-only in this workspace.
+Status: implemented in `task_transmorph`; the coordinated `AgenticAICompass` migration is pending because that checkout is read-only in this workspace.
 
 This change replaces the added-work classification values `GOVERNANCE`, `OPERATIONAL_SUPPORT`, and `LIFECYCLE_SUPPORT` with the execution-level values `AI_INTERACTION` and `AI_VERIFICATION`.
 

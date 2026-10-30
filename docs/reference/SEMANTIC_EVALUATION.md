@@ -1,6 +1,6 @@
 # Semantic evaluation
 
-This is the current reference for semantic evaluation in `task-decomposition`. Historical phase reports remain under `docs/semantic-evaluation/` and are not current API guidance.
+This is the current reference for semantic evaluation in `task-transmorph`. Historical phase reports remain under `docs/semantic-evaluation/` and are not current API guidance.
 
 ## Responsibilities
 
@@ -19,7 +19,7 @@ For OpenAI, `OpenAIProviderConfig.model` controls generation and baseline evalua
 
 ## Rubrics and findings
 
-The current rubric versions are exposed by `task_decomposition.evaluation.rubric`: baseline semantic evaluation uses `SEMANTIC_EVALUATION_RUBRIC_VERSION`, and transformation evaluation uses `TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION`. Findings are structured with criterion, severity, rationale/evidence, and affected references where supplied by the artifact. Provider adapters validate the structured result before application code trusts it.
+The current rubric versions are exposed by `task_transmorph.evaluation.rubric`: baseline semantic evaluation uses `SEMANTIC_EVALUATION_RUBRIC_VERSION`, and transformation evaluation uses `TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION`. Findings are structured with criterion, severity, rationale/evidence, and affected references where supplied by the artifact. Provider adapters validate the structured result before application code trusts it.
 
 Transformation findings must be concrete and evidence-grounded. The evaluator must distinguish reviewing, deciding, authorizing, communicating, and executing; avoid inventing responsibilities outside the parent-output contract; and accept reasonable model-generated occurrence assumptions without requiring empirical measurements. A decision must be consistent with finding severities under the existing `SemanticEvaluation` contract.
 

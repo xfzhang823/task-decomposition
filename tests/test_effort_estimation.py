@@ -3,7 +3,7 @@ from decimal import Decimal
 import pytest
 from test_staged_pipeline import TASK, make_operational
 
-from task_decomposition import (
+from task_transmorph import (
     BaselineSubtaskEffortEstimate,
     EffortQuantity,
     EffortUnit,
@@ -19,7 +19,7 @@ from task_decomposition import (
     decompose_task,
     validate_operational_decomposition,
 )
-from task_decomposition.evaluation.rubric import SEMANTIC_EVALUATION_RUBRIC_VERSION
+from task_transmorph.evaluation.rubric import SEMANTIC_EVALUATION_RUBRIC_VERSION
 
 
 def request(*, baseline=None):

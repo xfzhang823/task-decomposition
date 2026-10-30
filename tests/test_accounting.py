@@ -3,7 +3,7 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from task_decomposition import (
+from task_transmorph import (
     AbsoluteEffortInput,
     EffortQuantity,
     EffortUnit,
@@ -15,8 +15,8 @@ from task_decomposition import (
     account_absolute,
     account_normalized,
 )
-from task_decomposition.contracts.accounting import EffectClassification
-from task_decomposition.errors import (
+from task_transmorph.contracts.accounting import EffectClassification
+from task_transmorph.errors import (
     AccountingInvariantError,
     IncompatibleEffortUnitError,
     RatioBasisError,

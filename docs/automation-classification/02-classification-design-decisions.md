@@ -37,7 +37,7 @@ or silently split the baseline.
 
 ### Established contract
 
-The active `RETAIN_REMOVE_PROMPT` (`src/task_decomposition/providers/prompts.py:46-68`)
+The active `RETAIN_REMOVE_PROMPT` (`src/task_transmorph/providers/prompts.py:46-68`)
 defines the current intended semantics:
 
 - measure technological substitutability using current AI, integrations,
@@ -54,8 +54,8 @@ defines the current intended semantics:
 
 The public classification is an identity-preserving binary enum with no
 partial-automation field or third label
-(`src/task_decomposition/contracts/decomposition.py:12-15`,
-`src/task_decomposition/contracts/stages.py:95-136`).
+(`src/task_transmorph/contracts/decomposition.py:12-15`,
+`src/task_transmorph/contracts/stages.py:95-136`).
 
 ### Proposed Phase 02 decision
 
@@ -85,7 +85,7 @@ with this proposal. Audit 08’s accounting consistency findings do not change
 the classification threshold.
 
 The transformation context is still an untyped `dict[str, str]` and may be
-empty (`src/task_decomposition/contracts/provider.py:39-48`). That is an
+empty (`src/task_transmorph/contracts/provider.py:39-48`). That is an
 evidence limitation, not permission to infer `RETAIN` or impose deployment
 requirements.
 
@@ -97,7 +97,7 @@ A row may combine materially distinct automatable and human-dependent work,
 such as status collection plus exception diagnosis, or schedule optimization
 plus human exception resolution. Current validation checks identity, coverage,
 ordering, and references, not whether a row is a sound unit for a binary
-substitutability judgment (`src/task_decomposition/validation/stages.py:72-117`).
+substitutability judgment (`src/task_transmorph/validation/stages.py:72-117`).
 
 ### Options
 
@@ -121,7 +121,7 @@ partial percentages, a third category, baseline mutation, or free-text parsing
 as an authoritative validator without an explicit contract.
 
 The operational semantic evaluator has repair-oriented and granularity
-findings (`src/task_decomposition/evaluation/contracts.py:11-88`), but it runs
+findings (`src/task_transmorph/evaluation/contracts.py:11-88`), but it runs
 before transformation and does not receive future-state classification
 evidence. It can inform baseline fixtures; it is not sufficient by itself to
 adjudicate transformation-specific mixed responsibility, and must not be used
@@ -135,9 +135,9 @@ to silently regenerate a fixed baseline.
 
 **28 of the 32 failures** return semantic evaluation rubric version `1.0` from test doubles,
 while production requires the canonical `1.1`
-(`src/task_decomposition/evaluation/rubric.py:3`, enforced by
-`src/task_decomposition/application/task_decomposition.py:186-219` and
-`src/task_decomposition/providers/_semantic.py:47-58`). Affected groups are
+(`src/task_transmorph/evaluation/rubric.py:3`, enforced by
+`src/task_transmorph/application/task_decomposition.py:186-219` and
+`src/task_transmorph/providers/_semantic.py:47-58`). Affected groups are
 provider application/parity, effort estimation, operational repair, task /
 transformation boundaries, tracing, and full-application OpenAI/Gemini/DeepSeek
 adapter tests.

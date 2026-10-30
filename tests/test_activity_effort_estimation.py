@@ -9,7 +9,7 @@ from test_staged_pipeline import (
     make_operational,
 )
 
-from task_decomposition import (
+from task_transmorph import (
     ActivityEffortEstimate,
     ActivityEffortEstimation,
     EffortQuantity,
@@ -21,10 +21,10 @@ from task_decomposition import (
     RatioBasis,
     validate_activity_effort_estimation,
 )
-from task_decomposition.application.activity_effort_estimation import (
+from task_transmorph.application.activity_effort_estimation import (
     resolve_activity_support_work,
 )
-from task_decomposition.errors import (
+from task_transmorph.errors import (
     CardinalityError,
     IncompatibleEffortUnitError,
     MissingAccountingInputError,

@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from task_decomposition import (
+from task_transmorph import (
     AbsoluteEffortInput,
     AgenticTask,
     AgenticTaskSynthesis,
@@ -22,7 +22,7 @@ from task_decomposition import (
     TimeBasis,
     TransformationClassification,
 )
-from task_decomposition.application.staged_pipeline import _run_staged_pipeline
+from task_transmorph.application.staged_pipeline import _run_staged_pipeline
 
 TASK = TaskReference(
     task_id="task-1",

@@ -9,13 +9,13 @@ from test_task_transformation_boundaries import (
     transform_request,
 )
 
-from task_decomposition import decompose_task, decompose_transformation
-from task_decomposition.errors import (
+from task_transmorph import decompose_task, decompose_transformation
+from task_transmorph.errors import (
     ProviderAuthenticationError,
     ProviderExecutionError,
     ProviderOutputError,
 )
-from task_decomposition.evaluation import (
+from task_transmorph.evaluation import (
     SEMANTIC_EVALUATION_RUBRIC_VERSION,
     TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION,
     SemanticEvaluation,
@@ -24,21 +24,21 @@ from task_decomposition.evaluation import (
     SemanticFindingSeverity,
     TransformationSemanticEvaluationRequest,
 )
-from task_decomposition.providers.deepseek import (
+from task_transmorph.providers.deepseek import (
     DeepSeekDecompositionProvider,
     DeepSeekProviderConfig,
 )
-from task_decomposition.providers.gemini import (
+from task_transmorph.providers.gemini import (
     GeminiDecompositionProvider,
     GeminiProviderConfig,
 )
-from task_decomposition.providers.openai import (
+from task_transmorph.providers.openai import (
     DEFAULT_OPENAI_MODEL,
     DEFAULT_TRANSFORMATION_EVALUATOR_MODEL,
     OpenAIDecompositionProvider,
     OpenAIProviderConfig,
 )
-from task_decomposition.tracing import TraceLogger
+from task_transmorph.tracing import TraceLogger
 
 
 class FakeResponses:
@@ -283,7 +283,7 @@ def test_openai_model_overrides_are_preserved_for_transformation_evaluation(conf
 
 
 def test_semantic_prompt_requires_concise_actionable_findings():
-    from task_decomposition.providers.prompts import SEMANTIC_EVALUATION_PROMPT
+    from task_transmorph.providers.prompts import SEMANTIC_EVALUATION_PROMPT
 
     assert "short message" in SEMANTIC_EVALUATION_PROMPT
     assert "evidence only when it clarifies" in SEMANTIC_EVALUATION_PROMPT
@@ -371,7 +371,7 @@ def test_evaluator_tracing_has_distinct_stage_and_correlation(tmp_path, provider
     )
     request = evaluation_request()
     provider.evaluate(request)
-    trace_files = sorted(tmp_path.glob("task_decomposition_*.jsonl"))
+    trace_files = sorted(tmp_path.glob("task_transmorph_*.jsonl"))
     assert len(trace_files) == 1
     records = [json.loads(line) for line in trace_files[0].read_text().splitlines()]
     evaluator_records = [

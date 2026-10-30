@@ -1,4 +1,4 @@
-from task_decomposition import account_normalized
+from task_transmorph import account_normalized
 
 
 def test_public_accounting_smoke():

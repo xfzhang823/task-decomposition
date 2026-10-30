@@ -63,10 +63,10 @@ I do not recommend weakening the Pydantic validator, adding a retry for this sem
 
 ## Likely files for a reviewed implementation
 
-- `src/task_decomposition/evaluation/rubric.py` and `src/task_decomposition/providers/prompts.py` for severity/decision calibration.
-- `src/task_decomposition/providers/openai.py` and `src/task_decomposition/tracing.py` for failure-time provider-output observability.
-- `src/task_decomposition/evaluation/contracts.py` only if the reviewed design chooses a different explicit decision model; no schema change is currently required.
-- `src/task_decomposition/application/task_decomposition.py` only for diagnostic handling or terminal-error reporting; the current two-attempt bound is already explicit and bounded.
+- `src/task_transmorph/evaluation/rubric.py` and `src/task_transmorph/providers/prompts.py` for severity/decision calibration.
+- `src/task_transmorph/providers/openai.py` and `src/task_transmorph/tracing.py` for failure-time provider-output observability.
+- `src/task_transmorph/evaluation/contracts.py` only if the reviewed design chooses a different explicit decision model; no schema change is currently required.
+- `src/task_transmorph/application/task_decomposition.py` only for diagnostic handling or terminal-error reporting; the current two-attempt bound is already explicit and bounded.
 
 ## Focused regression tests needed
 
@@ -85,10 +85,10 @@ The exact final blocking finding is unavailable because the SDK raised before th
 
 The investigation corrections were implemented without changing the added-work taxonomy, accounting contracts, W0/W1 formulas, repair budget, or AgenticAICompass.
 
-- `src/task_decomposition/evaluation/rubric.py` now defines operational completeness and executability as the acceptance threshold, explicitly treats wording/specificity/presentation improvements as suggestions, and states the severity precedence: suggestions only produce `accept`, repairable findings without blocking findings produce `repair`, and any blocking finding produces `reject`. The Production Scheduling-specific rubric example was removed to keep the general prompt domain-neutral.
-- `src/task_decomposition/providers/prompts.py` now repeats the concise decision rules at the provider boundary and requires blocking findings to use `reject`.
+- `src/task_transmorph/evaluation/rubric.py` now defines operational completeness and executability as the acceptance threshold, explicitly treats wording/specificity/presentation improvements as suggestions, and states the severity precedence: suggestions only produce `accept`, repairable findings without blocking findings produce `repair`, and any blocking finding produces `reject`. The Production Scheduling-specific rubric example was removed to keep the general prompt domain-neutral.
+- `src/task_transmorph/providers/prompts.py` now repeats the concise decision rules at the provider boundary and requires blocking findings to use `reject`.
 - `examples/openai_decompose.py` now defaults its CLI domain to `production_scheduling`, correcting the source of the earlier `customer_support` context mismatch. No domain inference or automatic correction was added. The example's explicit support inputs were also updated to the active two-category accounting contract.
-- `src/task_decomposition/providers/openai.py` and `src/task_decomposition/tracing.py` now record safe structured-parse diagnostics when available: decision values, finding severities, and allowlisted provider error metadata. Raw request content and credentials are not added, existing redaction remains active, and `ProviderOutputError` behavior is unchanged.
+- `src/task_transmorph/providers/openai.py` and `src/task_transmorph/tracing.py` now record safe structured-parse diagnostics when available: decision values, finding severities, and allowlisted provider error metadata. Raw request content and credentials are not added, existing redaction remains active, and `ProviderOutputError` behavior is unchanged.
 - Regression tests cover prompt calibration, material repair/rejection combinations, mixed blocking/repairable rejection, parse failures with and without provider details, redaction, bounded repairs, and the corrected example context.
 
 Focused verification passed: `102 passed` across evaluation contracts, semantic orchestration/provider tests, OpenAI provider tests, the example-context test, and tracing tests. Formatting, `git diff --check`, and isolated compilation passed. The full suite reached `240 passed, 5 failures, 3 skipped`; the failures are existing unrelated DeepSeek semantic-fixture behavior and live provider/network tests, including DNS connection failures in the restricted environment.

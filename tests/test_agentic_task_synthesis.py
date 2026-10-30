@@ -10,7 +10,7 @@ from test_task_transformation_boundaries import (
     transform_request,
 )
 
-from task_decomposition import (
+from task_transmorph import (
     AgenticTask,
     AgenticTaskSynthesis,
     CardinalityError,
@@ -24,7 +24,7 @@ from task_decomposition import (
     decompose_transformation,
     validate_agentic_task_synthesis,
 )
-from task_decomposition.errors import ProviderContractValidationError
+from task_transmorph.errors import ProviderContractValidationError
 
 
 def classification(*labels):

@@ -6,14 +6,14 @@
 
 Changed files:
 
-- `src/task_decomposition/evaluation/` remains the provider-neutral contract/rubric/protocol package from Prompt 2.
-- `src/task_decomposition/providers/_semantic.py` adds shared evaluator payload serialization and post-provider contract checks.
-- `src/task_decomposition/providers/prompts.py` adds the shared `SEMANTIC_EVALUATION_PROMPT`.
-- `src/task_decomposition/providers/openai.py` adds `evaluate()` using the existing Responses API structured parser.
-- `src/task_decomposition/providers/deepseek.py` adds `evaluate()` using the existing OpenAI-compatible chat-completions JSON path.
-- `src/task_decomposition/providers/gemini.py` adds `evaluate()` using the existing Gemini JSON-schema generation path.
-- `src/task_decomposition/providers/_shared.py` allows provider failure mapping to use the new evaluator stage name without changing existing stage behavior.
-- `src/task_decomposition/tracing.py` allows response and parsed events to carry their explicit stage.
+- `src/task_transmorph/evaluation/` remains the provider-neutral contract/rubric/protocol package from Prompt 2.
+- `src/task_transmorph/providers/_semantic.py` adds shared evaluator payload serialization and post-provider contract checks.
+- `src/task_transmorph/providers/prompts.py` adds the shared `SEMANTIC_EVALUATION_PROMPT`.
+- `src/task_transmorph/providers/openai.py` adds `evaluate()` using the existing Responses API structured parser.
+- `src/task_transmorph/providers/deepseek.py` adds `evaluate()` using the existing OpenAI-compatible chat-completions JSON path.
+- `src/task_transmorph/providers/gemini.py` adds `evaluate()` using the existing Gemini JSON-schema generation path.
+- `src/task_transmorph/providers/_shared.py` allows provider failure mapping to use the new evaluator stage name without changing existing stage behavior.
+- `src/task_transmorph/tracing.py` allows response and parsed events to carry their explicit stage.
 - `tests/test_semantic_evaluator_providers.py` adds deterministic mocked-provider coverage.
 
 Application orchestration now invokes these capabilities after deterministic operational structural validation. Transformation and accounting logic remain unchanged.

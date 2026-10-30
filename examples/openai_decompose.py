@@ -9,14 +9,14 @@ Run the default example with::
 
 Provide a custom task with command-line options::
 
-TASK_DECOMPOSITION_TRACE_ENABLED=true \
-TASK_DECOMPOSITION_TRACE_CONSOLE=true \
+TASK_TRANSMORPH_TRACE_ENABLED=true \
+TASK_TRANSMORPH_TRACE_CONSOLE=true \
 python examples/openai_decompose.py \
   --task-name "Production Scheduling" \
   --task-description "Review production orders, inventory availability, machine capacity, and workforce availability. Develop a feasible production schedule, assign production orders to machines and shifts, resolve scheduling conflicts, and communicate the finalized schedule to production teams."
 
-TASK_DECOMPOSITION_TRACE_ENABLED=true \
-TASK_DECOMPOSITION_TRACE_CONSOLE=true \
+TASK_TRANSMORPH_TRACE_ENABLED=true \
+TASK_TRANSMORPH_TRACE_CONSOLE=true \
 python examples/openai_decompose.py \
   --task-name "Production Scheduling" \
   --task-description "Plan and coordinate manufacturing production to fulfill customer orders within available resources, operational constraints, and delivery deadlines."
@@ -33,7 +33,7 @@ from pathlib import Path
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_REPOSITORY_ROOT / "src"))
 
-from task_decomposition import (
+from task_transmorph import (
     AbsoluteEffortInput,
     EffortQuantity,
     EffortUnit,
@@ -48,20 +48,20 @@ from task_decomposition import (
     decompose_task,
     decompose_transformation,
 )
-from task_decomposition.application._provider_stage import (
+from task_transmorph.application._provider_stage import (
     call_stage,
     provider_id,
     validate_classification_response,
 )
-from task_decomposition.contracts.decomposition import TransformationClassification
-from task_decomposition.contracts.provenance import ProviderStage
-from task_decomposition.contracts.provider import RetainRemoveClassificationRequest
-from task_decomposition.domain import DEFAULT_TOLERANCE
-from task_decomposition.errors import (
+from task_transmorph.contracts.decomposition import TransformationClassification
+from task_transmorph.contracts.provenance import ProviderStage
+from task_transmorph.contracts.provider import RetainRemoveClassificationRequest
+from task_transmorph.domain import DEFAULT_TOLERANCE
+from task_transmorph.errors import (
     MissingAccountingInputError,
     MissingEffortAllocationError,
 )
-from task_decomposition.providers.openai import (
+from task_transmorph.providers.openai import (
     OpenAIDecompositionProvider,
     OpenAIProviderConfig,
 )

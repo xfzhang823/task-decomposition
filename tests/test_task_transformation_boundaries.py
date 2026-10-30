@@ -1,4 +1,4 @@
-from task_decomposition import (
+from task_transmorph import (
     AbsoluteEffortInput,
     ActivityEffortEstimate,
     ActivityEffortEstimation,
@@ -26,12 +26,12 @@ from task_decomposition import (
     TransformationClassification,
     TransformationDecompositionRequest,
 )
-from task_decomposition.evaluation.contracts import (
+from task_transmorph.evaluation.contracts import (
     SemanticEvaluation,
     SemanticEvaluationDecision,
     TransformationSemanticEvaluationRequest,
 )
-from task_decomposition.evaluation.rubric import (
+from task_transmorph.evaluation.rubric import (
     SEMANTIC_EVALUATION_RUBRIC_VERSION,
     TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION,
 )

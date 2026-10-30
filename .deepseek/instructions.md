@@ -33,7 +33,7 @@ DIR: examples
 FILE: main.py
 FILE: pyproject.toml
 DIR: src
-  DIR: task_decomposition
+  DIR: task_transmorph
 DIR: tests
   FILE: test_accounting.py
   FILE: test_deepseek_provider.py

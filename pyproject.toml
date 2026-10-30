@@ -1,7 +1,7 @@
 [project]
-name = "task-decomposition"
+name = "task-transmorph"
 version = "0.1.0"
-description = "Host-neutral operational task decomposition and transformation accounting"
+description = "Task Transmorph: task decomposition, AI transformation decomposition, and human-effort impact estimation"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]

@@ -4,12 +4,12 @@ import sys
 import pytest
 from pydantic import ValidationError
 
-from task_decomposition.contracts import (
+from task_transmorph.contracts import (
     OperationalDecomposition,
     OperationalSubtask,
     TaskReference,
 )
-from task_decomposition.evaluation import (
+from task_transmorph.evaluation import (
     SEMANTIC_EVALUATION_RUBRIC,
     SEMANTIC_EVALUATION_RUBRIC_VERSION,
     SemanticEvaluation,
@@ -21,8 +21,8 @@ from task_decomposition.evaluation import (
     SemanticFindingCode,
     SemanticFindingSeverity,
 )
-from task_decomposition.interfaces import SemanticEvaluator
-from task_decomposition.providers.prompts import (
+from task_transmorph.interfaces import SemanticEvaluator
+from task_transmorph.providers.prompts import (
     ACTIVITY_EFFORT_ESTIMATION_PROMPT,
     AGENTIC_TASK_SYNTHESIS_PROMPT,
     OPERATIONAL_DECOMPOSITION_PROMPT,
@@ -504,7 +504,7 @@ def test_provider_failure_is_not_encoded_as_semantic_rejection():
 
 def test_evaluation_package_imports_without_provider_sdks():
     imported = set(sys.modules)
-    importlib.import_module("task_decomposition.evaluation")
+    importlib.import_module("task_transmorph.evaluation")
     added = set(sys.modules) - imported
     assert not any(
         module_name.startswith(("openai", "google.genai")) for module_name in added

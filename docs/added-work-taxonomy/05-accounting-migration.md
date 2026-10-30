@@ -12,4 +12,4 @@ The `AgenticAICompass` checkout is present but read-only in this workspace. Its 
 
 The required external migration is a breaking contract update: replace those request, response, summary, validation, frontend, and fixture fields with `ai_interaction` and `ai_verification`, then derive labor cost from their summed effort. Historical persisted records containing legacy fields must be rejected or migrated by an explicit data migration owned by AgenticAICompass; no value-to-category mapping is defined here because the old buckets had broader meanings.
 
-No local persistence layer exists, so no database migration was added in `task_decomposition`. Until the external consumer is migrated, its integration boundary is an intentional incompatibility and must not be hidden with aliases.
+No local persistence layer exists, so no database migration was added in `task_transmorph`. Until the external consumer is migrated, its integration boundary is an intentional incompatibility and must not be hidden with aliases.

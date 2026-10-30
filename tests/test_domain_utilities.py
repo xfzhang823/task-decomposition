@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from task_decomposition import (
+from task_transmorph import (
     EffortQuantity,
     EffortUnit,
     TimeBasis,
@@ -11,7 +11,7 @@ from task_decomposition import (
     aggregate_baseline_rows,
     allocate_effort,
 )
-from task_decomposition.errors import AccountingInvariantError
+from task_transmorph.errors import AccountingInvariantError
 
 
 def effort(value):

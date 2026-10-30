@@ -2,19 +2,19 @@
 
 ## Scope and conclusion
 
-The standalone `task_decomposition` code can aggregate classified added-work rows, but the legacy accounting buckets cannot be replaced safely in this pass. The fields are not only an internal mirror of `AI_INTERACTION` and `AI_VERIFICATION`; they are an existing explicit accounting and integration contract with three independently supplied values.
+The standalone `task_transmorph` code can aggregate classified added-work rows, but the legacy accounting buckets cannot be replaced safely in this pass. The fields are not only an internal mirror of `AI_INTERACTION` and `AI_VERIFICATION`; they are an existing explicit accounting and integration contract with three independently supplied values.
 
 Per the task constraint, implementation stops here rather than silently reclassifying those values or adding compatibility aliases.
 
 ## Standalone contracts
 
-`src/task_decomposition/contracts/effort.py` defines `SupportWorkInputs` with `governance`, `operational_support`, and `lifecycle_support`, each carrying its own value, ratio basis, unit, and time basis. `AbsoluteEffortInput` and `NormalizedAccountingInput` expose that object as explicit accounting input.
+`src/task_transmorph/contracts/effort.py` defines `SupportWorkInputs` with `governance`, `operational_support`, and `lifecycle_support`, each carrying its own value, ratio basis, unit, and time basis. `AbsoluteEffortInput` and `NormalizedAccountingInput` expose that object as explicit accounting input.
 
-`src/task_decomposition/contracts/accounting.py` serializes the corresponding derived fields as `governance_work`, `operational_support_work`, and `lifecycle_support_work`. These are public Pydantic fields and are returned in `CanonicalTransformationImpact`.
+`src/task_transmorph/contracts/accounting.py` serializes the corresponding derived fields as `governance_work`, `operational_support_work`, and `lifecycle_support_work`. These are public Pydantic fields and are returned in `CanonicalTransformationImpact`.
 
-`src/task_decomposition/domain/accounting.py` converts all three support inputs independently according to their ratio basis, validates absolute units/time bases for each, and sums them into `added_human_work`. W0/W1 formulas do not depend on the category names, but the three fields are independently observable and independently validated.
+`src/task_transmorph/domain/accounting.py` converts all three support inputs independently according to their ratio basis, validates absolute units/time bases for each, and sums them into `added_human_work`. W0/W1 formulas do not depend on the category names, but the three fields are independently observable and independently validated.
 
-`src/task_decomposition/application/added_work_estimation.py` is the canonical support resolver. It preserves separate `AI_INTERACTION` and `AI_VERIFICATION` support inputs and applies host/estimate/auto precedence before the internal accounting handoff passes concrete inputs to deterministic accounting.
+`src/task_transmorph/application/added_work_estimation.py` is the canonical support resolver. It preserves separate `AI_INTERACTION` and `AI_VERIFICATION` support inputs and applies host/estimate/auto precedence before the internal accounting handoff passes concrete inputs to deterministic accounting.
 
 ## Direct consumers and serialization
 

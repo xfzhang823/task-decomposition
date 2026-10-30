@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from task_decomposition import (
+from task_transmorph import (
     TaskDecomposition,
     TransformationDecompositionResult,
     classify_effect,

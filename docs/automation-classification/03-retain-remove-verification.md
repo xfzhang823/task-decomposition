@@ -10,7 +10,7 @@ This is an audit-only verification of the existing implementation. No production
 
 1. **Measure technological automation potential**
    - Status: Implemented.
-   - Evidence: `RETAIN_REMOVE_PROMPT` directs assessment using current AI, integrations, workflow automation, optimization, conventional automation, and transferable capabilities (`src/task_decomposition/providers/prompts.py:46-60`).
+   - Evidence: `RETAIN_REMOVE_PROMPT` directs assessment using current AI, integrations, workflow automation, optimization, conventional automation, and transferable capabilities (`src/task_transmorph/providers/prompts.py:46-60`).
 
 2. **Do not make deployment or authorization the metric**
    - Status: Implemented.
@@ -22,19 +22,19 @@ This is an audit-only verification of the existing implementation. No production
 
 4. **Keep binary public output**
    - Status: Implemented.
-   - Evidence: `TransformationClassification` has only `RETAIN` and `REMOVE` (`src/task_decomposition/contracts/decomposition.py:12-15`); `ClassifiedSubtask` has no partial percentage or mixed enum (`src/task_decomposition/contracts/stages.py:95-136`).
+   - Evidence: `TransformationClassification` has only `RETAIN` and `REMOVE` (`src/task_transmorph/contracts/decomposition.py:12-15`); `ClassifiedSubtask` has no partial percentage or mixed enum (`src/task_transmorph/contracts/stages.py:95-136`).
 
 5. **Preserve the existing baseline decomposition**
    - Status: Implemented.
-   - Evidence: Transformation orchestration passes the existing operational decomposition to classification, applies existing allocations, and does not regenerate it (`src/task_decomposition/application/transformation_decomposition.py:43-72,96-131`).
+   - Evidence: Transformation orchestration passes the existing operational decomposition to classification, applies existing allocations, and does not regenerate it (`src/task_transmorph/application/transformation_decomposition.py:43-72,96-131`).
 
 6. **Provider parity and structured output**
    - Status: Implemented.
-   - Evidence: OpenAI, Gemini, and DeepSeek adapters invoke the same classification prompt/schema path (`src/task_decomposition/providers/openai.py:360-372`, `src/task_decomposition/providers/gemini.py:191-199`, `src/task_decomposition/providers/deepseek.py:206-214`). Focused provider and parity tests pass.
+   - Evidence: OpenAI, Gemini, and DeepSeek adapters invoke the same classification prompt/schema path (`src/task_transmorph/providers/openai.py:360-372`, `src/task_transmorph/providers/gemini.py:191-199`, `src/task_transmorph/providers/deepseek.py:206-214`). Focused provider and parity tests pass.
 
 7. **Structural classification validation**
    - Status: Implemented.
-   - Evidence: Validation enforces task identity, unique IDs, exact coverage, count, optional order, and model constraints (`src/task_decomposition/validation/stages.py:72-117`).
+   - Evidence: Validation enforces task identity, unique IDs, exact coverage, count, optional order, and model constraints (`src/task_transmorph/validation/stages.py:72-117`).
 
 8. **Semantic adjudication of labels**
    - Status: Not Needed by current ownership.
@@ -42,19 +42,19 @@ This is an audit-only verification of the existing implementation. No production
 
 9. **Mixed-activity identification**
    - Status: Partial.
-   - Evidence: Baseline semantic evaluation supports granularity findings and repair before transformation (`src/task_decomposition/evaluation/contracts.py:35-88`, `src/task_decomposition/application/task_decomposition.py:92-166`), but it has no transformation context and no classification-specific mixed finding. The classification validator does not detect mixed responsibility.
+   - Evidence: Baseline semantic evaluation supports granularity findings and repair before transformation (`src/task_transmorph/evaluation/contracts.py:35-88`, `src/task_transmorph/application/task_decomposition.py:92-166`), but it has no transformation context and no classification-specific mixed finding. The classification validator does not detect mixed responsibility.
 
 10. **Diagnostic rationale/evidence**
     - Status: Implemented for future executions.
-    - Evidence: `ClassifiedSubtask.rationale` is optional (`src/task_decomposition/contracts/stages.py:100-106`), `RETAIN_REMOVE_PROMPT` now requests one concise evidence-based sentence, and tracing captures the parsed response (`src/task_decomposition/tracing.py:165-245`). The historical Production Scheduling trace predates this change and contains no rationale.
+    - Evidence: `ClassifiedSubtask.rationale` is optional (`src/task_transmorph/contracts/stages.py:100-106`), `RETAIN_REMOVE_PROMPT` now requests one concise evidence-based sentence, and tracing captures the parsed response (`src/task_transmorph/tracing.py:165-245`). The historical Production Scheduling trace predates this change and contains no rationale.
 
 11. **Transformation context**
     - Status: Partial.
-    - Evidence: The request carries `transformation_context`, but it is an untyped `dict[str, str]` and may be empty (`src/task_decomposition/contracts/provider.py:39-48`). The prompt correctly avoids treating empty context as RETAIN, but the run is necessarily under-contextualized.
+    - Evidence: The request carries `transformation_context`, but it is an untyped `dict[str, str]` and may be empty (`src/task_transmorph/contracts/provider.py:39-48`). The prompt correctly avoids treating empty context as RETAIN, but the run is necessarily under-contextualized.
 
 12. **Accounting consistency**
     - Status: Implemented for linked allocations; Partial at no-allocation seam.
-    - Evidence: `_validate_effort_handoff` rejects mismatch when complete row effort/ratios are present (`src/task_decomposition/application/staged_pipeline.py:88-186`). If row allocations are absent, it permits explicit accounting without row-level reconciliation. This is the known audit boundary, not a RETAIN/REMOVE formula defect.
+    - Evidence: `_validate_effort_handoff` rejects mismatch when complete row effort/ratios are present (`src/task_transmorph/application/staged_pipeline.py:88-186`). If row allocations are absent, it permits explicit accounting without row-level reconciliation. This is the known audit boundary, not a RETAIN/REMOVE formula defect.
 
 13. **Added-work interaction**
     - Status: Not Needed for this verification.
@@ -76,7 +76,7 @@ TaskDecomposition
   -> deterministic domain accounting
 ```
 
-`stage_payload()` supplies the transformation task, transformation context, and operational decomposition to the RETAIN/REMOVE stage (`src/task_decomposition/providers/_shared.py:55-84`). Added-work receives the prior classification as well. Provider adapters use structured schemas and stage provenance; `_provider_stage.py:26-67` checks stage/provenance before application validation.
+`stage_payload()` supplies the transformation task, transformation context, and operational decomposition to the RETAIN/REMOVE stage (`src/task_transmorph/providers/_shared.py:55-84`). Added-work receives the prior classification as well. Provider adapters use structured schemas and stage provenance; `_provider_stage.py:26-67` checks stage/provenance before application validation.
 
 The implementation therefore already satisfies the core Phase 02 policy. It does not infer classification from accounting, and accounting does not infer classification from the provider response.
 
@@ -94,7 +94,7 @@ The historical trace contains no classification rationale and no final accountin
 
 ## Mixed activities: what is already handled?
 
-The operational prompt asks for distinct human activities and the semantic evaluator’s rubric says granularity should support independent automation assessment. The evaluator can return repairable or blocking granularity findings, and the existing task path can perform bounded operational repair (`src/task_decomposition/application/task_decomposition.py:108-166`). This is useful pre-classification protection against obviously vague or overlapping rows.
+The operational prompt asks for distinct human activities and the semantic evaluator’s rubric says granularity should support independent automation assessment. The evaluator can return repairable or blocking granularity findings, and the existing task path can perform bounded operational repair (`src/task_transmorph/application/task_decomposition.py:108-166`). This is useful pre-classification protection against obviously vague or overlapping rows.
 
 It does not establish that every row is atomic for a particular transformation. For example, “monitor production progress and troubleshoot issues” may contain automated status collection and recurring human exception diagnosis. The current transformation path neither detects that mixture nor silently splits the row. That is an intentional consequence of the fixed-baseline boundary, not a hidden mixed classification.
 
@@ -105,7 +105,7 @@ The smallest justified conclusion is therefore: baseline decomposition and seman
 Diagnostic capture is partly already available:
 
 - the public result can carry optional `rationale` without changing its binary fields;
-- the trace records stage prompts, serialized input, structured schemas, raw provider output, parsed output, validation events, and redacted sensitive values (`src/task_decomposition/tracing.py:68-89,165-245`);
+- the trace records stage prompts, serialized input, structured schemas, raw provider output, parsed output, validation events, and redacted sensitive values (`src/task_transmorph/tracing.py:68-89,165-245`);
 - the named historical trace predates rationale capture and therefore contains no classification rationale.
 
 Thus a new generic tracing system is not justified. Any future mixed-activity diagnostic needs only an approved representation and policy for whether it is advisory, blocking, or routed to review. That is a design decision, not a verified implementation defect.

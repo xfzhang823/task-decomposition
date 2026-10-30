@@ -7,7 +7,7 @@ from test_task_transformation_boundaries import (
     transform_request,
 )
 
-from task_decomposition import (
+from task_transmorph import (
     SemanticEvaluation,
     SemanticEvaluationDecision,
     SemanticFinding,
@@ -19,12 +19,12 @@ from task_decomposition import (
     decompose_task,
     decompose_transformation,
 )
-from task_decomposition.errors import SemanticEvaluatorContractError
-from task_decomposition.evaluation.rubric import (
+from task_transmorph.errors import SemanticEvaluatorContractError
+from task_transmorph.evaluation.rubric import (
     TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC,
     TRANSFORMATION_SEMANTIC_EVALUATION_RUBRIC_VERSION,
 )
-from task_decomposition.providers._semantic import semantic_evaluation_prompt
+from task_transmorph.providers._semantic import semantic_evaluation_prompt
 
 
 class StubTransformationEvaluator:

@@ -1,6 +1,6 @@
 # Canonical Accounting Model
 
-`src/task_decomposition/domain/accounting.py` is the sole deterministic
+`src/task_transmorph/domain/accounting.py` is the sole deterministic
 authority for canonical effort accounting. This document defines the meaning
 of its inputs and outputs. Application orchestration prepares and validates the
 inputs; providers propose semantic facts but do not calculate authoritative

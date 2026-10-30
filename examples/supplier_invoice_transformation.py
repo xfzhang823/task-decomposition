@@ -8,7 +8,7 @@ Run from an installed checkout with::
     python examples/supplier_invoice_transformation.py
 """
 
-from task_decomposition import (
+from task_transmorph import (
     ParentOutputContract,
     TaskDecompositionRequest,
     TaskReference,

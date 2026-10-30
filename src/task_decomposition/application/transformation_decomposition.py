@@ -31,6 +31,9 @@ from task_decomposition.application._provider_stage import (
     validate_classification_response,
     validate_human_activity_response,
 )
+from task_decomposition.application._semantic_evaluation import (
+    execute_semantic_evaluation,
+)
 from task_decomposition.application.activity_effort_estimation import (
     resolve_activity_support_work,
 )
@@ -54,14 +57,10 @@ from task_decomposition.contracts.stages import TransformationDecompositionResul
 from task_decomposition.errors import (
     IncompatibleEffortUnitError,
     MissingAccountingInputError,
-    ProviderError,
-    ProviderExecutionError,
     ProviderOutputError,
-    SemanticEvaluatorContractError,
     SemanticEvaluatorUnavailableError,
 )
 from task_decomposition.evaluation.contracts import (
-    SemanticEvaluation,
     SemanticEvaluationDecision,
     TransformationSemanticEvaluationRequest,
 )
@@ -360,54 +359,39 @@ def _evaluate_transformation(request, result, provider, *, evaluator=None):
         request_id=request.request_id,
         correlation_id=tracer.current_correlation_id(request.request_id),
     )
-    try:
-        raw = (
-            selected.evaluate(evaluation_request)
-            if hasattr(selected, "evaluate")
-            else selected(evaluation_request)
-        )
-    except ProviderError:
-        raise
-    except Exception as exc:
-        tracer.emit(
-            "evaluator.exception",
-            stage="transformation_semantic_evaluation",
-            data={"exception_type": type(exc).__name__, "message": str(exc)},
-        )
-        raise ProviderExecutionError(
-            f"semantic evaluator failed during transformation_semantic_evaluation: {exc}"
-        ) from exc
-    try:
-        evaluation = SemanticEvaluation.model_validate(raw)
-        if evaluation.rubric_version != evaluation_request.rubric_version:
-            raise ValueError("evaluator returned an unexpected rubric version")
-        if any(finding.criterion is None for finding in evaluation.findings):
-            raise ValueError("transformation findings must identify a criterion")
-        if any(
-            not finding.evidence
-            or not finding.evidence.strip()
-            or not finding.affected_references
-            for finding in evaluation.findings
-        ):
-            raise ValueError(
-                "transformation findings must include evidence and affected references"
-            )
-    except Exception as exc:
-        raise SemanticEvaluatorContractError(
-            f"transformation semantic evaluator returned an invalid evaluation: {exc}"
-        ) from exc
-    tracer.validation(
-        phase="evaluation",
+    evaluation = execute_semantic_evaluation(
+        selected,
+        evaluation_request,
+        tracer=tracer,
         stage="transformation_semantic_evaluation",
-        result=evaluation.decision.value,
-        errors=tuple(finding.message for finding in evaluation.findings),
-        response=evaluation,
+        execution_error=(
+            "semantic evaluator failed during transformation_semantic_evaluation"
+        ),
+        contract_error=(
+            "transformation semantic evaluator returned an invalid evaluation"
+        ),
+        validation=_validate_transformation_evaluation,
     )
     if evaluation.decision is not SemanticEvaluationDecision.ACCEPT:
         # This phase is diagnostic-only: findings are exposed, but no repair or
         # output mutation is attempted.
         return evaluation
     return evaluation
+
+
+def _validate_transformation_evaluation(evaluation):
+    """Apply transformation-only evidence and criterion constraints."""
+    if any(finding.criterion is None for finding in evaluation.findings):
+        raise ValueError("transformation findings must identify a criterion")
+    if any(
+        not finding.evidence
+        or not finding.evidence.strip()
+        or not finding.affected_references
+        for finding in evaluation.findings
+    ):
+        raise ValueError(
+            "transformation findings must include evidence and affected references"
+        )
 
 
 def _apply_baseline_allocation(classification, request):

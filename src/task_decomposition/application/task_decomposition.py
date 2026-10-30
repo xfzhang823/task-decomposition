@@ -20,6 +20,9 @@ from task_decomposition.application._provider_stage import (
     provider_id,
     validate_operational_response,
 )
+from task_decomposition.application._semantic_evaluation import (
+    execute_semantic_evaluation,
+)
 from task_decomposition.application.provider_factory import resolve_provider
 from task_decomposition.contracts.effort import EffortQuantity, EffortUnit, TimeBasis
 from task_decomposition.contracts.provenance import ProviderStage
@@ -35,15 +38,11 @@ from task_decomposition.contracts.stages import (
 )
 from task_decomposition.domain.allocation import allocate_effort
 from task_decomposition.errors import (
-    ProviderError,
-    ProviderExecutionError,
     ProviderOutputError,
     ProviderSemanticValidationError,
-    SemanticEvaluatorContractError,
     SemanticEvaluatorUnavailableError,
 )
 from task_decomposition.evaluation.contracts import (
-    SemanticEvaluation,
     SemanticEvaluationDecision,
     SemanticEvaluationRequest,
     SemanticFinding,
@@ -249,47 +248,27 @@ def _evaluate(evaluator, request, operational, *, tracer, attempt=None):
         request_id=request.request_id,
         correlation_id=tracer.current_correlation_id(request.request_id),
     )
-    try:
-        result = (
-            evaluator.evaluate(evaluation_request)
-            if hasattr(evaluator, "evaluate")
-            else evaluator(evaluation_request)
-        )
-    except ProviderError:
-        raise
-    except Exception as exc:
-        tracer.emit(
-            "evaluator.exception",
-            stage="semantic_evaluation",
-            attempt=attempt,
-            data={"exception_type": type(exc).__name__, "message": str(exc)},
-        )
-        raise ProviderExecutionError(
-            f"semantic evaluator failed during semantic_evaluation: {exc}"
-        ) from exc
-    try:
-        result = SemanticEvaluation.model_validate(result)
-        if result.rubric_version != evaluation_request.rubric_version:
-            raise ValueError("evaluator returned an unexpected rubric version")
-        known_ids = {item.subtask_id for item in operational.operational_subtasks}
-        if any(
-            finding.subtask_id is not None and finding.subtask_id not in known_ids
-            for finding in result.findings
-        ):
-            raise ValueError("evaluator returned a finding for an unknown subtask")
-    except Exception as exc:
-        raise SemanticEvaluatorContractError(
-            f"semantic evaluator returned an invalid evaluation: {exc}"
-        ) from exc
-    tracer.validation(
-        phase="evaluation",
+    return execute_semantic_evaluation(
+        evaluator,
+        evaluation_request,
+        tracer=tracer,
         stage="semantic_evaluation",
-        result=result.decision.value,
+        execution_error="semantic evaluator failed during semantic_evaluation",
+        contract_error="semantic evaluator returned an invalid evaluation",
+        validation=lambda result: _validate_baseline_evaluation(result, operational),
+        validation_errors=lambda result: _finding_feedback(result.findings),
         attempt=attempt,
-        errors=_finding_feedback(result.findings),
-        response=result,
     )
-    return result
+
+
+def _validate_baseline_evaluation(result, operational):
+    """Apply baseline-only semantic finding constraints."""
+    known_ids = {item.subtask_id for item in operational.operational_subtasks}
+    if any(
+        finding.subtask_id is not None and finding.subtask_id not in known_ids
+        for finding in result.findings
+    ):
+        raise ValueError("evaluator returned a finding for an unknown subtask")
 
 
 def _finding_feedback(findings: tuple[SemanticFinding, ...]) -> tuple[str, ...]:

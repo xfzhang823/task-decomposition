@@ -136,6 +136,45 @@ def _strict_text_format(schema) -> dict[str, Any]:
 def _provider_text_format(stage, schema) -> Any:
     """Use numeric OpenAI schemas for Decimal fields rejected by the API."""
     text_format = _strict_text_format(schema)
+
+    def replace_decimal_alternatives(value: Any) -> None:
+        """Remove Pydantic's unsupported Decimal string regex alternatives.
+
+        Pydantic may inline a nested model instead of reusing its ``$defs``
+        entry.  Updating only named definitions therefore leaves the same
+        lookaround regex in nested fields such as ``EffortQuantity.value``.
+        The provider-facing schema can safely use the numeric alternative;
+        the canonical Pydantic contract still validates the returned payload.
+        """
+        if isinstance(value, dict):
+            alternatives = value.get("anyOf")
+            if isinstance(alternatives, list):
+                numeric = next(
+                    (
+                        alternative
+                        for alternative in alternatives
+                        if isinstance(alternative, dict)
+                        and alternative.get("type") == "number"
+                    ),
+                    None,
+                )
+                has_decimal_string = any(
+                    isinstance(alternative, dict)
+                    and alternative.get("type") == "string"
+                    and "pattern" in alternative
+                    for alternative in alternatives
+                )
+                if numeric is not None and has_decimal_string:
+                    value.clear()
+                    value.update(numeric)
+                    return
+            for child in value.values():
+                replace_decimal_alternatives(child)
+        elif isinstance(value, list):
+            for child in value:
+                replace_decimal_alternatives(child)
+
+    replace_decimal_alternatives(text_format["schema"])
     definitions = text_format["schema"]["$defs"]
     if stage is ProviderStage.OPERATIONAL_DECOMPOSITION:
         definitions["OperationalSubtask"]["properties"]["relative_effort_weight"] = {
@@ -241,7 +280,9 @@ class OpenAIProviderConfig:  # pylint: disable=too-many-instance-attributes
     api_key: str | None = field(default=None, repr=False)
     organization: str | None = None
     base_url: str | None = None
-    timeout: float | None = None
+    # Avoid leaving notebook and application calls blocked indefinitely when
+    # the provider connection or generation stalls.
+    timeout: float | None = 120.0
     max_output_tokens: int | None = 2000
     stage_output_tokens: Mapping[str | ProviderStage, int] | None = None
 

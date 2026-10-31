@@ -143,7 +143,7 @@ The deterministic contracts, allocation utility, and accounting functions do not
 
 The four public application entry points map to the canonical flow:
 
-- `decompose_task(request, provider, *, evaluator=None, model=None, max_output_tokens=None)` creates a reusable `TaskDecomposition`. It validates provider-generated operational subtasks and normalizes their relative effort weights to `W0 = 1.0` (or materializes compatible absolute allocations when measured baseline effort is supplied).
+- `decompose_task(request, provider, *, evaluator=None, model=None, max_output_tokens=None)` creates a reusable `TaskDecomposition`. It validates provider-generated operational subtasks and complete bottom-up effort estimates, derives relative allocation weights from expected effort per parent output, and normalizes those weights to `W0 = 1.0` (or materializes compatible absolute allocations when a baseline effort is supplied).
 - `estimate_transformation(task_decomposition, provider, *, evaluator=None, transformation_context=None, model=None, max_output_tokens=None, request_id=None)` is the provider-assisted estimation workflow. It consumes the existing baseline, derives normalized RETAIN/REMOVE work from provider classifications, estimates added human support work, and returns deterministic comparative accounting with `W0 = 1.0`; it does not produce host-calibrated absolute effort quantities.
 - `decompose_transformation(request, provider, *, evaluator=None, model=None, max_output_tokens=None)` is the strict transformation operation. Its `TransformationDecompositionRequest` must contain an existing baseline and explicit `AbsoluteEffortInput` or `NormalizedAccountingInput`; it never regenerates the baseline.
 - `decompose(request, provider, *, transformation_context, accounting_input, model=None, max_output_tokens=None)` is convenience composition: it runs `decompose_task()` and then `decompose_transformation()` in one call. It is useful when the host already owns accounting inputs, but it is not the default estimation workflow.
@@ -265,7 +265,7 @@ In normalized estimation, `w0` is `1.0` and the accounting ratio fields are the 
 
 Use `decompose_task()` followed by `estimate_transformation()` when the host has a reusable task baseline but does not have host-supplied accounting inputs. The provider proposes semantic classifications and support-work estimates. The application maps the completed baseline's canonical relative weights onto a 100-unit comparison baseline, normalizes accounting to `W0 = 1.0`, and computes W1 and all ratios deterministically.
 
-This mode is intentionally comparative. A 100-unit baseline is not hours, throughput, staffing demand, or proof of an improvement. Provider-generated `relative_effort_weight` values are the allocation source; the application normalizes them rather than inventing equal-effort or host-weight alternatives.
+This mode is intentionally comparative. A 100-unit baseline is not hours, throughput, staffing demand, or proof of an improvement. Bottom-up expected effort is the allocation source; provider-supplied `relative_effort_weight` values are non-authoritative and do not override the deterministic allocation derived from those products.
 
 ### Host-supplied accounting
 

@@ -1,0 +1,547 @@
+version: 1
+
+invariants:
+  - id: STR-001
+    name: Unique ordered operational subtasks
+    category: structural
+    domain: operational_decomposition
+    description: >-
+      Operational subtask IDs are unique and sequence indexes are exactly
+      1-based and contiguous.
+    status: verified
+    owner:
+      - src/task_transmorph/validation/stages.py
+    enforcement:
+      type: deterministic_validation
+      mechanism: validate_operational_decomposition checks IDs and sequence indexes.
+      tests:
+        - tests/test_task_transformation_boundaries.py
+        - tests/test_effort_estimation.py
+
+  - id: STR-002
+    name: Dependency references are valid and forward-only
+    category: structural
+    domain: operational_decomposition
+    description: >-
+      A subtask cannot depend on itself, duplicate a dependency, reference an
+      unknown subtask, or depend on a later sequence index.
+    status: verified
+    owner:
+      - src/task_transmorph/validation/stages.py
+    enforcement:
+      type: deterministic_validation
+      mechanism: validate_operational_decomposition validates dependency identity and order.
+      tests:
+        - tests/test_task_transformation_boundaries.py
+
+  - id: STR-003
+    name: Classification covers the frozen baseline exactly
+    category: structural
+    domain: transformation_classification
+    description: >-
+      Every operational subtask appears exactly once in RETAIN/REMOVE
+      classification; unknown IDs are rejected and task identity is preserved.
+    status: verified
+    owner:
+      - src/task_transmorph/validation/stages.py
+    enforcement:
+      type: deterministic_validation
+      mechanism: validate_retain_remove_classification checks identity, coverage, and order.
+      tests:
+        - tests/test_task_transformation_boundaries.py
+
+  - id: STR-004
+    name: Removed work has complete agentic coverage
+    category: structural
+    domain: agentic_task_synthesis
+    description: >-
+      Every REMOVE subtask is assigned to exactly one agentic task; retained or
+      unknown subtasks cannot be assigned, and zero REMOVE requires zero agentic tasks.
+    status: verified
+    owner:
+      - src/task_transmorph/validation/stages.py
+    enforcement:
+      type: deterministic_validation
+      mechanism: validate_agentic_task_synthesis checks source identity, uniqueness, and coverage.
+      tests:
+        - tests/test_task_transformation_boundaries.py
+
+  - id: STR-005
+    name: Modeled activity references are valid
+    category: structural
+    domain: human_agent_activity_modeling
+    description: >-
+      Activity IDs are unique, each activity references known agentic tasks,
+      and activities are not allowed when synthesis has no agentic tasks.
+    status: verified
+    owner:
+      - src/task_transmorph/validation/stages.py
+    enforcement:
+      type: deterministic_validation
+      mechanism: validate_human_agent_activity_model checks activity IDs and agentic references.
+      tests:
+        - tests/test_task_transformation_boundaries.py
+
+  - id: STR-006
+    name: Activity effort estimates have complete coverage
+    category: structural
+    domain: activity_effort_estimation
+    description: >-
+      Exactly one activity-effort estimate is required for each modeled activity;
+      unknown, missing, or duplicate activity IDs fail validation.
+    status: verified
+    owner:
+      - src/task_transmorph/validation/stages.py
+    enforcement:
+      type: deterministic_validation
+      mechanism: validate_activity_effort_estimation checks estimate cardinality and identity.
+      tests:
+        - tests/test_activity_effort_estimation.py::test_missing_and_duplicate_estimates_are_rejected
+
+  - id: STR-007
+    name: Complete bottom-up estimate collection
+    category: structural
+    domain: baseline_estimation
+    description: >-
+      Canonical baseline validation requires a non-empty bottom-up estimate for
+      every operational subtask; provider-only relative weights are not a
+      supported canonical baseline input.
+    status: verified
+    owner:
+      - src/task_transmorph/validation/stages.py
+      - src/task_transmorph/contracts/stages.py
+    enforcement:
+      type: deterministic_validation
+      mechanism: validate_operational_decomposition rejects an empty collection and validate_baseline_effort_estimates requires complete unique coverage.
+      tests:
+        - tests/test_effort_estimation.py::test_missing_bottom_up_estimates_are_rejected
+        - tests/test_effort_estimation.py::test_invalid_baseline_coverage_is_rejected
+
+  - id: CMP-001
+    name: Baseline effort product
+    category: computational
+    domain: baseline_estimation
+    description: >-
+      Expected effort per parent output equals expected occurrences per parent
+      output multiplied by active effort per occurrence, after compatible unit normalization.
+    status: verified
+    owner:
+      - src/task_transmorph/validation/stages.py
+      - src/task_transmorph/application/task_decomposition.py
+    enforcement:
+      type: deterministic_validation
+      mechanism: Baseline estimate validation computes and validates the product before allocation.
+      tests:
+        - tests/test_effort_estimation.py::test_inconsistent_provider_product_is_rejected
+        - tests/test_effort_estimation.py::test_bottom_up_estimates_calculate_total_and_derive_relative_weights
+
+  - id: CMP-002
+    name: Activity effort product
+    category: computational
+    domain: activity_effort_estimation
+    description: >-
+      Expected activity effort per parent output equals expected occurrences per
+      parent output multiplied by active effort per occurrence; supplied products
+      are checked and canonicalized.
+    status: verified
+    owner:
+      - src/task_transmorph/validation/stages.py
+      - src/task_transmorph/application/activity_effort_estimation.py
+    enforcement:
+      type: deterministic_validation
+      mechanism: Activity estimate validation recomputes the product and the resolver aggregates the canonical product.
+      tests:
+        - tests/test_activity_effort_estimation.py::test_expected_effort_is_optional_and_canonicalized_by_validation
+        - tests/test_activity_effort_estimation.py::test_product_and_units_are_validated_deterministically
+
+  - id: CMP-003
+    name: One compatible effort basis per product
+    category: computational
+    domain: effort_units
+    description: >-
+      Absolute values use compatible units and time bases; baseline and activity
+      calibration uses PER_OPERATION, and compatible duration units may be converted.
+    status: verified
+    owner:
+      - src/task_transmorph/validation/stages.py
+      - src/task_transmorph/application/activity_effort_estimation.py
+      - src/task_transmorph/domain/accounting.py
+    enforcement:
+      type: deterministic_validation
+      mechanism: Validation and accounting reject incompatible units or time bases and convert compatible durations.
+      tests:
+        - tests/test_activity_effort_estimation.py::test_absolute_unit_boundary_is_rejected
+        - tests/test_accounting.py::test_absolute_unit_mismatch_is_rejected
+
+  - id: CMP-004
+    name: Allocation normalization and reconciliation
+    category: computational
+    domain: baseline_allocation
+    description: >-
+      Weights must be non-negative with a positive total; normalized allocations
+      reconcile to the parent effort within DEFAULT_TOLERANCE.
+    status: verified
+    owner:
+      - src/task_transmorph/domain/allocation.py
+    enforcement:
+      type: deterministic_allocation
+      mechanism: allocate_effort normalizes weights, validates the total, and checks parent reconciliation.
+      tests:
+        - tests/test_domain_utilities.py::test_effort_allocation_is_deterministic_and_balanced
+        - tests/test_domain_utilities.py::test_relative_weight_scale_does_not_change_allocation_proportions
+        - tests/test_mathematical_validation.py::test_allocation_to_accounting_consistency
+
+  - id: CMP-005
+    name: Baseline partition
+    category: computational
+    domain: accounting
+    description: >-
+      W0 equals retained human work plus gross removed work; baseline effort is
+      the original total and is not an additional summand.
+    status: verified
+    owner:
+      - src/task_transmorph/domain/accounting.py
+      - src/task_transmorph/contracts/effort.py
+    enforcement:
+      type: deterministic_accounting
+      mechanism: account_absolute and account_normalized validate the retained/removed baseline partition.
+      tests:
+        - tests/test_accounting.py::test_invalid_balance_is_rejected
+        - tests/test_mathematical_validation.py::test_algebraic_invariants
+
+  - id: CMP-006
+    name: Post-transformation partition
+    category: computational
+    domain: accounting
+    description: >-
+      W1 equals retained human work plus resolved support work; gross removed
+      work is excluded from W1 and added support is not part of the original partition.
+    status: verified
+    owner:
+      - src/task_transmorph/domain/accounting.py
+    enforcement:
+      type: deterministic_accounting
+      mechanism: Canonical accounting computes W1 from retained work and resolved support only.
+      tests:
+        - tests/test_accounting.py::test_reference_absolute_case_has_distinct_gross_and_net_metrics
+        - tests/test_mathematical_validation.py::test_algebraic_invariants
+
+  - id: CMP-007
+    name: Ratio-basis conversion exactly once
+    category: computational
+    domain: accounting
+    description: >-
+      Baseline-ratio, gross-removed-ratio, normalized-contribution, and absolute
+      support inputs convert according to their declared denominator exactly once.
+    status: verified
+    owner:
+      - src/task_transmorph/domain/accounting.py
+    enforcement:
+      type: deterministic_accounting
+      mechanism: Support conversion is centralized in the accounting domain by declared RatioBasis.
+      tests:
+        - tests/test_accounting.py::test_removed_work_ratio_support_is_converted_once
+        - tests/test_accounting.py::test_absolute_support_can_be_supplied_as_ratio_of_baseline
+
+  - id: CMP-008
+    name: Zero and degradation edge semantics
+    category: computational
+    domain: accounting
+    description: >-
+      Absolute accounting requires positive W0; W1 may be zero and then
+      augmentation is undefined as None; ratios are not clamped and may represent degradation.
+    status: verified
+    owner:
+      - src/task_transmorph/domain/accounting.py
+    enforcement:
+      type: deterministic_accounting
+      mechanism: Accounting applies the documented zero-baseline, zero-W1, tolerance, and unclamped ratio rules.
+      tests:
+        - tests/test_accounting.py::test_degradation_is_unclamped
+        - tests/test_accounting.py::test_zero_baseline_is_error_but_zero_net_reports_undefined_multiplier
+        - tests/test_mathematical_validation.py::test_full_removal_reports_undefined_augmentation_multiplier
+
+  - id: CMP-009
+    name: No external parent-volume multiplication
+    category: computational
+    domain: workload_boundary
+    description: >-
+      Per-parent effort products are not multiplied by external claims, tickets,
+      invoices-per-period, or other workload volume inside this package.
+    status: partial
+    owner:
+      - src/task_transmorph/application/activity_effort_estimation.py
+      - src/task_transmorph/contracts/provider.py
+    enforcement:
+      type: architectural_boundary
+      mechanism: Current contracts contain no external workload-volume input; support resolution operates per parent output.
+      tests:
+        - tests/test_activity_effort_estimation.py::test_repeated_activity_is_not_multiplied_by_external_volume
+
+  - id: CMP-010
+    name: Bottom-up allocation precedence
+    category: computational
+    domain: baseline_allocation
+    description: >-
+      For canonical baseline decomposition, expected effort products determine
+      relative allocation weights. Provider-supplied relative_effort_weight values
+      are non-authoritative and cannot override bottom-up-derived weights.
+    status: verified
+    owner:
+      - src/task_transmorph/application/task_decomposition.py
+      - src/task_transmorph/validation/stages.py
+      - src/task_transmorph/domain/allocation.py
+    enforcement:
+      type: deterministic_allocation
+      mechanism: _prepare_operational derives weights from bottom-up products before allocate_effort normalizes them.
+      tests:
+        - tests/test_effort_estimation.py::test_bottom_up_products_override_provider_relative_weights
+        - tests/test_mathematical_validation.py::test_allocation_to_accounting_consistency
+
+  - id: SEM-001
+    name: Common parent-output denominator
+    category: semantic
+    domain: effort_semantics
+    description: >-
+      Baseline and activity effort describe expected active human effort per the
+      same completed parent output and completion boundary.
+    status: partial
+    owner:
+      - src/task_transmorph/contracts/stages.py
+      - src/task_transmorph/providers/prompts.py
+      - src/task_transmorph/evaluation/rubric.py
+    enforcement:
+      type: semantic_evaluation
+      mechanism: Parent-output and effort-boundary guidance is supplied to providers and semantic evaluators; identity is not fully structural.
+      tests:
+        - tests/test_evaluation_contracts.py::test_operational_prompt_defines_parent_output_and_effort_boundaries
+
+  - id: SEM-002
+    name: Conditional and repeated occurrences are expected frequencies
+    category: semantic
+    domain: effort_semantics
+    description: >-
+      Expected occurrences per parent output may be fractional, zero, one, or
+      greater than one; conditional and repeated work is multiplied once.
+    status: partial
+    owner:
+      - src/task_transmorph/contracts/stages.py
+      - src/task_transmorph/providers/prompts.py
+    enforcement:
+      type: deterministic_product_with_semantic_guidance
+      mechanism: Arithmetic multiplies the declared frequency once; interpretation of conditional frequency relies on provider guidance and semantic review.
+      tests:
+        - tests/test_activity_effort_estimation.py::test_expected_occurrences_are_multiplied_once_per_parent_output
+        - tests/test_activity_effort_estimation.py::test_expected_effort_is_optional_and_canonicalized_by_validation
+
+  - id: SEM-003
+    name: Active effort excludes passive or machine work
+    category: semantic
+    domain: effort_semantics
+    description: >-
+      Effort quantities represent active human work within the parent-output
+      boundary; waiting, queue time, autonomous AI execution, and machine processing are excluded.
+    status: partial
+    owner:
+      - src/task_transmorph/contracts/stages.py
+      - src/task_transmorph/providers/prompts.py
+      - src/task_transmorph/evaluation/rubric.py
+    enforcement:
+      type: semantic_evaluation
+      mechanism: Exclusion rules are prompt and rubric guidance, not complete machine-checkable validation.
+      tests:
+        - tests/test_evaluation_contracts.py::test_operational_prompt_defines_parent_output_and_effort_boundaries
+
+  - id: SEM-004
+    name: Supplied facts and model assumptions remain distinguishable
+    category: semantic
+    domain: provenance_and_assumptions
+    description: >-
+      Supplied contracts and estimates, model assumptions, rationales, and
+      provenance are not presented as measured observations when inferred.
+    status: partial
+    owner:
+      - src/task_transmorph/contracts/stages.py
+      - src/task_transmorph/contracts/provenance.py
+      - src/task_transmorph/application/task_decomposition.py
+    enforcement:
+      type: provenance_and_semantic_review
+      mechanism: Source fields, assumptions, rationales, provenance, and evaluator guidance preserve the distinction; no uniform fact type exists.
+      tests:
+        - tests/test_effort_estimation.py::test_supplied_parent_contract_is_preserved
+        - tests/test_transformation_semantic_evaluation.py::test_reasonable_model_generated_occurrence_assumptions_are_not_rejected
+
+  - id: SEM-005
+    name: Parent boundary is preserved across transformation
+    category: semantic
+    domain: transformation_scope
+    description: >-
+      Transformation stages change human work within the existing task boundary
+      and do not silently include downstream roles or later decisions outside it.
+    status: partial
+    owner:
+      - src/task_transmorph/application/transformation_decomposition.py
+      - src/task_transmorph/providers/prompts.py
+      - src/task_transmorph/evaluation/rubric.py
+    enforcement:
+      type: semantic_evaluation
+      mechanism: Scope is protected by prompts and semantic evaluation; structural validation cannot detect every scope leak.
+      tests:
+        - tests/test_evaluation_contracts.py::test_transformation_prompts_preserve_task_scope_and_effort_denominator
+
+  - id: BND-001
+    name: Provider output is untrusted semantic input
+    category: boundary
+    domain: provider_application_boundary
+    description: >-
+      Providers propose operational facts, classifications, and activity
+      estimates; application validation controls identity, cardinality, products, units, and references.
+    status: verified
+    owner:
+      - src/task_transmorph/contracts/provider.py
+      - src/task_transmorph/application/_provider_stage.py
+      - src/task_transmorph/validation/stages.py
+    enforcement:
+      type: deterministic_validation_boundary
+      mechanism: Provider responses pass through typed contract and stage validation before downstream use.
+      tests:
+        - tests/test_import_boundary.py
+        - tests/test_provider_import_isolation.py
+
+  - id: BND-002
+    name: Deterministic accounting owns W0/W1 formulas
+    category: boundary
+    domain: accounting_ownership
+    description: >-
+      W0, W1, ratios, effect, unit checks, and ratio-basis conversion are
+      delegated to domain/accounting.py; providers do not calculate authoritative metrics.
+    status: verified
+    owner:
+      - src/task_transmorph/domain/accounting.py
+      - src/task_transmorph/application/staged_pipeline.py
+    enforcement:
+      type: deterministic_accounting_boundary
+      mechanism: The staged handoff routes typed inputs to account_absolute or account_normalized and returns their canonical result.
+      tests:
+        - tests/test_accounting.py
+        - tests/test_staged_pipeline.py
+
+  - id: BND-003
+    name: Transformation consumes, never regenerates, the baseline
+    category: boundary
+    domain: baseline_reuse
+    description: >-
+      decompose_transformation and estimate_transformation operate on an existing
+      frozen TaskDecomposition and classification references canonical subtask IDs and names.
+    status: verified
+    owner:
+      - src/task_transmorph/application/transformation_decomposition.py
+      - src/task_transmorph/application/normalized_estimation.py
+      - src/task_transmorph/contracts/provider.py
+    enforcement:
+      type: application_boundary
+      mechanism: Transformation requests require an existing TaskDecomposition and stage validation canonicalizes references to it.
+      tests:
+        - tests/test_task_transformation_boundaries.py
+
+  - id: BND-004
+    name: Normalized and absolute modes are explicit
+    category: boundary
+    domain: accounting_modes
+    description: >-
+      Normalized accounting fixes W0 to 1 and exposes ratios; absolute accounting
+      requires compatible EffortQuantity inputs and exposes absolute quantities.
+    status: verified
+    owner:
+      - src/task_transmorph/contracts/accounting.py
+      - src/task_transmorph/domain/accounting.py
+    enforcement:
+      type: deterministic_accounting
+      mechanism: Accounting mode is selected by the explicit input contract and output fields follow that mode.
+      tests:
+        - tests/test_accounting.py::test_normalized_reference_is_semantically_equivalent_to_absolute
+        - tests/test_staged_pipeline.py
+
+  - id: BND-005
+    name: Capacity and workload aggregation remain downstream
+    category: boundary
+    domain: package_ownership
+    description: >-
+      This package does not own external output volume, staffing, calendars,
+      throughput, capacity, scenarios, or simulation.
+    status: verified
+    owner:
+      - src/task_transmorph/contracts/provider.py
+      - src/task_transmorph/application/activity_effort_estimation.py
+    enforcement:
+      type: architectural_boundary
+      mechanism: Current contracts and application services contain no external volume or capacity orchestration.
+      tests:
+        - tests/test_evaluation_contracts.py
+
+  - id: BND-006
+    name: Provider capability requirements are explicit
+    category: boundary
+    domain: provider_capabilities
+    description: >-
+      decompose_task requires TaskDecompositionProvider; strict transformation
+      requires TransformationDecompositionProvider; decompose requires the
+      composite capability; normalized estimation requires transformation capability.
+    status: verified
+    owner:
+      - src/task_transmorph/interfaces/provider.py
+      - src/task_transmorph/application/task_decomposition.py
+      - src/task_transmorph/application/transformation_decomposition.py
+      - src/task_transmorph/application/provider_service.py
+    enforcement:
+      type: capability_validation
+      mechanism: Application entry points perform explicit runtime protocol checks and fail incomplete providers.
+      tests:
+        - tests/test_task_transformation_boundaries.py
+
+  - id: PROP-001
+    name: Explicit parent-output identity on every estimate
+    category: semantic
+    domain: proposed_contract
+    description: >-
+      Every baseline and activity estimate would carry a machine-checked identity
+      shared with the same parent-output contract.
+    status: proposed
+    owner:
+      - src/task_transmorph/contracts/stages.py
+    enforcement:
+      type: proposed_non_authoritative
+      mechanism: Not implemented; current denominator protection is semantic guidance and provenance.
+      tests: []
+
+  - id: PROP-002
+    name: Structured fact-versus-assumption classification
+    category: semantic
+    domain: proposed_contract
+    description: >-
+      Facts, supplied values, model assumptions, and inferred planning estimates
+      would have one uniform machine-readable classification.
+    status: proposed
+    owner:
+      - src/task_transmorph/contracts/provenance.py
+      - src/task_transmorph/contracts/stages.py
+    enforcement:
+      type: proposed_non_authoritative
+      mechanism: Not implemented; current source fields, assumptions, rationales, and provenance are the available evidence.
+      tests: []
+
+  - id: PROP-003
+    name: Explicit external-volume boundary type
+    category: boundary
+    domain: proposed_contract
+    description: >-
+      Downstream integration payloads would explicitly identify external workload
+      volume so it cannot be multiplied into per-parent effort twice.
+    status: proposed
+    owner:
+      - src/task_transmorph/contracts/provider.py
+    enforcement:
+      type: proposed_non_authoritative
+      mechanism: Not implemented; external workload volume remains outside this package.
+      tests: []
+

@@ -27,6 +27,26 @@ deterministic allocation and accounting domains
 
 The application layer remains the authority for stage ordering and validation. Adapters propose semantic facts; they do not calculate `W0`, `W1`, reduction, substitution, augmentation, or effect metrics.
 
+## Provenance and traceability
+
+Provider adapters carry two kinds of provenance metadata:
+
+- `ProviderProvenance` identifies the adapter and stage that produced a response,
+  including the effective provider, model, optional request ID, and references.
+- `ProvenanceRef` is a portable host-owned pointer to supporting context. It has
+  only a `kind` and `value`, for example `{"kind": "ticket", "value": "INC-1042"}`.
+
+Requests may provide `provenance_refs` when the host has source records supporting
+the task or transformation. The adapter forwards those references into each
+`ProviderStageResponse`; the application then propagates relevant references into
+the reusable decomposition and final transformation result. Empty references are
+valid and are the normal default.
+
+These references are metadata, not provider instructions or accounting inputs.
+Adapters do not resolve, fetch, persist, or validate the referenced records, and
+the library does not require a particular host storage system. API keys and other
+secrets must never be placed in provenance references.
+
 ## Modules
 
 ### `openai.py`

@@ -22,13 +22,13 @@ from task_transmorph import (
 from task_transmorph.evaluation.rubric import SEMANTIC_EVALUATION_RUBRIC_VERSION
 
 
-def request(*, baseline=None):
+def request(*, baseline=None, unit=EffortUnit.EFFORT):
     return TaskDecompositionRequest(
         task=TASK,
         baseline_effort=(
             EffortQuantity(
                 value=baseline,
-                unit=EffortUnit.EFFORT,
+                unit=unit,
                 time_basis=TimeBasis.PER_OPERATION,
             )
             if baseline is not None
@@ -80,6 +80,33 @@ def bottom_up_operational(values=("1", "30", "0.5")):
     return operational.model_copy(update={"baseline_effort_estimates": estimates})
 
 
+def occurrence_based_operational(*, conflicting_weights=False):
+    operational = make_operational()
+    estimates = tuple(
+        BaselineSubtaskEffortEstimate(
+            subtask_id=subtask.subtask_id,
+            expected_occurrences_per_parent_output=occurrences,
+            active_effort_per_occurrence=EffortQuantity(
+                value=effort, unit=EffortUnit.MINUTES, time_basis=TimeBasis.PER_OPERATION
+            ),
+            rationale="Planning estimate for one parent output.",
+            assumptions=("Model-generated planning assumption.",),
+        )
+        for subtask, occurrences, effort in zip(
+            operational.operational_subtasks, (1, "0.25", 3), (10, 20, 5)
+        )
+    )
+    updates = {"baseline_effort_estimates": estimates}
+    if conflicting_weights:
+        updates["operational_subtasks"] = tuple(
+            subtask.model_copy(update={"relative_effort_weight": weight})
+            for subtask, weight in zip(
+                operational.operational_subtasks, ("0.90", "0.05", "0.05")
+            )
+        )
+    return operational.model_copy(update=updates)
+
+
 def test_bottom_up_estimates_calculate_total_and_derive_relative_weights():
     result = decompose_task(request(), BaselineProvider(bottom_up_operational()))
 
@@ -92,6 +119,26 @@ def test_bottom_up_estimates_calculate_total_and_derive_relative_weights():
         Decimal("0.5"),
         Decimal("0.25"),
         Decimal("0.25"),
+    ]
+
+
+def test_baseline_occurrences_are_multiplied_once_per_parent_output():
+    result = decompose_task(
+        request(), BaselineProvider(occurrence_based_operational())
+    )
+
+    assert [
+        estimate.expected_effort_per_parent_output.value
+        for estimate in result.baseline_effort_estimation.estimates
+    ] == [Decimal(10), Decimal(5), Decimal(15)]
+    assert (
+        result.baseline_effort_estimation.total_effort_per_parent_output.value
+        == Decimal(30)
+    )
+    assert [row.weight_ratio for row in result.baseline_effort_allocations] == [
+        Decimal(1) / Decimal(3),
+        Decimal(1) / Decimal(6),
+        Decimal(1) / Decimal(2),
     ]
 
 
@@ -115,6 +162,66 @@ def test_zero_bottom_up_effort_does_not_fabricate_weights():
     )
     assert result.baseline_effort_estimation.total_effort_per_parent_output.value == 0
     assert result.baseline_effort_allocations == ()
+
+
+def test_missing_bottom_up_estimates_are_rejected():
+    operational = bottom_up_operational().model_copy(
+        update={"baseline_effort_estimates": ()}
+    )
+
+    with pytest.raises(
+        StageValidationError,
+        match="canonical operational decomposition requires bottom-up baseline effort estimates",
+    ):
+        validate_operational_decomposition(operational)
+
+
+def test_bottom_up_products_override_provider_relative_weights():
+    base = bottom_up_operational()
+    operational = base.model_copy(
+        update={
+            "operational_subtasks": tuple(
+                subtask.model_copy(
+                    update={"relative_effort_weight": weight}
+                )
+                for subtask, weight in zip(
+                    base.operational_subtasks, ("0.90", "0.05", "0.05")
+                )
+            )
+        }
+    )
+
+    result = decompose_task(request(), BaselineProvider(operational))
+
+    assert [row.weight_ratio for row in result.baseline_effort_allocations] == [
+        Decimal("0.5"),
+        Decimal("0.25"),
+        Decimal("0.25"),
+    ]
+
+
+def test_public_absolute_allocation_uses_bottom_up_products():
+    result = decompose_task(
+        request(baseline=120, unit=EffortUnit.MINUTES),
+        BaselineProvider(occurrence_based_operational(conflicting_weights=True)),
+    )
+
+    allocations = result.baseline_effort_allocations
+    assert [row.effort.value for row in allocations] == [
+        Decimal(40),
+        Decimal(20),
+        Decimal(60),
+    ]
+    assert sum(row.effort.value for row in allocations) == Decimal(120)
+    assert [row.weight_ratio for row in allocations] == [
+        Decimal(1) / Decimal(3),
+        Decimal(1) / Decimal(6),
+        Decimal(1) / Decimal(2),
+    ]
+    assert all(row.effort.unit is EffortUnit.MINUTES for row in allocations)
+    assert all(
+        row.effort.time_basis is TimeBasis.PER_OPERATION for row in allocations
+    )
 
 
 def test_invalid_baseline_coverage_is_rejected():

@@ -79,7 +79,10 @@ class OperationalSubtask(BaseModel):
     relative_effort_weight: Decimal | None = Field(
         default=None,
         gt=0,
-        description="Provider-generated share of baseline effort before normalization.",
+        description=(
+            "Provider response field retained for compatibility; canonical "
+            "baseline validation derives the allocation from bottom-up effort estimates."
+        ),
     )
     effort_rationale: str = Field(
         min_length=1,
@@ -101,7 +104,13 @@ class OperationalDecomposition(BaseModel):
     task: TaskReference
     operational_subtasks: tuple[OperationalSubtask, ...] = Field(min_length=1)
     parent_output_contract: ParentOutputContract | None = None
-    baseline_effort_estimates: tuple["BaselineSubtaskEffortEstimate", ...] = ()
+    baseline_effort_estimates: tuple["BaselineSubtaskEffortEstimate", ...] = Field(
+        default=(),
+        description=(
+            "Bottom-up estimates required by canonical baseline validation; "
+            "the empty default remains available for intermediate semantic/evaluation models."
+        ),
+    )
     provenance_refs: tuple[ProvenanceRef, ...] = ()
 
 
@@ -126,7 +135,11 @@ class BaselineSubtaskEffortEstimate(BaseModel):
         description="Active human effort for one execution; excludes waiting and machine work."
     )
     expected_effort_per_parent_output: EffortQuantity | None = Field(
-        default=None, description="Expected occurrences multiplied by active effort."
+        default=None,
+        description=(
+            "Application-calculated expected occurrences multiplied by active "
+            "effort; optional in provider input and canonicalized during validation."
+        ),
     )
     rationale: str = Field(
         min_length=1, description="Provider explanation for the estimate."

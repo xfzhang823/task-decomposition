@@ -298,12 +298,14 @@ def _semantic_failure(
 
 
 def _allocate_baseline(request, operational):
-    """Derive normalized and optional absolute allocations from provider weights.
+    """Derive normalized and optional absolute allocations from validated weights.
 
-    Provider ``relative_effort_weight`` values are the canonical allocation
-    source: they are normalized to ``W0 = 1.0`` here, and a supplied measured
-    baseline simply materializes absolute values alongside them. If any subtask
-    lacks a weight, no allocation is produced.
+    Canonical validation requires bottom-up estimates, and ``_prepare_operational``
+    derives the relative weights from their expected effort products before this
+    helper runs. Provider-supplied ``relative_effort_weight`` values are not
+    authoritative. The derived weights are normalized to ``W0 = 1.0`` here, and
+    a supplied measured baseline simply materializes absolute values alongside
+    them. If any subtask lacks a derived weight, no allocation is produced.
     """
     subtasks = operational.operational_subtasks
     raw_weights = tuple(subtask.relative_effort_weight for subtask in subtasks)

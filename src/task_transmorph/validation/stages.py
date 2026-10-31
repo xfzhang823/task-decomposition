@@ -1,4 +1,11 @@
-"""Cross-stage validation for provider output before canonical accounting."""
+"""Deterministic validation for provider outputs before application accounting.
+
+These validators check structure, identity, coverage, references, effort units,
+and cross-stage relationships. Providers propose semantic content; this module
+does not calculate accounting results or decide whether a transformation is
+beneficial. Validated values are returned in canonical form for the application
+and accounting domains to consume.
+"""
 
 from collections.abc import Iterable
 
@@ -31,6 +38,31 @@ from task_transmorph.errors import (
 def validate_operational_decomposition(
     value: OperationalDecomposition | dict,
 ) -> OperationalDecomposition:
+    """Validate the canonical baseline decomposition.
+
+    The operational decomposition is the reusable baseline for later
+    transformation analysis. This validator requires unique subtasks, contiguous
+    one-based sequence indexes, valid dependency references, and a complete
+    bottom-up baseline estimate for every operational subtask. It also rejects
+    partially supplied provider relative weights. When validation succeeds,
+    baseline estimates are converted and canonicalized by
+    :func:`validate_baseline_effort_estimates`.
+
+    Args:
+        value: An ``OperationalDecomposition`` instance or a dictionary that
+            can be parsed into that contract.
+
+    Returns:
+        The validated decomposition, with canonical bottom-up effort products.
+
+    Raises:
+        StageValidationError: If the model, required estimates, or effort basis
+            is invalid.
+        CardinalityError: If IDs, sequence indexes, or estimate coverage are
+            incomplete or duplicated.
+        StageDependencyError: If dependency ordering is invalid.
+        UnknownReferenceError: If a dependency refers to an unknown subtask.
+    """
     output = _validate_model(value, OperationalDecomposition)
     _require_unique(
         (item.subtask_id for item in output.operational_subtasks),
@@ -85,12 +117,38 @@ def validate_operational_decomposition(
 def validate_baseline_effort_estimates(
     value: OperationalDecomposition,
 ) -> OperationalDecomposition:
-    """Validate and canonicalize optional bottom-up baseline estimates.
+    """Validate and canonicalize bottom-up baseline effort estimates.
 
-    The canonical provider contract requires the collection. When present, it
-    must cover every subtask exactly once. Compatible duration units are
-    converted to the first estimate's unit before deterministic products are
-    used by the application.
+    Each estimate describes one operational subtask relative to one completed
+    parent output. The canonical product is:
+
+    ``expected_occurrences_per_parent_output * active_effort_per_occurrence``.
+
+    Compatible units are converted to the first estimate's unit before the
+    product is calculated. A provider-supplied expected product is optional; if
+    present, it must match the canonical product. The returned model always
+    contains the canonical product.
+
+    The canonical entry point is
+    :func:`validate_operational_decomposition`, which rejects an empty estimate
+    collection before calling this helper. This lower-level helper preserves an
+    empty collection when called directly so intermediate provider/evaluation
+    models can still be inspected.
+
+    Args:
+        value: An operational decomposition whose estimate rows should be
+            checked and normalized.
+
+    Returns:
+        A copy of the decomposition with compatible units and deterministic
+        expected-effort products.
+
+    Raises:
+        CardinalityError: If estimate IDs are duplicated or do not cover every
+            operational subtask.
+        UnknownReferenceError: If an estimate references an unknown subtask.
+        StageValidationError: If the time basis, units, or supplied product is
+            invalid.
     """
     estimates = value.baseline_effort_estimates
     if not estimates:
@@ -152,6 +210,27 @@ def validate_retain_remove_classification(
     operational: OperationalDecomposition,
     value: RetainRemoveClassification | dict,
 ) -> RetainRemoveClassification:
+    """Validate RETAIN/REMOVE labels against the frozen baseline.
+
+    Every operational subtask must be classified exactly once. Classification
+    rows may echo names and sequence indexes, but subtask IDs are authoritative;
+    this function replaces echoed metadata with the corresponding values from
+    ``operational`` so a provider cannot redefine baseline identity or order.
+
+    Args:
+        operational: The already validated operational decomposition.
+        value: A classification contract or dictionary.
+
+    Returns:
+        The validated classification with canonical task, names, and indexes.
+
+    Raises:
+        IdentityMismatchError: If the classification changes task identity or
+            operational order.
+        CardinalityError: If rows are duplicated, missing, or have invalid
+            sequence coverage.
+        UnknownReferenceError: If a row references an unknown subtask.
+    """
     output = _validate_model(value, RetainRemoveClassification)
     _require_task_identity(operational.task, output.task)
     _require_unique(
@@ -223,7 +302,27 @@ def validate_agentic_task_synthesis(
     classification: RetainRemoveClassification,
     value: AgenticTaskSynthesis | dict,
 ) -> AgenticTaskSynthesis:
-    """Validate complete, non-overlapping coverage of removed subtasks."""
+    """Validate agentic-task coverage of the baseline's REMOVE subtasks.
+
+    Each removed subtask must be assigned to exactly one agentic task. Agentic
+    tasks may not reference RETAIN subtasks or unknown subtasks, and their source
+    lists may not contain duplicates. If there are no REMOVE subtasks, the
+    synthesis must contain zero agentic tasks.
+
+    Args:
+        operational: The validated operational baseline.
+        classification: The validated RETAIN/REMOVE classification.
+        value: An agentic synthesis contract or dictionary.
+
+    Returns:
+        The validated synthesis with the canonical operational task identity.
+
+    Raises:
+        CardinalityError: If source coverage is duplicated, incomplete, or
+            inconsistent with the number of removed subtasks.
+        StageValidationError: If a synthesis task references a RETAIN subtask.
+        UnknownReferenceError: If a source subtask is unknown.
+    """
     output = _validate_model(value, AgenticTaskSynthesis)
     _require_task_identity(operational.task, output.task)
     _require_unique(
@@ -276,7 +375,29 @@ def validate_human_agent_activity_model(
     synthesis: AgenticTaskSynthesis,
     value: HumanAgentActivityModel | dict,
 ) -> HumanAgentActivityModel:
-    """Validate activity IDs and references to the completed synthesis."""
+    """Validate human-agent activities and their agentic-task references.
+
+    Every activity ID must be unique, and every referenced agentic task must
+    exist in the completed synthesis. A synthesis with no agentic tasks must
+    produce no human-agent activities. The classification argument is retained
+    for stage-signature consistency; the completed synthesis is authoritative
+    for activity references.
+
+    Args:
+        operational: The validated operational baseline.
+        classification: The validated RETAIN/REMOVE classification.
+        synthesis: The validated agentic-task synthesis.
+        value: A human-agent activity model or dictionary.
+
+    Returns:
+        The validated activity model with the canonical task identity.
+
+    Raises:
+        CardinalityError: If activity IDs or agentic-task references are
+            duplicated, incomplete, or inconsistent with an empty synthesis.
+        UnknownReferenceError: If an activity references an unknown agentic
+            task.
+    """
     del (
         classification
     )  # Reserved for future semantic checks; synthesis is authoritative.
@@ -307,7 +428,33 @@ def validate_activity_effort_estimation(
     activities,
     value: ActivityEffortEstimation | dict,
 ) -> ActivityEffortEstimation:
-    """Validate one deterministic effort estimate for every modeled activity."""
+    """Validate and canonicalize effort estimates for modeled activities.
+
+    Every modeled human-agent activity requires exactly one estimate. Each
+    estimate uses one compatible unit/time basis and follows the same product
+    rule as baseline effort:
+
+    ``expected_occurrences_per_parent_output * active_effort_per_occurrence``.
+
+    A supplied expected product is optional, but if supplied it must match the
+    deterministic product and its unit/time basis. The returned estimates always
+    contain the canonical product and the operational task identity.
+
+    Args:
+        operational: The validated operational baseline.
+        activities: The validated human-agent activity model.
+        value: An activity-effort estimation contract or dictionary.
+
+    Returns:
+        Canonical activity effort estimates suitable for support-work resolution.
+
+    Raises:
+        CardinalityError: If estimates are duplicated, missing, or supplied for
+            an empty/non-empty activity set incorrectly.
+        UnknownReferenceError: If an estimate references an unknown activity.
+        StageValidationError: If units, time bases, or supplied products do not
+            satisfy the deterministic contract.
+    """
     output = _validate_model(value, ActivityEffortEstimation)
     _require_task_identity(operational.task, output.task)
     known = {item.activity_id for item in activities.activities}
@@ -379,7 +526,21 @@ def validate_stage_chain(
     operational: OperationalDecomposition | dict,
     classification: RetainRemoveClassification | dict,
 ) -> tuple[OperationalDecomposition, RetainRemoveClassification]:
-    """Validate all stage contracts and their cross-stage references."""
+    """Validate the baseline and RETAIN/REMOVE stages in dependency order.
+
+    The operational decomposition is validated first. The classification is
+    then checked against that validated baseline, including task identity,
+    subtask coverage, and sequence preservation. This function does not run
+    later transformation stages or perform W0/W1 accounting.
+
+    Args:
+        operational: An operational decomposition or dictionary.
+        classification: A RETAIN/REMOVE classification or dictionary.
+
+    Returns:
+        A tuple containing the canonical operational decomposition and
+        classification.
+    """
     operational_output = validate_operational_decomposition(operational)
     classification_output = validate_retain_remove_classification(
         operational_output, classification
@@ -388,6 +549,7 @@ def validate_stage_chain(
 
 
 def _validate_model(value, model):
+    """Parse a contract value and map Pydantic failures to stage errors."""
     if isinstance(value, model):
         return value
     try:
@@ -397,7 +559,7 @@ def _validate_model(value, model):
 
 
 def _require_task_identity(expected: TaskReference, actual: TaskReference) -> None:
-    """Require the stable task identity while ignoring provider wording echoes."""
+    """Require matching task ID and name while ignoring descriptive echoes."""
     if (expected.task_id, expected.task_name) != (
         actual.task_id,
         actual.task_name,
@@ -408,12 +570,18 @@ def _require_task_identity(expected: TaskReference, actual: TaskReference) -> No
 
 
 def _require_unique(values: Iterable[str], label: str) -> None:
+    """Reject duplicate identifiers in a stage collection."""
     values = tuple(values)
     if len(set(values)) != len(values):
         raise CardinalityError(f"duplicate {label} are not allowed")
 
 
 def _validate_optional_sequence_indexes(rows: Iterable, *, label: str) -> None:
+    """Validate optional sequence indexes when a stage includes them.
+
+    A stage may omit all indexes, but it may not mix indexed and unindexed rows.
+    When present, indexes must be one-based and contiguous.
+    """
     values = tuple(row.sequence_index for row in rows)
     present = tuple(value for value in values if value is not None)
     if present and len(present) != len(values):

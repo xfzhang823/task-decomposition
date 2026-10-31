@@ -25,8 +25,9 @@ TransformationDecompositionResult
 - `src/task_transmorph/domain/accounting.py` owns deterministic accounting mathematics.
 - Providers propose semantic facts; they do not provide authoritative accounting metrics.
 - Transformation decomposition consumes an existing `TaskDecomposition` and must not regenerate it.
-- Provider-generated `relative_effort_weight` values are the canonical allocation source.
-- Normalize those weights to `W0 = 1.0` by calling the deterministic allocation utility; measured `baseline_effort` is optional and only materializes absolute values.
+- Complete bottom-up effort estimates are mandatory for canonical baseline decomposition.
+- Calculate each subtask's expected effort per parent output as `expected_occurrences_per_parent_output × active_effort_per_occurrence`; those products are the canonical allocation source.
+- Normalize the derived weights to `W0 = 1.0` by calling the deterministic allocation utility; measured `baseline_effort` is optional and only materializes absolute values.
 - Do not add host-weight or allocator alternatives, equal-effort fallbacks, or a separate public allocation stage.
 
 ## Accounting semantics
@@ -57,6 +58,12 @@ See [`docs/reference/ACCOUNTING_MODEL.md`](docs/reference/ACCOUNTING_MODEL.md) f
 - Accounting changes require independent known-answer regression tests.
 - Effort changes require allocation-to-accounting handoff tests.
 - Public export changes require checking external consumers, especially AgenticAICompass.
+
+## Invariant registry
+
+- `docs/invariants/registry.yaml` is the canonical invariant index. Before changing decomposition, estimation, validation, or accounting behavior, identify the affected invariant records.
+- Preserve `verified` invariants unless an intentional contract change is explicitly authorized. Keep `partial` invariants described as partially enforced, and treat `proposed` invariants as non-authoritative.
+- Changes affecting an invariant must keep implementation, focused tests, registry metadata, and audit evidence consistent. Run the relevant invariant tests after changes.
 
 ## Verification
 

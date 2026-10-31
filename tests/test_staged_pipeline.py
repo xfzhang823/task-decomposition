@@ -205,3 +205,75 @@ def test_staged_pipeline_preserves_canonical_normalized_accounting():
     )
     assert result.w0 == Decimal(1)
     assert result.w1 == Decimal("0.74")
+
+
+def test_staged_pipeline_preserves_frozen_baseline_partition_with_support_work():
+    operational = make_operational().model_copy(
+        update={
+            "baseline_effort_estimates": tuple(
+                estimate.model_copy(
+                    update={
+                        "active_effort_per_occurrence": EffortQuantity(
+                            value=value, unit=UNIT, time_basis=PER_OPERATION
+                        ),
+                        "expected_effort_per_parent_output": EffortQuantity(
+                            value=value, unit=UNIT, time_basis=PER_OPERATION
+                        ),
+                    }
+                )
+                for estimate, value in zip(
+                    make_operational().baseline_effort_estimates, (40, 20, 60)
+                )
+            )
+        }
+    )
+    classification = RetainRemoveClassification(
+        task=TASK,
+        classified_subtasks=(
+            ClassifiedSubtask(
+                subtask_id="sub-1",
+                classification=TransformationClassification.RETAIN,
+                effort=EffortQuantity(value=40, unit=UNIT, time_basis=PER_OPERATION),
+            ),
+            ClassifiedSubtask(
+                subtask_id="sub-2",
+                classification=TransformationClassification.REMOVE,
+                effort=EffortQuantity(value=20, unit=UNIT, time_basis=PER_OPERATION),
+            ),
+            ClassifiedSubtask(
+                subtask_id="sub-3",
+                classification=TransformationClassification.REMOVE,
+                effort=EffortQuantity(value=60, unit=UNIT, time_basis=PER_OPERATION),
+            ),
+        ),
+    )
+    accounting = AbsoluteEffortInput(
+        baseline_human_effort=EffortQuantity(
+            value=120, unit=UNIT, time_basis=PER_OPERATION
+        ),
+        retained_human_work=EffortQuantity(
+            value=40, unit=UNIT, time_basis=PER_OPERATION
+        ),
+        gross_removed_work=EffortQuantity(
+            value=80, unit=UNIT, time_basis=PER_OPERATION
+        ),
+    )
+
+    result = _run_staged_pipeline(
+        operational,
+        classification,
+        accounting,
+        support_work=SupportWorkInputs(
+            ai_interaction=absolute_amount(15),
+            ai_verification=absolute_amount(0),
+        ),
+    )
+
+    assert result.retained_human_work.value == Decimal(40)
+    assert result.gross_removed_work.value == Decimal(80)
+    assert result.baseline_human_effort.value == Decimal(120)
+    assert result.added_human_work.value == Decimal(15)
+    assert result.net_human_effort.value == Decimal(55)
+    assert result.retained_human_work.value + result.gross_removed_work.value == result.w0
+    assert result.gross_removed_work.value != result.added_human_work.value
+    assert result.w1 == result.retained_human_work.value + result.added_human_work.value

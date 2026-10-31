@@ -121,8 +121,8 @@ def _semantic_parse_diagnostics(exc: BaseException) -> dict[str, Any]:
 
 
 def _strict_text_format(schema) -> dict[str, Any]:
-    """Build the Responses API format using the installed SDK conversion."""
-    # pylint: disable-next=import-outside-toplevel
+    """Build the Responses API format using the optional SDK conversion."""
+    # pylint: disable-next=import-outside-toplevel,import-error
     from openai.lib._pydantic import to_strict_json_schema
 
     return {
@@ -230,8 +230,10 @@ def _response_refusal(response):
     return None
 
 
+# Configuration keeps provider-specific options together for one adapter.
+# pylint: disable-next=too-many-instance-attributes
 @dataclass(frozen=True)
-class OpenAIProviderConfig:
+class OpenAIProviderConfig:  # pylint: disable=too-many-instance-attributes
     """Non-secret OpenAI adapter settings plus optional injected credentials."""
 
     model: str = DEFAULT_OPENAI_MODEL
@@ -449,6 +451,7 @@ class OpenAIDecompositionProvider:
     def model_human_agent_activities(
         self, request: HumanAgentActivityModelingRequest
     ) -> ProviderStageResponse:
+        """Propose human interaction or verification activities for agentic tasks."""
         payload = stage_payload(request)
         request_id, references = request_metadata(request)
         return self._structured_stage(
@@ -463,6 +466,7 @@ class OpenAIDecompositionProvider:
     def estimate_activity_effort(
         self, request: ActivityEffortEstimationRequest
     ) -> ProviderStageResponse:
+        """Estimate active human effort for the modeled activities."""
         payload = stage_payload(request)
         request_id, references = request_metadata(request)
         return self._structured_stage(

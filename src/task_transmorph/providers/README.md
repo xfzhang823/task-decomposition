@@ -36,16 +36,9 @@ Provider adapters carry two kinds of provenance metadata:
 - `ProvenanceRef` is a portable host-owned pointer to supporting context. It has
   only a `kind` and `value`, for example `{"kind": "ticket", "value": "INC-1042"}`.
 
-Requests may provide `provenance_refs` when the host has source records supporting
-the task or transformation. The adapter forwards those references into each
-`ProviderStageResponse`; the application then propagates relevant references into
-the reusable decomposition and final transformation result. Empty references are
-valid and are the normal default.
+Requests may provide `provenance_refs` when the host has source records supporting the task or transformation. The adapter forwards those references into each `ProviderStageResponse`; the application then propagates relevant references into the reusable decomposition and final transformation result. Empty references are valid and are the normal default.
 
-These references are metadata, not provider instructions or accounting inputs.
-Adapters do not resolve, fetch, persist, or validate the referenced records, and
-the library does not require a particular host storage system. API keys and other
-secrets must never be placed in provenance references.
+These references are metadata, not provider instructions or accounting inputs. Adapters do not resolve, fetch, persist, or validate the referenced records, and the library does not require a particular host storage system. API keys and other secrets must never be placed in provenance references.
 
 ## Modules
 

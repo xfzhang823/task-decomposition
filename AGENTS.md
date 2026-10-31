@@ -59,12 +59,61 @@ See [`docs/reference/ACCOUNTING_MODEL.md`](docs/reference/ACCOUNTING_MODEL.md) f
 - Effort changes require allocation-to-accounting handoff tests.
 - Public export changes require checking external consumers, especially AgenticAICompass.
 
-## Invariant registry
+## Invariant-driven development
 
-- `docs/invariants/registry.yaml` is the canonical invariant index. Before changing decomposition, estimation, validation, or accounting behavior, identify the affected invariant records.
-- Preserve `verified` invariants unless an intentional contract change is explicitly authorized. Keep `partial` invariants described as partially enforced, and treat `proposed` invariants as non-authoritative.
-- Changes affecting an invariant must keep implementation, focused tests, registry metadata, and audit evidence consistent. Run the relevant invariant tests after changes.
+`docs/invariants/registry.yaml` is the canonical machine-readable invariant
+index. Before changing decomposition, estimation, validation, or accounting
+behavior:
+
+1. Identify the affected invariant IDs in the registry.
+2. Review each definition, owner, enforcement mechanism, and referenced test.
+3. Check the relevant evidence in [`docs/invariants/AUDIT.md`](docs/invariants/AUDIT.md)
+   and [`docs/invariants/BEHAVIORAL_COVERAGE_AUDIT.md`](docs/invariants/BEHAVIORAL_COVERAGE_AUDIT.md).
+4. Preserve established contracts unless an intentional change is explicitly
+   authorized.
+
+After changing relevant behavior:
+
+1. Run focused regression tests for the affected invariants, then broader tests
+   as appropriate.
+2. Keep implementation, tests, registry metadata, and audit evidence
+   consistent. Update registry metadata when ownership, enforcement, or a
+   contract definition changes; update audit evidence when behavioral coverage
+   changes.
+3. Report the affected invariant IDs and verification results.
+
+`verified` invariants are established by implementation and focused evidence;
+`partial` invariants are not fully machine-enforced; `proposed` invariants are
+non-authoritative. Do not promote proposed invariants into mandatory behavior,
+silently weaken an invariant, or change production formulas merely to satisfy a
+failing test. The registry is descriptive and is not loaded at runtime.
+
+The behavioral coverage audit identifies `CMP-001` (baseline effort product),
+`CMP-005` (W0 baseline partition), and `CMP-010` (bottom-up allocation
+precedence) as important computational contracts with dedicated regression
+coverage.
 
 ## Verification
 
-Run `pytest`, `ruff check src tests`, `ruff format --check src tests`, `python -m compileall -q src`, and `git diff --check`. Keep tests credential-free unless an explicitly opt-in live benchmark is being run.
+When the repository virtual environment is available, use the project
+environment explicitly:
+
+```bash
+.venv/bin/python -m pytest
+.venv/bin/ruff check src tests
+.venv/bin/ruff format --check src tests
+.venv/bin/python -m compileall -q src
+git diff --check
+```
+
+Run the invariant metadata check when registry files change:
+
+```bash
+.venv/bin/python -m pytest tests/test_invariant_registry.py
+```
+
+The pytest, Ruff, or compileall commands may be unavailable in a partial local
+environment, and unrelated pre-existing findings may remain. Report those
+conditions rather than changing dependencies or unrelated files to make the
+checks pass. Keep tests credential-free; live semantic benchmarks are opt-in
+and must not be run as part of ordinary verification.
